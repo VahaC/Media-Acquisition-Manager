@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Library;
@@ -24,23 +25,15 @@ public static class LibrarySyncRunUpdates
 {
     /// <summary>
     /// Marks every run of <paramref name="runs"/> failed at <paramref name="finishedUtc"/> with
-    /// <paramref name="error"/>, cut to fit its column; how many runs it marked.
+    /// <paramref name="error"/>; how many runs it marked.
     /// </summary>
-    public static Task<int> MarkFailedAsync(this IQueryable<LibrarySyncRunEntity> runs, string error, DateTime finishedUtc)
-    {
-        var storedError = Cut(error);
-        return runs.ExecuteUpdateAsync(
+    /// <remarks>MAM-47 (ADR 0042) — stored as key and values, fitted into the column by its converter, so no sentence
+    /// is cut here.</remarks>
+    public static Task<int> MarkFailedAsync(this IQueryable<LibrarySyncRunEntity> runs, Message error, DateTime finishedUtc) =>
+        runs.ExecuteUpdateAsync(
             setters => setters
                 .SetProperty(run => run.Status, LibrarySyncStatus.Failed)
                 .SetProperty(run => run.FinishedUtc, finishedUtc)
-                .SetProperty(run => run.Error, storedError),
+                .SetProperty(run => run.Error, error),
             CancellationToken.None);
-    }
-
-    // A sentence past the column is cut with an ellipsis, so the reader sees it was cut. The column's
-    // own constant, so the cut and the column can't drift apart.
-    private static string Cut(string error) =>
-        error.Length <= LibrarySyncRunEntity.ErrorMaximumLength
-            ? error
-            : string.Concat(error.AsSpan(0, LibrarySyncRunEntity.ErrorMaximumLength - 1), "…");
 }

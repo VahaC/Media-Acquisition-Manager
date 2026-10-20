@@ -1,0 +1,47 @@
+{
+  "dismissal": {
+    "catalog-id-invalid": "“{{value}}” is not a catalog id, which is a number such as 603."
+  },
+  "list": {
+    "tab-switched-off": "This tab is switched off in your profile.",
+    "tab-missing": "Choose a tab: Movies, Series, Cartoons or Documentaries.",
+    "tab-unknown": "“{{value}}” is not a recommendation tab. Use Movies, Series, Cartoons or Documentaries.",
+    "reason-unknown": "“{{value}}” is not a recommendation reason. Use Collection, Director, Creator, Recommended, MissingSeasons, TopRated or NewAtSource.",
+    "availability-invalid": "“{{value}}” is not an availability filter. Use true or false.",
+    "genre-invalid": "“{{value}}” is not a genre id, which is a number such as 18.",
+    "decade-invalid": "“{{value}}” is not a decade. Use its first year, such as 1990.",
+    "sort-unknown": "“{{value}}” is not a sort. Use Score, Rating, Votes, Newest, Oldest, Title or Releases.",
+    "kind-unknown": "“{{value}}” is not a kind of work. Use Movie or Series."
+  },
+  "overview": {
+    "language-invalid": "“{{value}}” is not a language code, which is two letters with a region when wanted, such as en or uk-UA.",
+    "fetch-failed": "The metadata catalog couldn't send this description."
+  },
+  "settings": {
+    "daily-search-limit-invalid": "The daily search limit is a whole number from 0 to 500.",
+    "unreadable-body": "Send the settings as JSON: movies, series, cartoons and documentaries true or false, and dailySearchLimit a whole number from 0 to 500.",
+    "movies-missing": "Say whether the Movies tab is on.",
+    "series-missing": "Say whether the Series tab is on.",
+    "cartoons-missing": "Say whether the Cartoons tab is on.",
+    "documentaries-missing": "Say whether the Documentaries tab is on."
+  },
+  "poster": {
+    "fetch-failed": "The metadata catalog couldn't send this poster."
+  },
+  "run": {
+    "restarted": "The app restarted before these recommendations were computed. The previous ones are kept.",
+    "queue-full": "Too many recommendation runs are waiting. Try again in a minute.",
+    "app-error": "The recommendations stopped computing because of an error in the app. Its log says more.",
+    "catalog-removed": "The metadata catalog was removed while these recommendations were computed. The previous ones are kept."
+  },
+  "mcp": {
+    "list": {
+      "listed_one": "{{count, number}} recommendation on the {{tab}} tab in all; page {{page, number}} lists {{listed, number}}.",
+      "listed_other": "{{count, number}} recommendations on the {{tab}} tab in all; page {{page, number}} lists {{listed, number}}."
+    },
+    "dismiss": {
+      "movie-marked": "Movie {{catalogId}} is marked Not interested and leaves your recommendations; the web app can undo it.",
+      "series-marked": "Series {{catalogId}} is marked Not interested and leaves your recommendations; the web app can undo it."
+    }
+  }
+}

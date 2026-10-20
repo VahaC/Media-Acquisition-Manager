@@ -14,6 +14,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -71,7 +72,10 @@ public sealed class FolderScanRunHttpTests : IClassFixture<MediaAcquisitionManag
     private const string LimitReachedError =
         "The media folders hold more than 200,000 media files or 100,000 folders, or links inside them lead to the same folders many times over, so the scan stopped.";
 
+    private const string ScanLimitReachedError = "The scan reached its limit before it had walked every media folder, so it stopped.";
+
     private const string LinkLeadsOutProblem = "“/media/links/backup” leads out of the media folders, so the app doesn't follow it.";
+    private const string UnscannedPlaceProblem = "The app didn't scan a place in the media folders.";
     private const string UsbUnlistedProblem = "The app may not read “/media/usb”: permission denied.";
     private const string RootMissingProblem = "Nothing is at “/media”.";
     private const string RootEmptyProblem = "“/media” is empty; if it is a mount, it may be away, so the files found in it before are kept.";
@@ -395,7 +399,7 @@ public sealed class FolderScanRunHttpTests : IClassFixture<MediaAcquisitionManag
         var row = Assert.Single(await ScanRowsAsync(cancellationToken));
         Assert.Equal(
             (DuneLinkPath, FileInspectionStatus.OutsideAllowedRoots, DuneOutsideError, now, null),
-            (row.ServicePath, row.InspectionStatus, row.InspectionError, row.InspectedUtc, row.MediaInspectionId));
+            (row.ServicePath, row.InspectionStatus, TestTexts.En(row.InspectionError), row.InspectedUtc, row.MediaInspectionId));
     }
 
     [Fact]
@@ -427,7 +431,7 @@ public sealed class FolderScanRunHttpTests : IClassFixture<MediaAcquisitionManag
         var rows = (await ScanRowsAsync(cancellationToken)).ToDictionary(row => row.ServicePath);
         Assert.Equal(
             (FileInspectionStatus.Unreadable, LockedError, now, null),
-            (rows[LockedPath].InspectionStatus, rows[LockedPath].InspectionError, rows[LockedPath].InspectedUtc, rows[LockedPath].MediaInspectionId));
+            (rows[LockedPath].InspectionStatus, TestTexts.En(rows[LockedPath].InspectionError), rows[LockedPath].InspectedUtc, rows[LockedPath].MediaInspectionId));
         Assert.Equal(FileInspectionStatus.Inspected, rows[InterstellarPath].InspectionStatus);
     }
 
@@ -584,6 +588,53 @@ public sealed class FolderScanRunHttpTests : IClassFixture<MediaAcquisitionManag
     }
 
     [Fact]
+    public async Task Scan_that_reaches_the_walks_limit_with_no_reason_fails_with_the_scans_own_sentence()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(Root);
+        _factory.Files.AddFile(InterstellarPath, TestMedia.File(inode: 102));
+        // MAM-47 — the inventory stops without saying why: the scan's own words stand in.
+        _factory.Files.AddListingProblem("/media/extras", FileListingStatus.LimitReached, error: null);
+        _factory.Files.AddFile(BirthdayPath, TestMedia.File(inode: 103));
+
+        //Act
+        var run = await _factory.ScanFoldersAsync(_owner.AccessToken, cancellationToken);
+
+        //Assert
+        Assert.Equal((FolderScanStatus.Failed, 0, null, ScanLimitReachedError), (run.Status, run.ProblemCount, run.Problem, run.Error));
+        await _factory.WithDbAsync(async db =>
+        {
+            var stored = await db.FolderScanRuns.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.Equal(("files.scan.limit-reached", null), (stored.Error?.Key, stored.Problem));
+        });
+    }
+
+    [Fact]
+    public async Task Scan_of_a_place_it_skipped_with_no_reason_names_it_in_the_scans_own_sentence()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(Root);
+        _factory.Files.AddFile(InterstellarPath, TestMedia.File(inode: 102));
+        // MAM-47 — the inventory skips a link without saying why: the scan's own words stand in.
+        _factory.Files.AddListingProblem(BackupLinkPath, FileListingStatus.Skipped, error: null);
+
+        //Act
+        var run = await _factory.ScanFoldersAsync(_owner.AccessToken, cancellationToken);
+
+        //Assert
+        Assert.Equal(
+            (FolderScanStatus.Succeeded, 1, 1, UnscannedPlaceProblem, null),
+            (run.Status, run.FilesFound, run.ProblemCount, run.Problem, run.Error));
+        await _factory.WithDbAsync(async db =>
+        {
+            var stored = await db.FolderScanRuns.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.Equal(("files.scan.unscanned-place", null), (stored.Problem?.Key, stored.Error));
+        });
+    }
+
+    [Fact]
     public async Task Scan_after_every_media_folder_was_removed_fails_with_the_sentence_and_walks_nothing()
     {
         //Arrange
@@ -699,18 +750,25 @@ public sealed class FolderScanRunHttpTests : IClassFixture<MediaAcquisitionManag
         var sentence = "The app couldn't list “/media/a”:" + string.Concat(Enumerable.Repeat(" The device is not ready.", 60));
         _factory.Files.AddListingProblem("/media/a", FileListingStatus.Unlisted, sentence);
         _factory.Files.AddListingProblem(BackupLinkPath, FileListingStatus.Skipped, LinkLeadsOutProblem);
-        var cut = string.Concat(sentence.AsSpan(0, FolderScanRunEntity.ErrorMaximumLength - 1), "…");
 
         //Act
         var run = await _factory.ScanFoldersAsync(_owner.AccessToken, cancellationToken);
 
         //Assert
         Assert.True(sentence.Length > FolderScanRunEntity.ErrorMaximumLength);
-        Assert.Equal(1_000, cut.Length);
-        // Both counted; the first named, cut where it is stored so the reader sees it was cut.
-        Assert.Equal((FolderScanStatus.Succeeded, 2, cut), (run.Status, run.ProblemCount, run.Problem));
+        // Both counted; the first named. MAM-47 (ADR 0042) — stored as key and values: the column's converter fits the
+        // message into its 1,000 characters by cutting its longest value, which ends with an ellipsis, so the reader
+        // sees it was cut.
+        Assert.Equal((FolderScanStatus.Succeeded, 2), (run.Status, run.ProblemCount));
+        Assert.EndsWith("…", run.Problem, StringComparison.Ordinal);
+        Assert.StartsWith(run.Problem![..^1], sentence, StringComparison.Ordinal);
+        Assert.True(run.Problem.Length < sentence.Length);
         await _factory.WithDbAsync(async db =>
-            Assert.Equal(cut, (await db.FolderScanRuns.AsNoTracking().SingleAsync(cancellationToken)).Problem));
+        {
+            Assert.Equal(run.Problem, TestTexts.En((await db.FolderScanRuns.AsNoTracking().SingleAsync(cancellationToken)).Problem));
+            var stored = await db.Database.SqlQueryRaw<string>("SELECT \"Problem\" AS \"Value\" FROM \"FolderScanRuns\"").SingleAsync(cancellationToken);
+            Assert.True(stored.Length <= FolderScanRunEntity.ErrorMaximumLength, $"{stored.Length} characters stored");
+        });
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

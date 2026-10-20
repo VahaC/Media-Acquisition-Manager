@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -14,7 +15,8 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// <remarks>
 /// <para>
 /// Never cancelled, the <c>DownloadJobUpdates</c> rule: once a state is decided it is written, even while the app shuts
-/// down. The reason is cut to its column with an ellipsis, so the reader sees it was cut.
+/// down. MAM-47 (ADR 0042) — the reason is a message, which the column's converter fits into its 1000 characters by
+/// cutting its longest value with an ellipsis, so the reader sees what was cut.
 /// </para>
 /// <para>
 /// MAM-26 — partial: the mover's writes and the owner's Restore, Delete for good and Retry each keep theirs in a file of
@@ -33,18 +35,15 @@ public static partial class ReplacementJobUpdates
         Guid replacementJobId,
         ReplacementJobState observedState,
         ReplacementJobState state,
-        string? reason,
-        DateTime changedUtc)
-    {
-        var storedReason = Stored(reason);
-        return jobs.Where(job => job.Id == replacementJobId && job.State == observedState)
+        Message? reason,
+        DateTime changedUtc) =>
+        jobs.Where(job => job.Id == replacementJobId && job.State == observedState)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.State, state)
-                    .SetProperty(job => job.Reason, storedReason)
+                    .SetProperty(job => job.Reason, reason)
                     .SetProperty(job => job.StateChangedUtc, changedUtc),
                 CancellationToken.None);
-    }
 
     /// <summary>
     /// Cancels the replacement <paramref name="replacementJobId"/> at <paramref name="changedUtc"/> with
@@ -52,17 +51,14 @@ public static partial class ReplacementJobUpdates
     /// it has by then — the cancel of its download wins over a pass that moved it meanwhile, as that cancel itself does —;
     /// how many it wrote (0 or 1).
     /// </summary>
-    public static Task<int> CancelAsync(this IQueryable<ReplacementJobEntity> jobs, Guid replacementJobId, string reason, DateTime changedUtc)
-    {
-        var storedReason = Stored(reason);
-        return jobs.Where(job => job.Id == replacementJobId && EF.Constant(ReplacementJobStates.Followed).Contains(job.State))
+    public static Task<int> CancelAsync(this IQueryable<ReplacementJobEntity> jobs, Guid replacementJobId, Message reason, DateTime changedUtc) =>
+        jobs.Where(job => job.Id == replacementJobId && EF.Constant(ReplacementJobStates.Followed).Contains(job.State))
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.State, ReplacementJobState.Cancelled)
-                    .SetProperty(job => job.Reason, storedReason)
+                    .SetProperty(job => job.Reason, reason)
                     .SetProperty(job => job.StateChangedUtc, changedUtc),
                 CancellationToken.None);
-    }
 
     /// <summary>
     /// MAM-25 — starts the check of the replacement <paramref name="replacementJobId"/>'s new files while it is still
@@ -76,7 +72,7 @@ public static partial class ReplacementJobUpdates
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.State, ReplacementJobState.Inspecting)
-                    .SetProperty(job => job.Reason, (string?)null)
+                    .SetProperty(job => job.Reason, (Message?)null)
                     .SetProperty(job => job.StateChangedUtc, startedUtc)
                     .SetProperty(job => job.InspectionStartedUtc, startedUtc)
                     .SetProperty(job => job.LibraryAskedUtc, (DateTime?)null),
@@ -102,9 +98,4 @@ public static partial class ReplacementJobUpdates
     public static Task<int> RecordLibraryAskedAsync(this IQueryable<ReplacementJobEntity> jobs, Guid replacementJobId, DateTime askedUtc) =>
         jobs.Where(job => job.Id == replacementJobId && job.State == ReplacementJobState.Inspecting && job.LibraryAskedUtc == null)
             .ExecuteUpdateAsync(setters => setters.SetProperty(job => job.LibraryAskedUtc, askedUtc), CancellationToken.None);
-
-    private static string? Stored(string? reason) =>
-        reason is null || reason.Length <= ReplacementJobEntity.ReasonMaximumLength
-            ? reason
-            : string.Concat(reason.AsSpan(0, ReplacementJobEntity.ReasonMaximumLength - 1), "…");
 }

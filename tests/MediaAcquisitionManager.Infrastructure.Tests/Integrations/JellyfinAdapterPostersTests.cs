@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -353,7 +354,7 @@ public sealed class JellyfinAdapterPostersTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotAJpegError, result.Error);
+        Assert.Equal(NotAJpegError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -368,7 +369,7 @@ public sealed class JellyfinAdapterPostersTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotAJpegError, result.Error);
+        Assert.Equal(NotAJpegError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -384,7 +385,7 @@ public sealed class JellyfinAdapterPostersTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal(NoPosterError, result.Error);
+        Assert.Equal(NoPosterError, TestTexts.En(result.Error));
         Assert.Single(_harness.JellyfinHttp.Requests);
     }
 
@@ -402,7 +403,7 @@ public sealed class JellyfinAdapterPostersTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal(NoPosterError, result.Error);
+        Assert.Equal(NoPosterError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -416,7 +417,7 @@ public sealed class JellyfinAdapterPostersTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal(NoPosterError, result.Error);
+        Assert.Equal(NoPosterError, TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -432,7 +433,7 @@ public sealed class JellyfinAdapterPostersTests : IDisposable
         var result = await Library.GetPosterAsync(Settings, JellyfinSamples.YellowstoneId, JellyfinSamples.YellowstonePosterTag, TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal((IntegrationCallStatus.AuthenticationFailed, expected), (result.Status, result.Error));
+        Assert.Equal((IntegrationCallStatus.AuthenticationFailed, expected), (result.Status, TestTexts.En(result.Error)));
     }
 
     [Fact]
@@ -446,7 +447,7 @@ public sealed class JellyfinAdapterPostersTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
-        Assert.Equal("Jellyfin answered 500 Internal Server Error. Its own log says why.", result.Error);
+        Assert.Equal("Jellyfin answered 500 Internal Server Error. Its own log says why.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -462,8 +463,8 @@ public sealed class JellyfinAdapterPostersTests : IDisposable
         // The handler doesn't follow it, so the key went nowhere else; the sentence names where it pointed, masked.
         Assert.Single(_harness.JellyfinHttp.Requests);
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.StartsWith("The address answered with a redirect to http://elsewhere.test/", result.Error, StringComparison.Ordinal);
-        Assert.DoesNotContain(ApiKey, result.Error, StringComparison.Ordinal);
+        Assert.StartsWith("The address answered with a redirect to http://elsewhere.test/", TestTexts.En(result.Error), StringComparison.Ordinal);
+        Assert.DoesNotContain(ApiKey, TestTexts.En(result.Error), StringComparison.Ordinal);
     }
 
     [Theory]
@@ -482,7 +483,7 @@ public sealed class JellyfinAdapterPostersTests : IDisposable
 
         //Assert
         // The address the owner saved, which is where the poster was asked for; never the exception's text.
-        Assert.Equal((expectedStatus, expectedMessage), (result.Status, result.Error));
+        Assert.Equal((expectedStatus, expectedMessage), (result.Status, TestTexts.En(result.Error)));
     }
 
     [Fact]
@@ -498,7 +499,7 @@ public sealed class JellyfinAdapterPostersTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("Jellyfin at http://jellyfin.test:8096 didn't answer within 15 seconds.", result.Error);
+        Assert.Equal("Jellyfin at http://jellyfin.test:8096 didn't answer within 15 seconds.", TestTexts.En(result.Error));
     }
 
     [Fact]

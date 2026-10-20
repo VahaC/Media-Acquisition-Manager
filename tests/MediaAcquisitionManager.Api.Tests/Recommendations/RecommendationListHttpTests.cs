@@ -4,6 +4,7 @@ using System.Text.Json;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
@@ -22,7 +23,7 @@ namespace MediaAcquisitionManager.Api.Tests.Recommendations;
 public sealed class RecommendationListHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/recommendations";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private ICatalogWorkSeeder _works = null!;
@@ -394,7 +395,7 @@ public sealed class RecommendationListHttpTests : IClassFixture<MediaAcquisition
         var owner = await new UserSeeder(_factory.Scope).CreateOwner("owner");
         var at = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-5);
         var run = await new RecommendationRunSeeder(_factory.Scope).Create(
-            RecommendationRunStatus.Failed, requestedBy: owner, createdUtc: at, error: "TMDb refused the key (401 Unauthorized).");
+            RecommendationRunStatus.Failed, requestedBy: owner, createdUtc: at, error: Message.Of("tmdb.key-refused"));
 
         //Act
         var response = await _factory.GetHttpRequest($"{BaseUrl}?tab=Movies", _anna.AccessToken);

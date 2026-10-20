@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -96,7 +97,7 @@ public sealed class LocalFileInventoryPieceHashTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.ChangedWhileReading, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal($"“{path}” changed while the app was reading some of its pieces, so they can't be said to belong to either version.", result.Error);
+        Assert.Equal($"“{path}” changed while the app was reading some of its pieces, so they can't be said to belong to either version.", TestTexts.En(result.Error));
     }
 
     [Fact]

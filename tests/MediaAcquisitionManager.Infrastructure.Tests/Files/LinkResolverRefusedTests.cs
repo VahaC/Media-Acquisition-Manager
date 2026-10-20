@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -36,7 +37,7 @@ public sealed class LinkResolverRefusedTests : IDisposable
         Assert.True(refused);
         Assert.Equal(
             (FileInventoryStatus.Unreadable, null, $"“{path}” leads through more than 40 links, likely a loop, so the app doesn't follow them."),
-            (result.Status, result.Value, result.Error));
+            (result.Status, result.Value, TestTexts.En(result.Error)));
     }
 
     [Fact]
@@ -53,7 +54,7 @@ public sealed class LinkResolverRefusedTests : IDisposable
 
         //Assert
         Assert.False(refused);
-        Assert.Equal((FileInventoryStatus.NotFound, null, $"There is no file at “{path}”."), (result.Status, result.Value, result.Error));
+        Assert.Equal((FileInventoryStatus.NotFound, null, $"There is no file at “{path}”."), (result.Status, result.Value, TestTexts.En(result.Error)));
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Options;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
@@ -56,7 +57,7 @@ public sealed class LibraryPersistenceTests : DatabaseTestBase
         var library = await Integrations(db).Create("Jellyfin", "jellyfin", IntegrationKind.MediaLibrary, apiKey: "0123456789abcdef");
         var runs = Runs(db);
         await runs.Create(library.Id, library.Name, LibrarySyncStatus.Succeeded);
-        await runs.Create(library.Id, library.Name, LibrarySyncStatus.Failed, error: "Jellyfin refused the API key.");
+        await runs.Create(library.Id, library.Name, LibrarySyncStatus.Failed, error: Message.Of("jellyfin.key-refused"));
         await runs.Create(library.Id, library.Name, LibrarySyncStatus.Succeeded);
 
         //Act
@@ -137,7 +138,7 @@ public sealed class LibraryPersistenceTests : DatabaseTestBase
         await using var db = CreateContext();
         var library = await Integrations(db).Create("Jellyfin", "jellyfin", IntegrationKind.MediaLibrary, apiKey: "0123456789abcdef");
         var user = await new UserDataFactory(db, new Pbkdf2PasswordHasher(1_000), TimeProvider.System).Create("vasyl", "P@ssword1");
-        await Runs(db).Create(library.Id, library.Name, LibrarySyncStatus.Failed, user.Id, user.UserName, error: "Jellyfin refused the API key.");
+        await Runs(db).Create(library.Id, library.Name, LibrarySyncStatus.Failed, user.Id, user.UserName, error: Message.Of("jellyfin.key-refused"));
 
         //Act
         await db.Users.Where(x => x.Id == user.Id).ExecuteDeleteAsync(cancellationToken);

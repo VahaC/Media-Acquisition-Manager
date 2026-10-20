@@ -1,9 +1,11 @@
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Downloads;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,6 +27,10 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// <para>
 /// Information: a replacement's id, its states and counts, never a path, a title or a sentence.
 /// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — every refusal is a message the controller renders in the request's language, and the job's page
+/// (<c>.Details.cs</c>) renders the stored reasons and problems with its <c>texts</c>.
+/// </para>
 /// </remarks>
 public sealed partial class ReplacementJobActions(
     ApplicationDbContext db,
@@ -35,29 +41,28 @@ public sealed partial class ReplacementJobActions(
     IReplacementLibraryNotice notice,
     IDownloadService downloads,
     IAuditTrail auditTrail,
+    IRequestTexts texts,
     TimeProvider time,
     ILogger<ReplacementJobActions> logger) : IReplacementJobActions
 {
     /// <summary>What a Delete for good body MVC can't read gets (<c>UnreadableBodyErrorAttribute</c>): what it must
     /// be.</summary>
-    public const string UnreadableBodyError = "The body must be JSON with the files you confirmed, such as { \"names\": [\"<id>\"] }.";
+    public const string UnreadableBodyError = "replacements.delete-for-good.unreadable-body";
 
     // MAM-26 — a Retry of a job that isn't waiting for review. MAM-27 — no longer "after a move": a stop of the check of
     // the new files is retried too.
-    private const string NothingToRetryError = "This replacement isn't waiting for review, so there's nothing to retry here.";
+    private static readonly Message NothingToRetryError = Message.Of("replacements.retry.not-waiting");
 
     // MAM-27 — a review the download's following stopped before any check started (qBittorrent's downloads couldn't be
     // told apart, say), or one whose download is no longer done and checked: there is no new file the app could check
     // again. Keep both, or Cancel job, ends it.
-    private const string DownloadNotFollowedRetryError =
-        "The app can't follow this replacement's download, so its new file can't be checked again: keep both copies, or cancel the job.";
+    private static readonly Message DownloadNotFollowedRetryError = Message.Of("replacements.retry.download-not-followed");
 
     // MAM-26 — someone in this process — the mover, or another click of the owner's — is writing for the job right now.
-    private const string BeingWorkedOnError = "This replacement is being worked on right now. Try again in a moment.";
+    private static readonly Message BeingWorkedOnError = Message.Of("replacements.job.busy");
 
     // MAM-26 — the job left the state the request claimed it in, between the claim and a later write: never written over.
-    private const string ChangedMeanwhileError =
-        "This replacement changed while the app was working on it, so it stopped. Reload the page to see where it stands.";
+    private static readonly Message ChangedMeanwhileError = Message.Of("replacements.job.changed-meanwhile");
 
     public async Task<ReplacementActionResult> RetryAsync(Guid replacementJobId, Guid callerUserId, CancellationToken cancellationToken = default)
     {
@@ -119,7 +124,7 @@ public sealed partial class ReplacementJobActions(
     /// can't be followed — or, for a stop of the check, is no longer done and checked, which the verifier never reads —;
     /// or an undropped copy has a problem only a drop settles, the first by its place named.
     /// </summary>
-    private async Task<string?> RetryRefusalAsync(ReplacementJobEntity replacement, ReplacementStop? stop, CancellationToken cancellationToken)
+    private async Task<Message?> RetryRefusalAsync(ReplacementJobEntity replacement, ReplacementStop? stop, CancellationToken cancellationToken)
     {
         if (stop is null)
             return NothingToRetryError;
@@ -146,8 +151,8 @@ public sealed partial class ReplacementJobActions(
 
     // MAM-27 — an undropped copy whose problem no fix in the library or the client can change: a new check would only stop
     // on it again, so dropping it, or keeping both, is the way on.
-    private static string DropOnlyError(string appPath) =>
-        $"{ReplacementText.Quote(ReplacementText.FileNameOf(appPath))} can only be dropped from this replacement, or both copies kept: checking again wouldn't change it.";
+    private static Message DropOnlyError(string appPath) =>
+        Message.Of("replacements.retry.drop-only", ("file", MessageText.Clean(ReplacementText.FileNameOf(appPath))));
 
     // ── reads ───────────────────────────────────────────────────────────────────────────────────
 

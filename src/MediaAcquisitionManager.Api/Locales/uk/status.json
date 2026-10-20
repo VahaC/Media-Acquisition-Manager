@@ -1,0 +1,18 @@
+{
+  "summary": {
+    "owner-read-and-download": "Ви дієте від імені користувача {{user}} (власника) через токен «{{token}}» з доступом «Читання й завантаження» у застосунку MAM {{version}}; {{sources, message}}, {{failing, message}}.",
+    "owner-read-only": "Ви дієте від імені користувача {{user}} (власника) через токен «{{token}}» з доступом «Лише читання» у застосунку MAM {{version}}; {{sources, message}}, {{failing, message}}.",
+    "member-read-and-download": "Ви дієте від імені користувача {{user}} (учасника) через токен «{{token}}» з доступом «Читання й завантаження» у застосунку MAM {{version}}; {{sources, message}}, {{failing, message}}.",
+    "member-read-only": "Ви дієте від імені користувача {{user}} (учасника) через токен «{{token}}» з доступом «Лише читання» у застосунку MAM {{version}}; {{sources, message}}, {{failing, message}}."
+  },
+  "tally": {
+    "library-sources_one": "{{count, number}} джерело медіатеки",
+    "library-sources_few": "{{count, number}} джерела медіатеки",
+    "library-sources_many": "{{count, number}} джерел медіатеки",
+    "library-sources_other": "{{count, number}} джерела медіатеки",
+    "release-sources-failing_one": "{{count, number}} джерело релізів із помилкою",
+    "release-sources-failing_few": "{{count, number}} джерела релізів із помилкою",
+    "release-sources-failing_many": "{{count, number}} джерел релізів із помилкою",
+    "release-sources-failing_other": "{{count, number}} джерела релізів із помилкою"
+  }
+}

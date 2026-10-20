@@ -3,7 +3,9 @@ using System.Security.Claims;
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Duplicates;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -14,10 +16,12 @@ namespace MediaAcquisitionManager.Api.Mcp.Tools;
 /// <remarks>
 /// The service's list as <c>GET /api/library/duplicates</c> gives it, owner-only sentences shaped for the caller by the
 /// service. The filters go to it by name, as the query string carries them, so a value is checked by the same rules and
-/// refused with the same sentence. Built per call by the SDK, with the request's services.
+/// refused with the same sentence. Built per call by the SDK, with the request's services. MAM-47 (ADR 0042) — the
+/// summary and the refusal in the request's language (<c>texts</c>); the tool's own descriptions stay English, as an AI
+/// reads them.
 /// </remarks>
 [McpServerToolType]
-public sealed class DuplicateTools(ILibraryDuplicateService duplicates, McpToolResults results)
+public sealed class DuplicateTools(ILibraryDuplicateService duplicates, McpToolResults results, IRequestTexts texts)
 {
     [McpServerTool(
         Name = "list_duplicates",
@@ -56,10 +60,12 @@ public sealed class DuplicateTools(ILibraryDuplicateService duplicates, McpToolR
         var result = await duplicates.ListAsync(
             duplicateClass?.ToString(), decision?.ToString(), sort?.ToString(), page, pageSize, user.GetUserId(), cancellationToken);
         if (result.Status != LibraryDuplicateListStatus.Listed)
-            return McpToolResults.Error(result.Error!);
+            return McpToolResults.Error(texts.Render(result.Error!));
 
         var list = result.List!;
-        var groups = list.TotalCount == 1 ? "1 duplicate group" : $"{list.TotalCount} duplicate groups";
-        return results.Success($"{groups} in all; page {list.Page} lists {list.Items.Count}.", list);
+        return results.Success(
+            texts.Render(Message.Of(
+                "duplicates.mcp.list.listed", ("count", list.TotalCount), ("page", list.Page), ("listed", list.Items.Count))),
+            list);
     }
 }

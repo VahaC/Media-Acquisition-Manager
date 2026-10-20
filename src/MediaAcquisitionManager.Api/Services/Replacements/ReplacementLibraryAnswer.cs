@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Library;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -9,12 +10,12 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// <param name="Readings">What it holds at each path asked, in their order; empty unless a read was
 /// <see cref="ReplacementCheckStatus.Pass"/>.</param>
 /// <param name="Reason">
-/// Why not, one readable sentence with the call's secrets masked, worded as the reason the job stops with — at once for
+/// Why not, as a message with the call's secrets masked (MAM-47), worded as the reason the job stops with — at once for
 /// <see cref="ReplacementCheckStatus.Review"/>, once the wait ran out for <see cref="ReplacementCheckStatus.Wait"/>;
-/// <c>null</c> for <see cref="ReplacementCheckStatus.Pass"/>.
+/// <c>null</c> for <see cref="ReplacementCheckStatus.Pass"/> and for a notice, which only its status speaks for.
 /// </param>
 public sealed record ReplacementLibraryAnswer(
     ReplacementCheckStatus Status,
     string LibraryName,
     IReadOnlyList<LibraryFileReading> Readings,
-    string? Reason);
+    Message? Reason);

@@ -3,12 +3,14 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -28,6 +30,11 @@ public sealed class FileInspectionWorkerHttpTests : IClassFixture<MediaAcquisiti
     private const string MediaRoot = "/media";
     private const string AppErrorMessage = "The inspection stopped because of an error in the app. Its log says more.";
     private const string RestartedError = "The app restarted before this inspection finished. What it had read is kept.";
+
+    /// <summary>MAM-47 — the worker's and the reconciler's reasons as they store them: key and values (ADR 0042).</summary>
+    private static readonly Message AppError = Message.Of("files.inspection.app-error");
+
+    private static readonly Message Restarted = Message.Of("files.inspection.restarted");
     private const string ContinentalPath = "/media/movies/The Continental (2023)/The Continental S01E01.mkv";
     private const string TakenPath = "/media/movies/Taken (2008)/Taken (2008) BDRemux.mkv";
 
@@ -139,7 +146,7 @@ public sealed class FileInspectionWorkerHttpTests : IClassFixture<MediaAcquisiti
         await _factory.WithDbAsync(async db =>
         {
             var failed = await db.FileInspectionRuns.AsNoTracking().SingleAsync(run => run.Id == brokenRunId, cancellationToken);
-            Assert.Equal((FileInspectionRunStatus.Failed, AppErrorMessage, now), (failed.Status, failed.Error, failed.FinishedUtc));
+            Assert.Equal((FileInspectionRunStatus.Failed, AppErrorMessage, now), (failed.Status, TestTexts.En(failed.Error), failed.FinishedUtc));
             // The next run in the queue still went, and read the file the broken one couldn't.
             var next = await db.FileInspectionRuns.AsNoTracking().SingleAsync(run => run.Id == nextRunId, cancellationToken);
             Assert.Equal((FileInspectionRunStatus.Succeeded, 1, 1), (next.Status, next.FilesChecked, next.FilesProbed));
@@ -179,7 +186,7 @@ public sealed class FileInspectionWorkerHttpTests : IClassFixture<MediaAcquisiti
         await _factory.WithDbAsync(async db =>
         {
             var failed = await db.FileInspectionRuns.AsNoTracking().SingleAsync(run => run.Id == dead.Id, cancellationToken);
-            Assert.Equal((FileInspectionRunStatus.Failed, AppErrorMessage, now), (failed.Status, failed.Error, failed.FinishedUtc));
+            Assert.Equal((FileInspectionRunStatus.Failed, AppErrorMessage, now), (failed.Status, TestTexts.En(failed.Error), failed.FinishedUtc));
             var run = await db.FileInspectionRuns.AsNoTracking().SingleAsync(run => run.Id == runId, cancellationToken);
             Assert.Equal((FileInspectionRunStatus.Succeeded, 1, 1), (run.Status, run.FilesChecked, run.FilesProbed));
         });
@@ -287,7 +294,7 @@ public sealed class FileInspectionWorkerHttpTests : IClassFixture<MediaAcquisiti
         _factory.Files.AddFile(ContinentalPath, TestMedia.File(inode: 101), TestMedia.Continental());
         var at = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-5);
         var error = status == FileInspectionRunStatus.Failed ? RestartedError : null;
-        var settled = await _runs.Create(status, requestedBy: _owner.User, createdUtc: at, error: error, filesTotal: 1, filesChecked: 1);
+        var settled = await _runs.Create(status, requestedBy: _owner.User, createdUtc: at, error: error is null ? null : Restarted, filesTotal: 1, filesChecked: 1);
         // Its id still waits in the queue: taken by another pass, or settled before the worker reached it.
         _factory.Resolve<FileInspectionQueue>().TryEnqueue(settled.Id);
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
@@ -302,7 +309,7 @@ public sealed class FileInspectionWorkerHttpTests : IClassFixture<MediaAcquisiti
         await _factory.WithDbAsync(async db =>
         {
             var run = await db.FileInspectionRuns.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal((status, at, error, 1), (run.Status, run.StartedUtc, run.Error, run.FilesChecked));
+            Assert.Equal((status, at, error, 1), (run.Status, run.StartedUtc, TestTexts.En(run.Error), run.FilesChecked));
             Assert.Equal(settled.FinishedUtc, run.FinishedUtc);
             Assert.Null((await db.PhysicalFiles.AsNoTracking().SingleAsync(cancellationToken)).InspectionStatus);
         });
@@ -316,7 +323,7 @@ public sealed class FileInspectionWorkerHttpTests : IClassFixture<MediaAcquisiti
         await _roots.Allow(MediaRoot);
         var earlier = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-10);
         var succeeded = await _runs.Create(FileInspectionRunStatus.Succeeded, FileInspectionTrigger.LibrarySynced, createdUtc: earlier, filesTotal: 4, filesChecked: 4, filesProbed: 4);
-        var failed = await _runs.Create(FileInspectionRunStatus.Failed, requestedBy: _owner.User, createdUtc: earlier.AddMinutes(1), error: AppErrorMessage);
+        var failed = await _runs.Create(FileInspectionRunStatus.Failed, requestedBy: _owner.User, createdUtc: earlier.AddMinutes(1), error: AppError);
         var running = await _runs.Create(FileInspectionRunStatus.Running, FileInspectionTrigger.AppStarted, createdUtc: earlier.AddMinutes(2), filesTotal: 4, filesChecked: 2, filesProbed: 1);
         var now = _factory.Time.GetUtcNow().UtcDateTime;
 
@@ -332,10 +339,10 @@ public sealed class FileInspectionWorkerHttpTests : IClassFixture<MediaAcquisiti
             // Died with the process: failed, its progress kept as the record of how far it got.
             Assert.Equal(
                 (FileInspectionRunStatus.Failed, RestartedError, now, 2, 1),
-                (rows[running.Id].Status, rows[running.Id].Error, rows[running.Id].FinishedUtc, rows[running.Id].FilesChecked, rows[running.Id].FilesProbed));
+                (rows[running.Id].Status, TestTexts.En(rows[running.Id].Error), rows[running.Id].FinishedUtc, rows[running.Id].FilesChecked, rows[running.Id].FilesProbed));
             // Finished runs are history: their outcome stays as it was.
             Assert.Equal((FileInspectionRunStatus.Succeeded, null, succeeded.FinishedUtc), (rows[succeeded.Id].Status, rows[succeeded.Id].Error, rows[succeeded.Id].FinishedUtc));
-            Assert.Equal((FileInspectionRunStatus.Failed, AppErrorMessage, failed.FinishedUtc), (rows[failed.Id].Status, rows[failed.Id].Error, rows[failed.Id].FinishedUtc));
+            Assert.Equal((FileInspectionRunStatus.Failed, AppErrorMessage, failed.FinishedUtc), (rows[failed.Id].Status, TestTexts.En(rows[failed.Id].Error), rows[failed.Id].FinishedUtc));
             Assert.Equal(
                 (FileInspectionTrigger.AppStarted, FileInspectionRunStatus.Queued, null, now),
                 (rows[startRunId].Trigger, rows[startRunId].Status, rows[startRunId].RequestedByUserId, rows[startRunId].CreatedUtc));

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
 
@@ -14,7 +15,7 @@ public sealed record CopyRemovalJudge(ReplacementGateState Gate, CopyRemovalHold
 {
     /// <summary>Why <paramref name="file"/> of a group of <paramref name="groupClass"/> about <paramref name="groupWorkIds"/>,
     /// whose files are <paramref name="members"/>, can't be removed by what is stored; <c>null</c> when it may.</summary>
-    public string? ReasonOf(
+    public Message? ReasonOf(
         DuplicateClass groupClass, IReadOnlyCollection<Guid> groupWorkIds, CopyRemovalCandidate file, IReadOnlyList<CopyRemovalCandidate> members) =>
         CopyRemovalRules.ReasonOf(groupClass, groupWorkIds, file, members, Gate, Holds);
 }

@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -28,7 +29,7 @@ namespace MediaAcquisitionManager.TestInfrastructure.Data;
 /// <param name="EpisodeNumberEnd">The last episode the file covers.</param>
 /// <param name="ReadUtc">When the check last read the library's item.</param>
 /// <param name="MediaWorkId">The matched work it was identified as.</param>
-/// <param name="Problem">Why it stopped the job.</param>
+/// <param name="Problem">Why it stopped the job, as the message the app stores (MAM-47).</param>
 /// <param name="Identifiers">The registry ids the library gave it, an episode's series' ones marked so.</param>
 public sealed record ReplacementNewFileFacts(
     string RelativePath,
@@ -49,5 +50,5 @@ public sealed record ReplacementNewFileFacts(
     int? EpisodeNumberEnd = null,
     DateTime? ReadUtc = null,
     Guid? MediaWorkId = null,
-    string? Problem = null,
+    Message? Problem = null,
     IReadOnlyList<(MediaIdentifierScheme Scheme, string Value, bool OfSeries)>? Identifiers = null);

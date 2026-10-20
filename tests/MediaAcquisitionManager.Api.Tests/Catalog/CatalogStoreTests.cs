@@ -7,6 +7,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -228,8 +229,8 @@ public sealed class CatalogStoreTests : IClassFixture<MediaAcquisitionManagerApi
 
         //Assert
         Assert.False(result.IsSuccess);
-        Assert.StartsWith("TMDb", result.Error, StringComparison.Ordinal);
-        Assert.DoesNotContain(FakeTmdbServer.Token, result.Error, StringComparison.Ordinal);
+        Assert.StartsWith("TMDb", TestTexts.En(result.Error), StringComparison.Ordinal);
+        Assert.DoesNotContain(FakeTmdbServer.Token, TestTexts.En(result.Error), StringComparison.Ordinal);
         await _factory.WithDbAsync(async db => Assert.Equal(0, await db.CatalogWorks.CountAsync(cancellationToken)));
     }
 

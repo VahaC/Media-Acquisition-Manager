@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -138,7 +139,7 @@ public sealed class TransmissionAdapterJobsWithFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(error, result.Error);
+        Assert.Equal(error, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -159,7 +160,7 @@ public sealed class TransmissionAdapterJobsWithFilesTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "Transmission's list of every torrent with its files is larger than the app reads (4 MiB), so the app couldn't tell which torrents hold these copies.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Theory]

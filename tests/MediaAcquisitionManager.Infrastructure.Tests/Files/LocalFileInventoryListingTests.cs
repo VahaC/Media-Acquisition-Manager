@@ -1,7 +1,10 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
+using Listed = (MediaAcquisitionManager.Core.Abstractions.Files.FileListingStatus Status, string AppPath, string? ResolvedPath, string? Error);
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -519,7 +522,7 @@ public sealed class LocalFileInventoryListingTests : IDisposable
         var sentence = FileInventoryMessages.LimitReached(maximumEntries, maximumFolders);
 
         //Assert
-        Assert.Equal(string.Format(LimitReachedError, "200,000", "100,000"), sentence);
+        Assert.Equal(string.Format(LimitReachedError, "200,000", "100,000"), TestTexts.En(sentence));
     }
 
     [Fact]
@@ -535,9 +538,9 @@ public sealed class LocalFileInventoryListingTests : IDisposable
         var mount = Path.Combine(_media, "Film", "mount");
 
         //Act
-        var entries = new List<FileListingEntry>();
+        var entries = new List<Listed>();
         await foreach (var entry in FolderWalker.WalkAsync([root!], reader, FolderWalker.MaximumFolders, FolderWalker.MaximumEntries, TestContext.Current.CancellationToken))
-            entries.Add(entry);
+            entries.Add(InEnglish(entry));
 
         //Assert
         Assert.Equal(
@@ -564,9 +567,9 @@ public sealed class LocalFileInventoryListingTests : IDisposable
         NormalizedPath.TryParse(_media, out var root, out _);
 
         //Act
-        var entries = new List<FileListingEntry>();
+        var entries = new List<Listed>();
         await foreach (var entry in FolderWalker.WalkAsync([root!], reader, FolderWalker.MaximumFolders, FolderWalker.MaximumEntries, TestContext.Current.CancellationToken))
-            entries.Add(entry);
+            entries.Add(InEnglish(entry));
 
         //Assert
         // Nothing of what is at b's path now ("now-at-b.mkv"), and nothing under the opened folder's own path.
@@ -662,7 +665,7 @@ public sealed class LocalFileInventoryListingTests : IDisposable
         using var cancellation = new CancellationTokenSource();
         await using var walk = _inventory.ListMediaFilesAsync([_media], cancellation.Token).GetAsyncEnumerator(cancellation.Token);
         await walk.MoveNextAsync();
-        var first = walk.Current;
+        var first = InEnglish(walk.Current);
         await cancellation.CancelAsync();
 
         //Act
@@ -675,29 +678,29 @@ public sealed class LocalFileInventoryListingTests : IDisposable
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
-    private Task<List<FileListingEntry>> ListAsync(params string[] roots) => ListAsync(_inventory, roots);
+    private Task<List<Listed>> ListAsync(params string[] roots) => ListAsync(_inventory, roots);
 
-    private static async Task<List<FileListingEntry>> ListAsync(LocalFileInventory inventory, params string[] roots)
+    private static async Task<List<Listed>> ListAsync(LocalFileInventory inventory, params string[] roots)
     {
-        var entries = new List<FileListingEntry>();
+        var entries = new List<Listed>();
         await foreach (var entry in inventory.ListMediaFilesAsync(roots, TestContext.Current.CancellationToken))
-            entries.Add(entry);
+            entries.Add(InEnglish(entry));
         return entries;
     }
 
     /// <summary>A media file name reached by its own path: where it is, is where its name says.</summary>
-    private static FileListingEntry Media(string folder, params string[] names)
+    private static Listed Media(string folder, params string[] names)
     {
         var path = Path.Combine([folder, .. names]);
         return MediaFile(path, path);
     }
 
     /// <summary>A media file name reached through a link, or given with where it is.</summary>
-    private static FileListingEntry MediaFile(string appPath, string resolvedPath) =>
-        new(FileListingStatus.MediaFile, Canonical(appPath), Canonical(resolvedPath), null);
+    private static Listed MediaFile(string appPath, string resolvedPath) =>
+        (FileListingStatus.MediaFile, Canonical(appPath), Canonical(resolvedPath), null);
 
-    private static FileListingEntry Problem(FileListingStatus status, string appPath, string error) =>
-        new(status, Canonical(appPath), null, error);
+    private static Listed Problem(FileListingStatus status, string appPath, string error) =>
+        (status, Canonical(appPath), null, error);
 
     /// <summary>The path in the form the walk gives it (the drive letter in capitals on Windows).</summary>
     private static string Canonical(string path) =>
@@ -753,4 +756,8 @@ public sealed class LocalFileInventoryListingTests : IDisposable
         {
         }
     }
+
+    /// <summary>MAM-47 — an entry with its message in English: a refusal of the walk compares by the words a reader
+    /// sees.</summary>
+    private static Listed InEnglish(FileListingEntry entry) => (entry.Status, entry.AppPath, entry.ResolvedPath, TestTexts.En(entry.Error));
 }

@@ -1,6 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
-using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -16,17 +16,18 @@ internal static class ReplacementNewFileCheck
     /// Why the new file of <paramref name="row"/> is no longer the file its check read, looked at inside
     /// <paramref name="roots"/> through <paramref name="files"/> — gone, unreadable, or another identity, size or
     /// modification time —; <c>null</c> when it still is. Only the cheap look at its identity: the media inspector read it
-    /// already. The sentence is the verifier's; the mover words its own stop.
+    /// already. The sentence is the verifier's — MAM-47: a message, the disk's own when it gave one —; the mover words its
+    /// own stop.
     /// </summary>
-    public static async Task<string?> ChangedAsync(
+    public static async Task<Message?> ChangedAsync(
         IFileInventory files, ReplacementJobNewFileEntity row, IReadOnlyList<string> roots, CancellationToken cancellationToken)
     {
-        var path = ReplacementText.Quote(row.AppPath);
+        var path = MessageText.Clean(row.AppPath);
         var described = await files.DescribeAsync(row.AppPath!, roots, cancellationToken);
         if (described is not { Status: FileInventoryStatus.Found, Value: { } facts })
-            return described.Error ?? $"The app couldn't read the new file {path} again.";
+            return described.Error ?? Message.Of("replacements.new-files.unread-again", ("path", path));
         return facts.DeviceId == row.DeviceId && facts.Inode == row.Inode && facts.SizeBytes == row.SizeBytes && facts.ModifiedUtc == row.ModifiedUtc
             ? null
-            : $"The new file {path} changed after it was checked.";
+            : Message.Of("replacements.new-files.changed", ("path", path));
     }
 }

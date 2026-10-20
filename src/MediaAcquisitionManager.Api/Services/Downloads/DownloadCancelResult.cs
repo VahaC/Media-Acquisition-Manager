@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Downloads;
 
@@ -8,15 +9,15 @@ namespace MediaAcquisitionManager.Api.Services.Downloads;
 /// <param name="Error">The sentence saying why there was nothing to stop, when
 /// <see cref="DownloadCancelStatus.NothingToStop"/>, or why not yet, when
 /// <see cref="DownloadCancelStatus.StillBeingSent"/>.</param>
-public sealed record DownloadCancelResult(DownloadCancelStatus Status, DownloadJobDto? Job, string? Error)
+public sealed record DownloadCancelResult(DownloadCancelStatus Status, DownloadJobDto? Job, Message? Error)
 {
     public static DownloadCancelResult NotFound { get; } = new(DownloadCancelStatus.NotFound, null, null);
 
     public static DownloadCancelResult Cancelled(DownloadJobDto job) => new(DownloadCancelStatus.Cancelled, job, null);
 
-    public static DownloadCancelResult NothingToStop(string error) => new(DownloadCancelStatus.NothingToStop, null, error);
+    public static DownloadCancelResult NothingToStop(Message error) => new(DownloadCancelStatus.NothingToStop, null, error);
 
-    public static DownloadCancelResult StillBeingSent(string error) => new(DownloadCancelStatus.StillBeingSent, null, error);
+    public static DownloadCancelResult StillBeingSent(Message error) => new(DownloadCancelStatus.StillBeingSent, null, error);
 
     /// <summary>MAM-5 — the caller may not end the job's replacement, which the cancel would; the caller answers with
     /// its own sentence.</summary>

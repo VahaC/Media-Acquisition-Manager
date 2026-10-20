@@ -1,10 +1,11 @@
 # Ukrainian glossary
 
 The words the Ukrainian web app uses (`frontend/src/locales/uk/`), settled before the translation (MAM-46) so
-every namespace says the same thing the same way. A term follows what Jellyfin, Transmission, qBittorrent and Toloka
-show in Ukrainian where they agree, because the owner reads those apps beside this one; where they disagree the
-choice and its reason are in the Notes column. Vasyl chose four of the terms himself on 2026-10-17 (marked
-*Vasyl*); the rest are the translator's, open to his corrections.
+every namespace says the same thing the same way; the server's sentences (`src/MediaAcquisitionManager.Api/Locales/uk/`,
+MAM-47) use the same words, with the rules of [Server sentences](#server-sentences) on top. A term follows what
+Jellyfin, Transmission, qBittorrent and Toloka show in Ukrainian where they agree, because the owner reads those
+apps beside this one; where they disagree the choice and its reason are in the Notes column. Vasyl chose four of the
+terms himself on 2026-10-17 (marked *Vasyl*); the rest are the translator's, open to his corrections.
 
 A new string uses these words. A change to a term here changes every string that uses it in the same commit.
 
@@ -17,6 +18,13 @@ A new string uses these words. A change to a term here changes every string that
   an ellipsis: Збереження…, Видалення…, Надсилання….
 - **Sentence case** everywhere, as in English: only the first word and proper names get a capital
   («Теки з медіафайлами», not «Теки З Медіафайлами»).
+- **A whole sentence never follows a colon.** The word after a colon is lower case, and a nested sentence — a server's
+  reason, error or problem, which ends with its own full stop — can't be lowered, as it may open with a name or «…»: the
+  lead ends with a full stop instead and the sentence follows it («Заміну зупинено. {{reason}}», «Синхронізація не
+  вдалася {{time}}. {{error}}», «Не вдалося перемістити файл «{{file}}» у карантин. {{error, message}}»). A lead that
+  is only a label ends with a full stop too, as «Примітка.» does («{{origin}}. {{problem}}»), and a bare name gets its
+  generic noun in front («Файл «{{name}}». {{error}}»). A colon stays before a clause (`{{reason, message:clause}}`, a
+  key ending in `-clause` or under `.tally.`), a list or a number.
 - **Quotes** are «…», nested „…“. Never "…" or “…” in Ukrainian text.
 - **Apostrophe** is ’ (U+2019): ім’я, прив’язка, з’єднання, комп’ютер. Never the ASCII `'`.
 - **Product and service names stay as they are**: Media Acquisition Manager, Jellyfin, TMDb, IMDb, TVDB, Toloka,
@@ -308,4 +316,132 @@ requires all four forms.
 | Reload the page | Перезавантажте сторінку | |
 | Ask the owner; Ask the owner to check X; The owner can see why. | Зверніться до власника; Попросіть власника перевірити X; Причину бачить власник. | |
 | Only the owner can X. | X може лише власник. | «Синхронізувати медіатеку може лише власник.» |
-| X failed {{time}}: {{error}}; The last X failed. | X не вдалася {{time}}: {{error}}; Остання X завершилася помилкою. | The run's noun is the subject and the verb agrees with it: «Синхронізація не вдалася», «Сканування не вдалося», «Аналіз файлів не вдався», «Обчислення не вдалося», «Підготовка пропозицій не вдалася»; the time follows the verb |
+| X failed {{time}}: {{error}}; The last X failed. | X не вдалася {{time}}. {{error}}; Остання X завершилася помилкою. | The run's noun is the subject and the verb agrees with it: «Синхронізація не вдалася», «Сканування не вдалося», «Аналіз файлів не вдався», «Обчислення не вдалося», «Підготовка пропозицій не вдалася»; the time follows the verb |
+
+## Server sentences
+
+What the server writes — errors, a job's or a check's reasons, a run's failure, health descriptions, the MCP tools'
+answers — comes from `src/MediaAcquisitionManager.Api/Locales/uk/<area>.json` (MAM-47, ADR 0042) and follows the
+style, counted words, units and terms above, with these rules on top. `LocaleParityTests` holds every Ukrainian file to
+its English one (the web app's parity rules, plus terminal punctuation where English has it and the four forms on
+`count`), and `ServerLabelsTests` holds every label quoted in a Ukrainian template to the web app's own value or a
+recorded vendor's.
+
+- **Our own labels are the web app's, exactly**: copied from `frontend/src/locales/uk/*.json`, never translated anew —
+  «Повторити», «Інтеграції», «Теки з медіафайлами», «Місця збереження», «Вилучені копії», «Видалити остаточно»,
+  «Оновити Jellyfin». "Press Retry" is «натисніть «Повторити»»; a lower-case "then retry" that names no button is
+  «повторіть спробу».
+- **Another product's labels**: its own Ukrainian label where it has a Ukrainian interface, read from its translation
+  file at a recorded release; its English label in «…» where it has none (Vasyl's decision of 2026-10-19). Each one is
+  recorded with its source in `tests/MediaAcquisitionManager.Api.Tests/Texts/quoted-labels.json`:
+
+  | Label in Ukrainian | Product and release | Source |
+  | --- | --- | --- |
+  | «Панель керування» ("Dashboard"), «API-ключі» ("API Keys") | Jellyfin, jellyfin-web v12.2 | `src/strings/uk.json`, `TabDashboard`, `HeaderApiKeys` |
+  | «WebUI», in the dialog «Налаштування» ("Options", unquoted) | qBittorrent, release-5.2.4 | `src/webui/www/translations/webui_uk.ts` |
+  | «Edit preferences», «Torrents», «Use temporary folder», «Download to» | Transmission 4.1.3: no Ukrainian web interface, English kept | `web/src/action-manager.js`, `web/src/prefs-dialog.js` (without the colon) |
+  | «Copy Torznab Feed» | Jackett v0.24.2875: no Ukrainian interface | `src/Jackett.Common/Content/index.html` |
+  | «API Read Access Token», «API Key» | TMDb's website, read 2026-10-19 | developer.themoviedb.org, as the web app's TMDb help |
+
+  Jellyfin's own words that aren't quoted labels follow it too: «завантажувачі метаданих» (`LabelMetadataDownloaders`),
+  «прев’ю-зображення» (`LabelSaveTrickplayLocally`). The releases recorded are the ones Vasyl's reference installation
+  runs, Jellyfin 12.2.0 and qBittorrent 5.2.4. These are all the vendor labels the server quotes in 0.5.0; besides them
+  `quoted-labels.json` records the two README headings below and the example token name «Claude на ноутбуці», which the
+  web app's own hint quotes. A new vendor label goes into that file with its release and source, and into this table.
+- **README headings stay English, in «…»**: «див. розділ «Scripts and the API» у README».
+- **Literal, never translated**: HTTP status phrases («(404 Not Found)», «відповів кодом 503 Service Unavailable»); the
+  API names a caller sends or reads (`ReadOnly`, `NeedsYou`, `Movie`, `Submitted`), JSON field and setting names
+  (`catalogLanguage`, `MAM_Encryption__Key`, `rpc-whitelist`, `SaveLocalMetadata`), example ids (`tt0816692`), release
+  codes (`S02E05`), URLs and paths.
+- **A generic noun before every name**, as the Style says, and here every time: an adapter's own name follows «сервіс»
+  or «клієнт» unquoted («сервіс Jellyfin», «клієнт Transmission», «джерело Torznab» for a feed); a name a person chose
+  follows its noun in «…» — «клієнт «{{client}}»», «джерело «{{source}}»», «місце збереження «{{destination}}»»,
+  «тека «{{folder}}»», «медіатека «{{library}}»», «реліз «{{release}}»», «торент «{{torrent}}» у клієнті «{{client}}»»,
+  and an echoed value «Значення «{{value}}» не є …». A past-tense verb agrees with the noun, never with the name.
+- **A work with no title** is «твір без назви» where English says "a work with no title" («Цей реліз — твір без назви,
+  сезон 2»). Where a title would stand in a replacement's reason (a `{{work, name}}` slot), the label is «без назви» or
+  «без назви (2005)», the web app's own words (`libraryLinks.untitledItem` «Елемент без назви»), and it doesn't decline,
+  so every such frame puts its generic noun before the slot: «фільм без назви (2005)», «до твору {{first, name}}», «а не
+  до серіалу {{works, list:or:name}}», «це серії серіалу {{work, name}}». One work and several are two keys where the
+  noun's number differs: «серіалу {{work, name}}» and «серіалів {{works, list:and:name}}».
+- **A work's title in a replacement's reason stays unquoted**, as English leaves it («фільм Alien (1979)»): the same slot
+  may hold the label «без назви», which quotes would wrap too.
+- **A service's own words** (`{{said, vendor}}`, `{{reason, vendor}}`) go in as they came, untranslated; the sentence
+  around them says whose they are.
+- **A clause** (a key ending in `-clause` or under `.tally.`) is a piece of its frame: no capital, no final full stop,
+  its case set by the frame — the Torznab parameter clauses are instrumental after «за» («за назвою, роком, сезоном і
+  серією»).
+- **Numbers** as the web app writes them (`1 234` from four digits on, `0,5`), every significant digit kept
+  (`0,0017 хвилини`). A count English spells at the start of a sentence ("Two new files…") is digits in Ukrainian
+  («2 нові файли…»), as «Два/Дві» would need the noun's gender.
+- **Sizes** in the exact unit the English names, never converted: `8 МіБ`, `1 536 КіБ`, `1 000 Б`.
+- **Running times** are the server's clock in both languages: `1:56:30`, `0:45:00`.
+- **The quarantine's tally** of a copy's names: «{{count}} з {{names}} перебуває в карантині» for `_one` and `_other`,
+  «перебувають у карантині» for `_few` and `_many`, the names «1 імені», «2 імен», «5 імен»; «… повернуто на місце»,
+  «… видалено» take one form for all four.
+- **A sentence kept as its words**: a reason an older version stored that the app couldn't read back
+  (`common.legacy-text`) shows its English words as they were stored; nothing translates it.
+
+**Counted words the server adds**, the number in every form (its counts are limits and timeouts, rarely one), in the
+case the frame asks for:
+
+| Phrase | one | few | many | other |
+| --- | --- | --- | --- | --- |
+| протягом N … (genitive) | секунди | секунд | секунд | секунди |
+| протягом N … (genitive) | хвилини | хвилин | хвилин | хвилини |
+| щонайбільше N … (accusative) | символ | символи | символів | символу |
+| N … (a file's exact size) | байт | байти | байтів | байта |
+| N з … (the tally's names) | імені | імен | імен | імені |
+
+**Terms the server adds**:
+
+| English | Ukrainian | Notes |
+| --- | --- | --- |
+| redirect; doesn't follow redirects; doesn't follow it | переспрямування; не виконує переспрямувань; за ним не переходить | |
+| host name | ім’я хоста | |
+| (a service's own) log | журнал | «Причину вказано в журналі сервісу …» for "Its own log says why" |
+| answered {{status}} | відповів кодом {{status}} | The HTTP status phrase stays English |
+| Couldn't reach X at Y | Не вдалося зв’язатися із сервісом X за адресою Y | As the web app's `errors.serverUnreachable` |
+| whitelist | білий список | «білий список RPC»; the setting's own name stays (`rpc-whitelist`) |
+| anti-brute-force | захист від підбору пароля | Transmission |
+| session cookie | файл cookie сеансу | qBittorrent |
+| image host (TMDb's) | сервер зображень | |
+| metadata sources (Jellyfin's) | завантажувачі метаданих | Jellyfin's own word, unquoted |
+| trickplay images | прев’ю-зображення | Jellyfin's own word |
+| isn't a yes or a no (a setting) | не є логічним значенням | No quoted «так»/«ні», which would read as labels |
+| the Torznab feed | джерело Torznab | As the web app's Integrations page |
+| Web API (qBittorrent's) | API вебінтерфейсу | qBittorrent calls it the WebUI API |
+| test again (a connection) | перевірте з’єднання ще раз | |
+| look again (destination folders) | перевірте знову | |
+| then retry (no button named) | повторіть спробу | «натисніть «Повторити»» only where the English names the button |
+| version gate "X or later" | версія X або новіша | The adjective agrees with «версія», never with a product's name |
+| control characters; line break | керувальні символи; розрив рядка | «не може містити розривів рядків чи інших керувальних символів» |
+| request id; trace id | ID запиту; ID трасування | |
+| request body | тіло запиту | |
+| endpoint | кінцева точка | «кінцева точка API», «кінцева точка MCP» |
+| web app (as against a script or a token) | вебзастосунок | One word, as «вебінтерфейс» |
+| input schema (MCP) | схема вхідних даних | |
+| a view of the jobs (an API value) | подання списку завдань | The value itself stays (`NeedsYou`) |
+| has the status (an MCP summary) | має статус {{status}} | The API name stays |
+| preselect (the Download dialog) | заздалегідь вибрати | |
+| three-letter code (a language) | трилітерний код | |
+| secret (a setting's change) | секретне значення | As the web app's `profile.accessTokens.dialog.description` |
+| library source (MCP status) | джерело медіатеки | |
+| failing (release sources) | із помилкою | |
+| backslash | зворотна скісна риска | |
+| query, fragment (of an address) | рядок запиту, фрагмент | |
+| drive letter | літера диска | |
+| socket, pipe | сокет, канал | |
+| exit code | код виходу | |
+| media container | медіаконтейнер | |
+| search permission (on a folder) | право виконання | POSIX's; «права запису й виконання в його теці» |
+| Linux 5.8 or later | ядро Linux 5.8 або новіше | |
+| ffprobe; the media inspector | утиліта ffprobe; інструмент аналізу медіафайлів | A verb agrees with «утиліта» |
+| a write batch (TMDb links) | групова ідентифікація | Never «серія», which is an episode |
+| save folder (a download client's) | тека збереження | |
+| disc folder | тека диска | |
+| video stream | відеодоріжка | As «доріжка» above |
+| (Jellyfin) lists an item | показує у списку | «який щойно показав у списку» |
+
+Vasyl's corrections from his look at the Ukrainian pages go into these rules and tables, and into the files, in the
+same change.

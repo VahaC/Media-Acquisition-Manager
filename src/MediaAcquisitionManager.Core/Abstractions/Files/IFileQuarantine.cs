@@ -24,7 +24,7 @@ namespace MediaAcquisitionManager.Core.Abstractions.Files;
 /// <para>
 /// All methods return result types and never throw on expected failures; only a cancellation by the caller before a
 /// write began propagates, as <see cref="OperationCanceledException"/> — once a rename or a deletion is under way it is
-/// never cut off. Every message is one readable English sentence.
+/// never cut off. Every message is a <c>Message</c> the Api renders (ADR 0042).
 /// </para>
 /// </remarks>
 public interface IFileQuarantine

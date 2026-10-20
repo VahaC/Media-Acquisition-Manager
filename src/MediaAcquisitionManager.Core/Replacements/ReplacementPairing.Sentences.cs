@@ -1,130 +1,237 @@
+using System.Diagnostics;
 using System.Globalization;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Replacements;
 
-// The reasons the pairing gives: one readable sentence each, names and paths quoted, the library by its integration's
-// name as the download's reasons name its client. "Within an hour" is ReplacementVerificationRules.LibraryWait, and those
-// sentences are only ever given once it ran out.
+// The reasons the pairing gives: one message each (MAM-47, ADR 0042), whose template in replacements.json quotes the
+// names and paths and names the library by its integration's name, as the download's reasons name its client. "Within an
+// hour" is ReplacementVerificationRules.LibraryWait, and those sentences are only ever given once it ran out. A reason
+// about a new file's series or an old copy changes the words around the path, so each is a key of its own (Subject),
+// never "the old copy " glued in front of a path; a count today's English doesn't print ("film"/"films", "has"/"have",
+// "it"/"them") is a key per shape too, since a plural form must write its count.
 public static partial class ReplacementPairing
 {
-    private static readonly string[] CountWords = ["Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
-
     // ── the library hasn't read a file (verdict a) ───────────────────────────────────────────────────────────────
 
-    private static string NewNotListed(string library, string path) => $"{library} didn't list {path} within an hour of being asked to look.";
+    private static Message NewNotListed(string library, string path) =>
+        Message.Of("replacements.pairing.new-not-listed", ("library", library), ("path", path));
 
-    private static string NewNotRefreshed(string library, string path) => $"{library} hadn't finished reading {path} within an hour.";
+    private static Message NewNotRefreshed(string library, string path) =>
+        Message.Of("replacements.pairing.new-not-refreshed", ("library", library), ("path", path));
 
-    private static string OldNotListed(string library, string path) =>
-        $"{library} no longer lists the old copy {path}, so its episode numbers can't be read.";
+    private static Message OldNotListed(string library, string path) =>
+        Message.Of("replacements.pairing.old-not-listed", ("library", library), ("path", path));
 
-    private static string OldNotRefreshed(string library, string path) =>
-        $"{library} hadn't finished reading the old copy {path} within an hour, so its episode numbers can't be read.";
+    private static Message OldNotRefreshed(string library, string path) =>
+        Message.Of("replacements.pairing.old-not-refreshed", ("library", library), ("path", path));
 
     // ── the library hasn't identified a file yet (verdict c) ─────────────────────────────────────────────────────
 
-    private static string FilmWithoutId(string library, string path, IReadOnlyList<ReplacementPairingWork> films) =>
-        $"{library} gave {path} no TMDb or IMDb id within an hour, so it can't be told to be {Names(films, "or")}.";
+    private static Message FilmWithoutId(string library, string path, IReadOnlyList<ReplacementPairingWork> films) =>
+        Message.Of("replacements.pairing.film-without-id", ("library", library), ("path", path), ("works", Names(films)));
 
-    private static string EpisodeWithoutSeries(string library, string path, IReadOnlyList<ReplacementPairingWork> shows) =>
-        $"{library} gave {path} no series with a TMDb, TVDB or IMDb id within an hour, so it can't be told to be an episode of {Names(shows, "or")}.";
+    private static Message EpisodeWithoutSeries(string library, string path, IReadOnlyList<ReplacementPairingWork> shows) =>
+        Message.Of("replacements.pairing.episode-without-series", ("library", library), ("path", path), ("works", Names(shows)));
 
-    private static string NotNumbered(string library, string path) =>
-        $"{library} gave {path} no season and episode number within an hour, so it can't be paired with an old copy.";
+    private static Message OldEpisodeWithoutSeries(string library, string path, IReadOnlyList<ReplacementPairingWork> shows) =>
+        Message.Of("replacements.pairing.old-episode-without-series", ("library", library), ("path", path), ("works", Names(shows)));
 
-    private static string OtherSchemes(
-        string library, string path, bool ofSeries, IReadOnlyList<string> shownIds, IReadOnlyList<(string Name, IReadOnlyList<string> Ids)> works) =>
-        $"{library} gave {(ofSeries ? "the series of " : "")}{path} {ReplacementText.List(shownIds)} within an hour, but "
-            + $"{ReplacementText.List([.. works.Select(work => $"{work.Name} is known here only by {ReplacementText.List(work.Ids)}")])}.";
+    private static Message NotNumbered(string library, string path) =>
+        Message.Of("replacements.pairing.not-numbered", ("library", library), ("path", path));
+
+    private static Message OtherSchemes(
+        string library, string path, Subject subject, IReadOnlyList<string> shownIds, IReadOnlyList<(MessageValue Name, IReadOnlyList<string> Ids)> works) =>
+        Message.Of(
+            subject switch
+            {
+                Subject.NewFilm => "replacements.pairing.other-schemes-film",
+                Subject.NewEpisode => "replacements.pairing.other-schemes-series",
+                Subject.OldEpisode => "replacements.pairing.other-schemes-old-series",
+                _ => throw new UnreachableException(),
+            },
+            ("library", library),
+            ("path", path),
+            ("ids", Texts(shownIds)),
+            ("known", new ListValue(works.Select(work => (MessageValue)Message.Of(
+                "replacements.pairing.known-only-by-clause", ("work", work.Name), ("ids", Texts(work.Ids)))))));
 
     // ── a new file's work (rule 1) ───────────────────────────────────────────────────────────────────────────────
 
-    private static string MadeFilm(string library, string path, IReadOnlyList<ReplacementPairingWork> shows) =>
-        $"{library} made {path} a film, while the old copies are episodes of {Names(shows, "and")}.";
+    // MAM-47 — one series and several are two keys, as MadeEpisode's films are: Ukrainian names the series in the singular
+    // («серіалу») or the plural («серіалів»), which one list template can't do.
+    private static Message MadeFilm(string library, string path, IReadOnlyList<ReplacementPairingWork> shows) =>
+        shows.Count == 1
+            ? Message.Of("replacements.pairing.made-film-of-series", ("library", library), ("path", path), ("work", shows[0].Name))
+            : Message.Of("replacements.pairing.made-film", ("library", library), ("path", path), ("works", Names(shows)));
 
-    private static string MadeEpisode(string library, string path, IReadOnlyList<ReplacementPairingWork> films) =>
-        $"{library} made {path} an episode, while the old copies are of the {(films.Count == 1 ? "film" : "films")} {Names(films, "and")}.";
+    private static Message MadeEpisode(string library, string path, IReadOnlyList<ReplacementPairingWork> films) =>
+        films.Count == 1
+            ? Message.Of("replacements.pairing.made-episode-of-film", ("library", library), ("path", path), ("work", films[0].Name))
+            : Message.Of("replacements.pairing.made-episode-of-films", ("library", library), ("path", path), ("works", Names(films)));
 
-    private static string SeveralWorks(string library, string path, IReadOnlyList<ReplacementPairingWork> works) =>
-        works.Count == 2
-            ? $"{library}'s ids for {path} fit both {works[0].Name} and {works[1].Name}, so the app can't tell which work it is."
-            : $"{library}'s ids for {path} fit {Names(works, "and")}, so the app can't tell which work it is.";
+    private static Message SeveralWorks(string library, string path, Subject subject, IReadOnlyList<ReplacementPairingWork> works)
+    {
+        // An old copy is told by its own work alone (Pair passes it as the one candidate), so its ids never fit several.
+        if (subject == Subject.OldEpisode)
+            throw new UnreachableException("An old copy's series is compared with its own work alone.");
+        return works.Count == 2
+            ? Message.Of(
+                "replacements.pairing.several-works-two", ("library", library), ("path", path), ("first", works[0].Name), ("second", works[1].Name))
+            : Message.Of("replacements.pairing.several-works", ("library", library), ("path", path), ("works", Names(works)));
+    }
 
-    private static string Conflicting(string library, string path, bool ofSeries, string shared, string differing, string workName) =>
-        ofSeries
-            ? $"{library} gave the series of {path} conflicting ids: {shared} is {workName}'s, {differing} is not."
-            : $"{library} gave {path} conflicting ids: {shared} is {workName}'s, {differing} is not.";
+    private static Message Conflicting(string library, string path, Subject subject, string shared, string differing, MessageValue workName) =>
+        Message.Of(
+            subject switch
+            {
+                Subject.NewFilm => "replacements.pairing.conflicting-film",
+                Subject.NewEpisode => "replacements.pairing.conflicting-series",
+                Subject.OldEpisode => "replacements.pairing.conflicting-old-series",
+                _ => throw new UnreachableException(),
+            },
+            ("library", library),
+            ("path", path),
+            ("shared", shared),
+            ("work", workName),
+            ("differing", differing));
 
-    private static string Another(
-        string library, string path, bool ofSeries, IReadOnlyList<string> shownIds, IReadOnlyList<ReplacementPairingWork> candidates) =>
-        ofSeries
-            ? $"{library} placed {path} in another series ({string.Join(", ", shownIds)}), not {Names(candidates, "or")}."
-            : $"{library} identified {path} as another work ({string.Join(", ", shownIds)}), not {Names(candidates, "or")}.";
+    private static Message Another(
+        string library, string path, Subject subject, IReadOnlyList<string> shownIds, IReadOnlyList<ReplacementPairingWork> candidates) =>
+        Message.Of(
+            subject switch
+            {
+                Subject.NewFilm => "replacements.pairing.another-work",
+                Subject.NewEpisode => "replacements.pairing.another-series",
+                Subject.OldEpisode => "replacements.pairing.another-series-old",
+                _ => throw new UnreachableException(),
+            },
+            ("library", library),
+            ("path", path),
+            ("ids", Texts(shownIds)),
+            ("works", Names(candidates)));
 
-    private static string NoIdToCompare(
-        string library, string path, bool ofSeries, IReadOnlyList<string> shownIds, IReadOnlyList<ReplacementPairingWork> works) =>
-        $"{library} gave {(ofSeries ? "the series of " : "")}{path} {ReplacementText.List(shownIds)}, but {Names(works, "and")} "
-            + $"{(works.Count == 1 ? "has" : "have")} no {(ofSeries ? "TMDb, TVDB or IMDb" : "TMDb or IMDb")} id here to compare "
-            + $"{(shownIds.Count == 1 ? "it" : "them")} with.";
+    private static Message NoIdToCompare(
+        string library, string path, Subject subject, IReadOnlyList<string> shownIds, IReadOnlyList<ReplacementPairingWork> works)
+    {
+        var oneWork = works.Count == 1;
+        var oneId = shownIds.Count == 1;
+        // MAM-47 — an old copy's series is compared with its own work alone (Pair passes it as the one candidate), so the
+        // works it couldn't be compared with are that one work: no "have" key for it, as SeveralWorks has none, since a
+        // dead sentence would only be translated for nothing.
+        if (subject == Subject.OldEpisode && !oneWork)
+            throw new UnreachableException("An old copy's series is compared with its own work alone.");
+        var key = (subject, oneWork, oneId) switch
+        {
+            (Subject.NewFilm, true, true) => "replacements.pairing.no-id-to-compare.film.work-id",
+            (Subject.NewFilm, true, false) => "replacements.pairing.no-id-to-compare.film.work-ids",
+            (Subject.NewFilm, false, true) => "replacements.pairing.no-id-to-compare.film.works-id",
+            (Subject.NewFilm, false, false) => "replacements.pairing.no-id-to-compare.film.works-ids",
+            (Subject.NewEpisode, true, true) => "replacements.pairing.no-id-to-compare.series.work-id",
+            (Subject.NewEpisode, true, false) => "replacements.pairing.no-id-to-compare.series.work-ids",
+            (Subject.NewEpisode, false, true) => "replacements.pairing.no-id-to-compare.series.works-id",
+            (Subject.NewEpisode, false, false) => "replacements.pairing.no-id-to-compare.series.works-ids",
+            (Subject.OldEpisode, true, true) => "replacements.pairing.no-id-to-compare.old-series.work-id",
+            (Subject.OldEpisode, true, false) => "replacements.pairing.no-id-to-compare.old-series.work-ids",
+            _ => throw new UnreachableException(),
+        };
+        return Message.Of(
+            key,
+            ("library", library),
+            ("path", path),
+            oneWork ? ("work", works[0].Name) : ("works", Names(works)),
+            oneId ? ("id", shownIds[0]) : ("ids", Texts(shownIds)));
+    }
 
     // ── a ticked copy and its pair (rules 2 and 3) ───────────────────────────────────────────────────────────────
 
-    private static string OldNotNumbered(string library, string path) =>
-        $"{library} gave the old copy {path} no season and episode number, so the app can't tell which new file replaces it.";
+    private static Message OldNotNumbered(string library, string path) =>
+        Message.Of("replacements.pairing.old-not-numbered", ("library", library), ("path", path));
 
-    private static string Half(string path, char half) =>
-        $"{path} is one half of an episode (its name gives the episode the letter “{half}”), so it can't be replaced on its own.";
+    private static Message Half(string path, char half) =>
+        Message.Of("replacements.pairing.old-half", ("path", path), ("letter", half.ToString()));
 
-    private static string OldCoversSeveral(string path, EpisodeSpan span) =>
-        string.Create(
-            CultureInfo.InvariantCulture,
-            $"{path} covers episodes {span.First}–{span.Last} of season {span.Season}, so one new episode can't replace it.");
+    private static Message OldCoversSeveral(string path, EpisodeSpan span) =>
+        Message.Of(
+            "replacements.pairing.old-covers-several",
+            ("path", path),
+            ("first", Label(span.First)),
+            ("last", Label(span.Last)),
+            ("season", Label(span.Season)));
 
-    private static string OldListedAsFilm(string library, string path) =>
-        $"{library} lists the old copy {path} as a film, while its new file would be an episode, so the two can't be paired.";
+    private static Message OldListedAsFilm(string library, string path) =>
+        Message.Of("replacements.pairing.old-listed-as-film", ("library", library), ("path", path));
 
-    private static string OldListedAsNoEpisode(string library, string path) =>
-        $"{library} lists the old copy {path} as neither a film nor an episode, so no new episode can replace it.";
+    private static Message OldListedAsNoEpisode(string library, string path) =>
+        Message.Of("replacements.pairing.old-listed-as-no-episode", ("library", library), ("path", path));
 
-    private static string OldRenumbered(string library, string path, int? nowSeason, int? nowEpisode, int season, int episode)
-    {
-        var now = nowSeason is { } numberedSeason && nowEpisode is { } numberedEpisode
-            ? $"numbers the old copy {path} {SeasonAndEpisode(numberedSeason, numberedEpisode)}"
-            : $"gives the old copy {path} no season and episode number";
-        return $"{library} now {now}, not {SeasonAndEpisode(season, episode)} as when it was scheduled.";
-    }
+    private static Message OldRenumbered(string library, string path, int? nowSeason, int? nowEpisode, int season, int episode) =>
+        nowSeason is { } numberedSeason && nowEpisode is { } numberedEpisode
+            ? Message.Of(
+                "replacements.pairing.old-renumbered",
+                ("library", library),
+                ("path", path),
+                ("nowSeason", Label(numberedSeason)),
+                ("nowEpisode", Label(numberedEpisode)),
+                ("season", Label(season)),
+                ("episode", Label(episode)))
+            : Message.Of(
+                "replacements.pairing.old-unnumbered", ("library", library), ("path", path), ("season", Label(season)), ("episode", Label(episode)));
 
-    private static string NewCoversSeveral(string newPath, EpisodeSpan span, string oldPath) =>
-        string.Create(
-            CultureInfo.InvariantCulture,
-            $"{newPath} covers episodes {span.First}–{span.Last} of season {span.Season}, so it can't replace {oldPath} alone.");
+    private static Message NewCoversSeveral(string newPath, EpisodeSpan span, string oldPath) =>
+        Message.Of(
+            "replacements.pairing.new-covers-several",
+            ("path", newPath),
+            ("first", Label(span.First)),
+            ("last", Label(span.Last)),
+            ("season", Label(span.Season)),
+            ("oldPath", oldPath));
 
-    private static string NewHalf(string newPath, char half, string oldPath) =>
-        $"{newPath} is one half of an episode (its name gives the episode the letter “{half}”), so it can't replace {oldPath} on its own.";
+    private static Message NewHalf(string newPath, char half, string oldPath) =>
+        Message.Of("replacements.pairing.new-half", ("path", newPath), ("letter", half.ToString()), ("oldPath", oldPath));
 
-    private static string NoNewFile(string what, string path) => $"No new file is {what}, so {path} has nothing to replace it.";
+    /// <summary>No new file at a copy's place: the film's work, or the episode of <paramref name="work"/> at
+    /// <paramref name="place"/>.</summary>
+    private static Message NoNewFile(ReplacementPairingWork work, EpisodePlace? place, string path) =>
+        place is { } episode
+            ? Message.Of(
+                "replacements.pairing.no-new-file-episode",
+                ("series", work.Name),
+                ("season", Label(episode.Season)),
+                ("episode", Label(episode.Episode)),
+                ("path", path))
+            : Message.Of("replacements.pairing.no-new-file-film", ("work", work.Name), ("path", path));
 
-    private static string TwoNewFiles(string what, IReadOnlyList<string> paths) =>
-        $"{CountWord(paths.Count)} new files are {what}: {ReplacementText.List(paths)}; the app can't tell which one replaces the old copy.";
+    /// <summary>Several new files at a copy's place, as <see cref="NoNewFile"/> names it; the count is spelled at the
+    /// sentence's start ("Two new files are…", the hint <c>number:word</c>).</summary>
+    private static Message TwoNewFiles(ReplacementPairingWork work, EpisodePlace? place, IReadOnlyList<string> paths) =>
+        place is { } episode
+            ? Message.Of(
+                "replacements.pairing.new-files-episode",
+                ("count", paths.Count),
+                ("series", work.Name),
+                ("season", Label(episode.Season)),
+                ("episode", Label(episode.Episode)),
+                ("paths", Texts(paths)))
+            : Message.Of("replacements.pairing.new-files-film", ("count", paths.Count), ("work", work.Name), ("paths", Texts(paths)));
 
-    private static string OtherEdition(string newPath, IReadOnlyList<MediaEdition> claimed, IReadOnlyCollection<MediaEdition> release) =>
-        $"{newPath} claims {EditionNames(claimed)}, while the release claimed {(release.Count == 0 ? "none" : EditionNames(release))}.";
+    private static Message OtherEdition(string newPath, IReadOnlyList<MediaEdition> claimed, IReadOnlyCollection<MediaEdition> release) =>
+        release.Count == 0
+            ? Message.Of("replacements.pairing.other-edition-release-none", ("path", newPath), ("claimed", EditionNames(claimed)))
+            : Message.Of("replacements.pairing.other-edition", ("path", newPath), ("claimed", EditionNames(claimed)), ("release", EditionNames(release)));
 
-    private static string TooShort(string newPath, long newMilliseconds, long oldMilliseconds) =>
-        $"{newPath} runs {Clock(newMilliseconds)}, less than three quarters of the old copy's {Clock(oldMilliseconds)}.";
+    private static Message TooShort(string newPath, long newMilliseconds, long oldMilliseconds) =>
+        Message.Of(
+            "replacements.pairing.too-short",
+            ("path", newPath),
+            ("new", new DurationValue(newMilliseconds)),
+            ("old", new DurationValue(oldMilliseconds)));
 
     // ── parts ────────────────────────────────────────────────────────────────────────────────────────────────────
 
-    /// <summary>An episode as a sentence names it: "The Penguins of Madagascar, season 2, episode 5".</summary>
-    private static string EpisodeName(string seriesName, int season, int episode) =>
-        string.Create(CultureInfo.InvariantCulture, $"{seriesName}, season {season}, episode {episode}");
-
-    /// <summary>An episode's place as a sentence gives it: "season 2, episode 5".</summary>
-    private static string SeasonAndEpisode(int season, int episode) =>
-        string.Create(CultureInfo.InvariantCulture, $"season {season}, episode {episode}");
-
-    /// <summary>An id as a sentence shows it: "IMDb tt0078748".</summary>
+    /// <summary>An id as a sentence shows it: "IMDb tt0078748". The registries' own names, which the web app keeps as they
+    /// are in every language (its <c>library.json</c>), so the pair is data, not words of ours.</summary>
     private static string Shown(MediaIdentifierScheme scheme, string value) => $"{SchemeName(scheme)} {value}";
 
     private static string SchemeName(MediaIdentifierScheme scheme) => scheme switch
@@ -136,41 +243,40 @@ public static partial class ReplacementPairing
         _ => scheme.ToString(),
     };
 
-    private static string Names(IReadOnlyList<ReplacementPairingWork> works, string last) =>
-        ReplacementText.List([.. works.Select(work => work.Name)], last);
+    /// <summary>A season's or an episode's number as a sentence gives it: an identifier, written as it is in every
+    /// language (as a year is), never grouped like an amount.</summary>
+    private static string Label(int number) => number.ToString(CultureInfo.InvariantCulture);
 
-    private static string CountWord(int count) =>
-        count >= 2 && count - 2 < CountWords.Length ? CountWords[count - 2] : count.ToString(CultureInfo.InvariantCulture);
+    /// <summary>The works' names, which the template joins with "and" or "or".</summary>
+    private static ListValue Names(IReadOnlyList<ReplacementPairingWork> works) => new(works.Select(work => work.Name));
 
-    /// <summary>Editions as the Duplicates page names them in English, in their order.</summary>
-    private static string EditionNames(IEnumerable<MediaEdition> editions) =>
-        ReplacementText.List([.. editions.Distinct().Order().Select(EditionName)]);
+    private static ListValue Texts(IEnumerable<string> items) => new(items.Select(item => (MessageValue)item));
 
-    private static string EditionName(MediaEdition edition) => edition switch
+    /// <summary>Editions as the Duplicates page names them (<c>common.edition.*</c>, the web app's own labels), in their
+    /// order.</summary>
+    private static ListValue EditionNames(IEnumerable<MediaEdition> editions) =>
+        new(editions.Distinct().Order().Select(edition => (MessageValue)EditionName(edition)));
+
+    /// <remarks>Every edition here was read by <c>EditionLabels</c> or kept only when defined (the verifier's
+    /// <c>EditionsOf</c>), so a number no member names can't reach this; a label is a key, never the enum's name.</remarks>
+    private static Message EditionName(MediaEdition edition) => edition switch
     {
-        MediaEdition.Theatrical => "Theatrical cut",
-        MediaEdition.DirectorsCut => "Director's cut",
-        MediaEdition.Extended => "Extended cut",
-        MediaEdition.Unrated => "Unrated",
-        MediaEdition.Uncut => "Uncut",
-        MediaEdition.Remastered => "Remastered",
-        MediaEdition.SpecialEdition => "Special edition",
-        MediaEdition.Imax => "IMAX",
-        MediaEdition.OpenMatte => "Open matte",
-        MediaEdition.FinalCut => "Final cut",
-        MediaEdition.Redux => "Redux",
-        MediaEdition.International => "International cut",
-        MediaEdition.Alternate => "Alternate cut",
-        MediaEdition.Assembly => "Assembly cut",
-        MediaEdition.Widescreen => "Widescreen",
-        MediaEdition.FullScreen => "Full screen",
-        _ => edition.ToString(),
+        MediaEdition.Theatrical => Message.Of("common.edition.theatrical"),
+        MediaEdition.DirectorsCut => Message.Of("common.edition.directors-cut"),
+        MediaEdition.Extended => Message.Of("common.edition.extended"),
+        MediaEdition.Unrated => Message.Of("common.edition.unrated"),
+        MediaEdition.Uncut => Message.Of("common.edition.uncut"),
+        MediaEdition.Remastered => Message.Of("common.edition.remastered"),
+        MediaEdition.SpecialEdition => Message.Of("common.edition.special-edition"),
+        MediaEdition.Imax => Message.Of("common.edition.imax"),
+        MediaEdition.OpenMatte => Message.Of("common.edition.open-matte"),
+        MediaEdition.FinalCut => Message.Of("common.edition.final-cut"),
+        MediaEdition.Redux => Message.Of("common.edition.redux"),
+        MediaEdition.International => Message.Of("common.edition.international"),
+        MediaEdition.Alternate => Message.Of("common.edition.alternate"),
+        MediaEdition.Assembly => Message.Of("common.edition.assembly"),
+        MediaEdition.Widescreen => Message.Of("common.edition.widescreen"),
+        MediaEdition.FullScreen => Message.Of("common.edition.full-screen"),
+        _ => throw new ArgumentOutOfRangeException(nameof(edition), edition, "An edition no member of MediaEdition names has no label."),
     };
-
-    /// <summary>A running time as a clock shows it, hours unbounded: "1:56:30".</summary>
-    private static string Clock(long milliseconds)
-    {
-        var time = TimeSpan.FromMilliseconds(milliseconds);
-        return string.Create(CultureInfo.InvariantCulture, $"{(long)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}");
-    }
 }

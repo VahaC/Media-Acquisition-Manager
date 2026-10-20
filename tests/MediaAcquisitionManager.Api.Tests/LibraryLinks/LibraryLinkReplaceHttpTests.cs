@@ -7,6 +7,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
@@ -154,7 +155,7 @@ public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisition
         // The item held the first film's Tmdb and Imdb ids, which a protected identification would have refused to discard:
         // the owner's own click is his word.
         var link = await _factory.SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.Written, (string?)null, (Guid?)null), (link.WriteState, link.WriteError, link.BatchId));
+        Assert.Equal((LibraryLinkWriteState.Written, (string?)null, (Guid?)null), (link.WriteState, TestTexts.En(link.WriteError), link.BatchId));
         Assert.Equal(new Dictionary<string, string> { ["Tmdb"] = OtherFilmId, ["Imdb"] = OtherFilmImdbId }, ProviderIdsOf(ShortId));
     }
 
@@ -181,7 +182,7 @@ public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisition
         // or not, doesn't hold the new one back: the series wait counts only attempts since the link was set.
         Assert.Equal(
             (first.Id, JellyfinSamples.PenguinsTmdbTvId, (string?)PlanetEarthId, LibraryLinkWriteState.Written, (string?)null),
-            (link.Id, link.Value, link.SupersededValue, link.WriteState, link.WriteError));
+            (link.Id, link.Value, link.SupersededValue, link.WriteState, TestTexts.En(link.WriteError)));
         Assert.Equal("""{"Tmdb":"1044","Imdb":"tt0795176"}""", asFirst);
         Assert.Equal("""{"Tmdb":"7869","Imdb":"tt0892700"}""", _jellyfin.Series.Single()["ProviderIds"]!.ToJsonString());
         Assert.Equal(
@@ -262,7 +263,7 @@ public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisition
         var link = await _factory.SingleLinkAsync(cancellationToken);
         // Kept in the app as TMDb gives the episode no IMDb id — said on the link, as only asking TMDb tells it.
         Assert.Equal(
-            (LibraryLinkTarget.ShowEpisode, MediaIdentifierScheme.TmdbTv, PlanetEarthId, LibraryLinkWriteState.KeptInApp, (string?)LibraryLinkWritability.NoEpisodeImdbReason),
+            (LibraryLinkTarget.ShowEpisode, MediaIdentifierScheme.TmdbTv, PlanetEarthId, LibraryLinkWriteState.KeptInApp, LibraryLinkWritability.NoEpisodeImdbReason),
             (link.Target, link.Scheme, link.Value, link.WriteState, link.WriteError));
         // Nothing is put back: Jellyfin keeps what the first Identify set, and nothing was sent for the replace.
         Assert.Equal(asFilm, ProviderIdsOf(ShortId));
@@ -294,7 +295,7 @@ public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisition
         var link = await _factory.SingleLinkAsync(cancellationToken);
         Assert.Equal(
             (OtherFilmId, LibraryLinkWriteState.NotWritten, (string?)"“Living room” is switched off. Switch it on under Integrations, then retry."),
-            (link.Value, link.WriteState, link.WriteError));
+            (link.Value, link.WriteState, TestTexts.En(link.WriteError)));
         Assert.Equal(asFirst, ProviderIdsOf(ShortId));
         Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
     }

@@ -9,10 +9,12 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -693,17 +695,27 @@ public sealed class DownloadsSendFailuresHttpTests : IClassFixture<MediaAcquisit
         FakeQBittorrentServer.Arm(_factory.QBittorrentHttp, _qbittorrent, seedbox);
         var client = await CreateClientAsync("Seedbox", address);
         var destination = await new DestinationMappingSeeder(_factory.Scope).Create(client, "Movies", "Movies");
-        var sentence =
-            $"Couldn't reach qBittorrent at {address}: nothing accepted the connection. Check the address and port, and that qBittorrent is running.";
-        var expectedError = string.Concat(sentence.AsSpan(0, 999), "…");
+        // MAM-47 (ADR 0042) — the column keeps the sentence's key and values, fitted into it by cutting its longest value,
+        // the address: the reader still sees where the client was, and the whole sentence after it.
+        var expectedError = TestTexts.En(MessageFit.Fit(
+            Message.Of("http.unreachable.refused", ("service", "qBittorrent"), ("address", address)), MessageJson.ColumnLength));
 
         //Act
         var response = await _factory.PostHttpRequest(
             BaseUrl, _owner.AccessToken, new SendDownloadRequest(Guid.NewGuid(), release.Id, client.Id, destination.Id));
 
         //Assert
-        Assert.Equal(1000, expectedError.Length);
+        Assert.StartsWith("Couldn't reach qBittorrent at http://seedbox.test:8080/ppp", expectedError, StringComparison.Ordinal);
+        Assert.EndsWith(
+            "ppp…: nothing accepted the connection. Check the address and port, and that qBittorrent is running.",
+            expectedError,
+            StringComparison.Ordinal);
         await AssertJobAsync(response, DownloadJobStatus.Failed, null, expectedError, SampleHashes(), cancellationToken);
+        var stored = "";
+        await _factory.WithDbAsync(async db =>
+            stored = await db.Database.SqlQuery<string>($"SELECT \"Error\" AS \"Value\" FROM \"DownloadJobs\"").SingleAsync(cancellationToken));
+        Assert.StartsWith("""{"k":"http.unreachable.refused",""", stored, StringComparison.Ordinal);
+        Assert.InRange(stored.Length, 1, DownloadJobEntity.ErrorMaximumLength);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -751,7 +763,7 @@ public sealed class DownloadsSendFailuresHttpTests : IClassFixture<MediaAcquisit
         {
             var row = await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(job.Id, row.Id);
-            Assert.Equal((status, clientJobId, error), (row.Status, row.ClientJobId, row.Error));
+            Assert.Equal((status, clientJobId, error), (row.Status, row.ClientJobId, TestTexts.En(row.Error)));
             Assert.Equal((hashes.V1, hashes.V2), (row.InfoHashV1, row.InfoHashV2));
             Assert.Equal(now, row.StatusChangedUtc);
             var audit = await db.AuditEvents.AsNoTracking().SingleAsync(cancellationToken);

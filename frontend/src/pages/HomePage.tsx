@@ -60,8 +60,8 @@ export function HomePage() {
 
 // ── readiness summary ──
 
-// A check's description is the API's own English sentence and is shown as sent, like every API
-// message (ADR 0001); only the fallback for a check without one is UI text.
+// A check's description is the API's own sentence, in the language the page runs in (MAM-47), and is
+// shown as sent, like every API message; only the fallback for a check without one is UI text.
 function ReadinessSummary({ report }: { report: HealthReport }) {
   const { t } = useTranslation('home')
   const failing = report.checks.filter((check) => check.status !== 'Healthy')

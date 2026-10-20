@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -61,10 +62,10 @@ public class ReplacementJobEntity : AuditableEntity
     /// <summary>When <see cref="State"/> last changed.</summary>
     public DateTime StateChangedUtc { get; set; }
 
-    /// <summary>Why it stopped — failed, waiting for review or cancelled —, one readable sentence; <c>null</c> while it
-    /// goes on.</summary>
+    /// <summary>Why it stopped — failed, waiting for review or cancelled —, as a message the Api renders in the reader's
+    /// language (MAM-47, ADR 0042); <c>null</c> while it goes on.</summary>
     [MaxLength(ReasonMaximumLength)]
-    public string? Reason { get; set; }
+    public Message? Reason { get; set; }
 
     /// <summary>
     /// The edition words the release's title claims, as the owner saw them in the dialog (MAM-37's

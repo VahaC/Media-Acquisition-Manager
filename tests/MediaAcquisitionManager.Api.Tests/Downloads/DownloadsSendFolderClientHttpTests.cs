@@ -12,6 +12,7 @@ using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -374,7 +375,7 @@ public sealed class DownloadsSendFolderClientHttpTests : IClassFixture<FolderCli
         var job = (await response.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
         Assert.Equal((DownloadJobStatus.Failed, error), (job.Status, job.Error));
         var row = await JobRowAsync(cancellationToken);
-        Assert.Equal((DownloadJobStatus.Failed, error, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App), (row.Status, row.Error, row.ErrorOrigin));
+        Assert.Equal((DownloadJobStatus.Failed, error, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App), (row.Status, TestTexts.En(row.Error), row.ErrorOrigin));
         Assert.Empty(_factory.FolderClient.Submissions);
     }
 

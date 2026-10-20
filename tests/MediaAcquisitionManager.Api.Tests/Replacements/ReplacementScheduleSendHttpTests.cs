@@ -11,6 +11,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -284,7 +285,7 @@ public sealed class ReplacementScheduleSendHttpTests : IClassFixture<MediaAcquis
         await _factory.WithDbAsync(async db =>
         {
             var replacement = await db.ReplacementJobs.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal((ReplacementJobState.Failed, (string?)DownloadFailedReason), (replacement.State, replacement.Reason));
+            Assert.Equal((ReplacementJobState.Failed, (string?)DownloadFailedReason), (replacement.State, TestTexts.En(replacement.Reason)));
         });
     }
 
@@ -330,9 +331,9 @@ public sealed class ReplacementScheduleSendHttpTests : IClassFixture<MediaAcquis
             var row = await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
                 (DownloadJobStatus.Failed, error, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App, (DownloadOverwriteCheck?)null),
-                (row.Status, row.Error, row.ErrorOrigin, row.OverwriteCheck));
+                (row.Status, TestTexts.En(row.Error), row.ErrorOrigin, row.OverwriteCheck));
             var replacement = await db.ReplacementJobs.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal((ReplacementJobState.Failed, (string?)RefusedBeforeSentReason), (replacement.State, replacement.Reason));
+            Assert.Equal((ReplacementJobState.Failed, (string?)RefusedBeforeSentReason), (replacement.State, TestTexts.En(replacement.Reason)));
         });
         Assert.Empty(_qbittorrent.AddRequests);
     }

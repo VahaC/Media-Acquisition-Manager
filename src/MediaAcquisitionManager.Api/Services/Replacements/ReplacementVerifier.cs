@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -155,7 +156,7 @@ public sealed partial class ReplacementVerifier(
     /// <paramref name="reason"/>, its evidence (what the context tracks, and what <paramref name="writeEvidence"/> adds)
     /// and its audit row, all in one transaction; nothing at all when another writer moved the job first.
     /// </summary>
-    private async Task FinishAsync(VerifyingJob job, ReplacementJobState state, string? reason, DateTime now, Func<Task> writeEvidence)
+    private async Task FinishAsync(VerifyingJob job, ReplacementJobState state, Message? reason, DateTime now, Func<Task> writeEvidence)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(CancellationToken.None);
         if (await db.ReplacementJobs.MoveAsync(job.Replacement.Id, ReplacementJobState.Inspecting, state, reason, now) == 0)

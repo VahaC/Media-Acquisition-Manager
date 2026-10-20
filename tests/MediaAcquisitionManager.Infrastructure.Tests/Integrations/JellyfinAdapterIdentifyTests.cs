@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using static MediaAcquisitionManager.TestInfrastructure.Integrations.JellyfinIdentifyHarness;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
@@ -362,7 +363,7 @@ public sealed class JellyfinAdapterIdentifyTests : IDisposable
         Assert.Equal([MediaWorkKind.Movie, MediaWorkKind.Series], kinds);
         Assert.Equal(
             "Jellyfin identifies movie and series items only, so a link on an episode stays in the app.",
-            _jellyfin.Identifier.UnidentifiableKindReason(MediaWorkKind.Episode));
+            TestTexts.En(_jellyfin.Identifier.UnidentifiableKindReason(MediaWorkKind.Episode)));
     }
 
     [Fact]

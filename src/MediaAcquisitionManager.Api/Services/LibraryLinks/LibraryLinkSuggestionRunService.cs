@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,8 +19,8 @@ public sealed class LibraryLinkSuggestionRunService(
     TimeProvider time,
     ILogger<LibraryLinkSuggestionRunService> logger) : ILibraryLinkSuggestionRunService
 {
-    /// <summary>The sentence of a run the queue refused; the reconciler fails one with it too.</summary>
-    internal const string QueueFullError = "Too many TMDb suggestion runs are waiting. Try again in a minute.";
+    /// <summary>Why a run the queue refused wasn't queued; the reconciler fails one with it too.</summary>
+    internal static readonly Message QueueFullError = Message.Of("library-links.suggestions.queue-full");
 
     public Task<LibraryLinkSuggestionRunStartResult> StartAsync(Guid requestedByUserId, CancellationToken cancellationToken = default) =>
         QueueAsync(LibraryLinkSuggestionRunTrigger.Requested, requestedByUserId, cancellationToken);

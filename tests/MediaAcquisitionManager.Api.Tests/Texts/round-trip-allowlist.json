@@ -1,0 +1,24 @@
+[
+  {
+    "keys": ["common.request.unknown-endpoint"],
+    "reason": "Its method and path have only a space between them, so sample values holding a space read back three ways. An HTTP method holds no space, and the sentence is an answer, never stored: a real text reads one way, and the converter never sees one."
+  },
+  {
+    "keys": ["replacements.readability.tally.bytes", "common.size.bytes"],
+    "preferred": "replacements.readability.tally.bytes",
+    "reason": "One wording, two hints: common.size.bytes is the unit a size value is written with (number; no producer makes it a message), the tally is NewFileReadability's exact byte count (number:grouped). From 1,000 on the grouping comma tells them apart. Below it a stored size-differs reason reads both ways and the converter keeps it as its words: a video file that small is no real case."
+  },
+  {
+    "keys": ["integrations.adapter.connected"],
+    "reason": "The service's name and the version it reports have only a space between them, so sample values holding spaces read back several ways. A connection test's answer, never stored: the converter never sees one."
+  },
+  {
+    "keys": ["jellyfin.connected.with-server"],
+    "reason": "Jellyfin's version and its server's name in brackets: sample values that hold brackets themselves (\"Busy (errno 16)\") split several ways. A connection test's answer, never stored: the converter never sees one."
+  },
+  {
+    "keys": ["replacements.pairing.made-film", "replacements.pairing.made-film-of-series"],
+    "preferred": "replacements.pairing.made-film-of-series",
+    "reason": "One English wording for one series and for a list of them: a list of one reads as the single key's words, and a list of two (\"A and B\") as one series whose title holds \" and \". A job of one series is the usual case, so a stored text reads as one series; English never told the two apart, and production holds no such reason (MAM-47 production copy)."
+  }
+]

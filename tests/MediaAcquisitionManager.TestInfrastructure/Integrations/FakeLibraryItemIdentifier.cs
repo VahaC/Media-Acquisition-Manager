@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 
@@ -24,6 +25,12 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <para>
 /// Thread safe: the worker's lanes call it from several threads at once. The requests are recorded in a concurrent queue, and
 /// <see cref="PeakIdentificationsInFlight"/> says how many were being answered at once.
+/// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — its own words (unarmed, its connection test, the kinds it keeps in the app, a refusal a test
+/// hands it) are no sentence of the app's and have no key in the locale files: they travel as
+/// <see cref="Message.Legacy"/>, which every language shows exactly as they are, so a test reads them in any pass. A
+/// sentence the real adapters make comes from their keys; a test that needs one arms the fake with it.
 /// </para>
 /// </remarks>
 public sealed class FakeLibraryItemIdentifier : IIntegrationAdapter, IMediaLibraryProvider, IMediaLibraryItemIdentifier
@@ -111,7 +118,7 @@ public sealed class FakeLibraryItemIdentifier : IIntegrationAdapter, IMediaLibra
 
     /// <summary>A refusal the library gives before sending anything, with the sentence the owner reads.</summary>
     public static LibraryIdentification Refused(LibraryIdentifyRefusal refusal, string sentence) =>
-        new(LibraryIdentifyOutcome.Refused, refusal, Sent: false, [], [], sentence);
+        new(LibraryIdentifyOutcome.Refused, refusal, Sent: false, [], [], Message.Legacy(sentence));
 
     /// <summary>Forgets what it was asked and disarms everything: the answers, the kinds, the lists and the posters.</summary>
     public void Reset()
@@ -136,12 +143,12 @@ public sealed class FakeLibraryItemIdentifier : IIntegrationAdapter, IMediaLibra
     public Task<ConnectionTestResult> TestConnectionAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default)
     {
         _calls.Enqueue(settings);
-        return Task.FromResult(ConnectionTest?.Invoke(settings) ?? ConnectionTestResult.Succeeded("Connected to the fake library."));
+        return Task.FromResult(ConnectionTest?.Invoke(settings) ?? ConnectionTestResult.Succeeded(Message.Legacy("Connected to the fake library.")));
     }
 
     /// <inheritdoc/>
-    public string UnidentifiableKindReason(MediaWorkKind kind) =>
-        $"The fake library doesn't identify {kind.ToString().ToLowerInvariant()} items, so a link on one stays in the app.";
+    public Message UnidentifiableKindReason(MediaWorkKind kind) =>
+        Message.Legacy($"The fake library doesn't identify {kind.ToString().ToLowerInvariant()} items, so a link on one stays in the app.");
 
     /// <inheritdoc/>
     public Task<IntegrationCallResult<LibraryIdentification>> IdentifyAsync(
@@ -165,7 +172,7 @@ public sealed class FakeLibraryItemIdentifier : IIntegrationAdapter, IMediaLibra
                 return Task.FromResult(answer(request));
             if (Identification is { } identification)
                 return Task.FromResult(IntegrationCallResult<LibraryIdentification>.Succeeded(identification(request)));
-            return Task.FromResult(IntegrationCallResult<LibraryIdentification>.Failed(IntegrationCallStatus.Unreachable, UnarmedMessage));
+            return Task.FromResult(IntegrationCallResult<LibraryIdentification>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy(UnarmedMessage)));
         }
         finally
         {
@@ -179,7 +186,7 @@ public sealed class FakeLibraryItemIdentifier : IIntegrationAdapter, IMediaLibra
         IntegrationConnectionSettings settings, LibraryPageRequest page, CancellationToken cancellationToken = default)
     {
         _calls.Enqueue(settings);
-        return Task.FromResult(ItemPages?.Invoke(page) ?? IntegrationCallResult<LibraryItemPage>.Failed(IntegrationCallStatus.Unreachable, UnarmedMessage));
+        return Task.FromResult(ItemPages?.Invoke(page) ?? IntegrationCallResult<LibraryItemPage>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy(UnarmedMessage)));
     }
 
     /// <inheritdoc/>
@@ -197,6 +204,6 @@ public sealed class FakeLibraryItemIdentifier : IIntegrationAdapter, IMediaLibra
         _calls.Enqueue(settings);
         return Task.FromResult(
             Posters?.Invoke(sourceItemId, posterTag)
-            ?? IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.Unreachable, UnarmedMessage));
+            ?? IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy(UnarmedMessage)));
     }
 }

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -26,7 +27,7 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class MediaInspectionEntity : AuditableEntity
 {
-    /// <summary>The longest <see cref="Error"/> the column holds; a longer sentence is cut to it.</summary>
+    /// <summary>The longest <see cref="Error"/> the column holds; a longer message is fitted into it (ADR 0042).</summary>
     public const int ErrorMaximumLength = 1000;
 
     /// <summary><c>st_dev</c> of the file read, stored bit for bit like
@@ -43,11 +44,11 @@ public class MediaInspectionEntity : AuditableEntity
     public DateTime ModifiedUtc { get; set; }
 
     /// <summary>
-    /// Why the media inspector could not read it, one readable sentence; <c>null</c> when it could. A
+    /// Why the media inspector could not read it, as a message the Api renders (ADR 0042); <c>null</c> when it could. A
     /// failure is cached like a success, so a damaged file is not read again on every inspection.
     /// </summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? Error { get; set; }
+    public Message? Error { get; set; }
 
     /// <summary>How long it plays, in milliseconds; <c>null</c> when the container doesn't say.</summary>
     public long? DurationMilliseconds { get; set; }

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 
@@ -17,6 +18,12 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <para>
 /// Unarmed, it answers <see cref="IntegrationCallStatus.Unreachable"/>, so a test that forgot to arm it
 /// sees a failing service and can't pass for a working one.
+/// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — its own words (<see cref="UnarmedMessage"/>) are no sentence of the app's and have no key in
+/// the locale files: they travel as <see cref="Message.Legacy"/>, which every language shows exactly as they are, so a
+/// test reads them in any pass. A sentence the real adapters make comes from their keys; a test that needs one arms the
+/// fake with it.
 /// </para>
 /// </remarks>
 public sealed class FakeIntegrationAdapter : IIntegrationAdapter
@@ -62,6 +69,6 @@ public sealed class FakeIntegrationAdapter : IIntegrationAdapter
         return Task.FromResult(
             Outcome is { } outcome
                 ? outcome(settings)
-                : ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, UnarmedMessage));
+                : ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, Message.Legacy(UnarmedMessage)));
     }
 }

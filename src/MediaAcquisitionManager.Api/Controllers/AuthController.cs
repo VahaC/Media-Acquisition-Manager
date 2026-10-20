@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.RateLimiting;
 using MediaAcquisitionManager.Api.Services.Accounts;
 using MediaAcquisitionManager.Api.Services.Auth;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,11 +26,13 @@ public class AuthController(
     IUserMapper mapper) : ControllerBase
 {
     /// <summary>MAM-4 — the one answer to every failed sign-in, byte for byte, so the response never
-    /// tells which of the user name and the password was wrong, or that the account is disabled.</summary>
-    private const string InvalidCredentials = "The user name or password is incorrect.";
+    /// tells which of the user name and the password was wrong, or that the account is disabled. MAM-47 — in the
+    /// language of the request's own <c>Accept-Language</c>, never the account's, so it still says nothing about which
+    /// account was tried.</summary>
+    private static readonly Message InvalidCredentials = Message.Of("account.sign-in.invalid-credentials");
 
-    private const string SessionEnded = "Your session has ended. Sign in again.";
-    private const string RefreshedMomentsAgo = "This session was refreshed a moment ago. Try again.";
+    private static readonly Message SessionEnded = Message.Of("account.session.ended");
+    private static readonly Message RefreshedMomentsAgo = Message.Of("account.session.refreshed-moments-ago");
 
     [HttpPost("sign-in")]
     [AllowAnonymous]
@@ -125,7 +128,7 @@ public class AuthController(
             UserAccountStatus.Succeeded => NoContent(),
             // Deleted since the session check let the request in: to the caller, an ended session.
             UserAccountStatus.NotFound => Challenge(),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 

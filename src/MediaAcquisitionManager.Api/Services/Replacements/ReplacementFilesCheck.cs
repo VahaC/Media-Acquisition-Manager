@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -8,7 +9,7 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// </summary>
 /// <param name="Status">Passed, not yet, the owner's review, or a bad file.</param>
 /// <param name="Reason">
-/// One readable sentence saying why not: the job's reason when it stops, and — for <see cref="ReplacementCheckStatus.Wait"/>
+/// Why not, as a message the Api renders (MAM-47): the job's reason when it stops, and — for <see cref="ReplacementCheckStatus.Wait"/>
 /// — the one it stops with once the files' wait ran out; <c>null</c> only for <see cref="ReplacementCheckStatus.Pass"/>.
 /// </param>
 /// <param name="NewFiles">
@@ -16,4 +17,4 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// with what each check found of it and why it stopped the job; empty when the client couldn't be read so far. They
 /// replace the job's rows whole.
 /// </param>
-public sealed record ReplacementFilesCheck(ReplacementCheckStatus Status, string? Reason, IReadOnlyList<ReplacementJobNewFileEntity> NewFiles);
+public sealed record ReplacementFilesCheck(ReplacementCheckStatus Status, Message? Reason, IReadOnlyList<ReplacementJobNewFileEntity> NewFiles);

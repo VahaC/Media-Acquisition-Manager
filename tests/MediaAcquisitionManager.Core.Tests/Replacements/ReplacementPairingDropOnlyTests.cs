@@ -1,5 +1,7 @@
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using static MediaAcquisitionManager.TestInfrastructure.Replacements.ReplacementPairingInputs;
 
 namespace MediaAcquisitionManager.Core.Tests.Replacements;
@@ -38,8 +40,8 @@ public sealed class ReplacementPairingDropOnlyTests
 
         //Assert
         var reason = $"“Jellyfin” now {now}, not season 2, episode 5 as when it was scheduled.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -57,8 +59,8 @@ public sealed class ReplacementPairingDropOnlyTests
         //Assert
         const string reason =
             "No new file is The Penguins of Madagascar, season 2, episode 7, so “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E07.mkv” has nothing to replace it.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -74,7 +76,7 @@ public sealed class ReplacementPairingDropOnlyTests
         //Assert
         const string reason =
             "“/media/cartoons/Mickey/Season 03/Mickey Mouse Clubhouse_S03E09a_-_Road Rally.mkv” is one half of an episode (its name gives the episode the letter “a”), so it can't be replaced on its own.";
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Theory]
@@ -92,7 +94,7 @@ public sealed class ReplacementPairingDropOnlyTests
 
         //Assert
         var reason = $"“/media/tv-shows/The Penguins of Madagascar/Season 02/{name}” covers episodes 5–6 of season 2, so one new episode can't replace it.";
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Theory]
@@ -111,7 +113,7 @@ public sealed class ReplacementPairingDropOnlyTests
         //Assert
         var reason =
             $"“/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/{name}” covers episodes 5–6 of season 2, so it can't replace “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E06.mkv” alone.";
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -127,7 +129,7 @@ public sealed class ReplacementPairingDropOnlyTests
         //Assert
         const string reason =
             "“/media/cartoons/Mickey/Season 03 [new]/Mickey Mouse Clubhouse_S03E09b_-_Road Rally.mkv” is one half of an episode (its name gives the episode the letter “b”), so it can't replace “/media/cartoons/Mickey/Season 03/Mickey.S03E09.mkv” on its own.";
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -143,7 +145,7 @@ public sealed class ReplacementPairingDropOnlyTests
         //Assert
         const string reason = "“/media/movies/Alien (1979)/Alien.1979.Extended.2160p.mkv” claims Extended cut, while the release claimed none.";
         // The pair stays shown beside its mark: the owner sees which file it was.
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -158,7 +160,7 @@ public sealed class ReplacementPairingDropOnlyTests
 
         //Assert
         const string reason = "“/media/movies/Alien (1979)/Alien.1979.2160p.mkv” runs 1:12:04, less than three quarters of the old copy's 1:56:30.";
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -176,7 +178,7 @@ public sealed class ReplacementPairingDropOnlyTests
         const string reason =
             "“Jellyfin” now numbers the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” season 2, episode 6, not season 2, episode 5 as when it was scheduled.";
         Assert.Equal(ReplacementPairingVerdict.Wait, result.Verdict);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -201,14 +203,14 @@ public sealed class ReplacementPairingDropOnlyTests
         const string twoNewFiles =
             "Two new files are The Penguins of Madagascar, season 2, episode 7: “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E07.1080p.mkv” and "
             + "“/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E07.720p.mkv”; the app can't tell which one replaces the old copy.";
-        Assert.Equal((ReplacementPairingVerdict.Review, noNewFile), (result.Verdict, result.Reason));
+        Assert.Equal((ReplacementPairingVerdict.Review, noNewFile), (result.Verdict, TestTexts.En(result.Reason)));
         Assert.Equal(
             [
-                new ReplacementOldCopyOutcome(first.Id, newFirst.Id, null),
-                new ReplacementOldCopyOutcome(fifth.Id, null, noNewFile, OnlyDropSettles: true),
-                new ReplacementOldCopyOutcome(seventh.Id, null, twoNewFiles),
+                new EnglishOldCopyOutcome(first.Id, newFirst.Id, null),
+                new EnglishOldCopyOutcome(fifth.Id, null, noNewFile, OnlyDropSettles: true),
+                new EnglishOldCopyOutcome(seventh.Id, null, twoNewFiles),
             ],
-            result.OldCopies);
+            result.OldCopies.InEnglish());
     }
 
     // ── a retry may settle ──────────────────────────────────────────────────────────────────────
@@ -226,8 +228,8 @@ public sealed class ReplacementPairingDropOnlyTests
 
         //Assert
         const string reason = "No new file is Alien (1979), so “/media/movies/Alien (1979)/Alien.1979.1080p.mkv” has nothing to replace it.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: false)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: false)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -244,7 +246,7 @@ public sealed class ReplacementPairingDropOnlyTests
         //Assert
         const string reason =
             "Two new files are Alien (1979): “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” and “/media/movies/Alien (1979)/Alien.1979.1080p.REMUX.mkv”; the app can't tell which one replaces the old copy.";
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: false)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: false)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -260,7 +262,7 @@ public sealed class ReplacementPairingDropOnlyTests
         //Assert
         const string reason =
             "“Jellyfin” gave the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins - Special.mkv” no season and episode number, so the app can't tell which new file replaces it.";
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: false)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: false)], result.OldCopies.InEnglish());
     }
 
     [Theory]
@@ -277,7 +279,7 @@ public sealed class ReplacementPairingDropOnlyTests
 
         //Assert
         var reason = $"“Jellyfin” lists the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” {why}";
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: false)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: false)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -293,7 +295,7 @@ public sealed class ReplacementPairingDropOnlyTests
         //Assert
         const string reason =
             "“Jellyfin” placed the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” in another series (TVDB 999), not The Penguins of Madagascar.";
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: false)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: false)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -309,8 +311,8 @@ public sealed class ReplacementPairingDropOnlyTests
         //Assert
         const string reason =
             "“Jellyfin” no longer lists the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv”, so its episode numbers can't be read.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: false)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: false)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -326,8 +328,8 @@ public sealed class ReplacementPairingDropOnlyTests
         //Assert
         const string reason =
             "“Jellyfin” gave the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” no series with a TMDb, TVDB or IMDb id within an hour, so it can't be told to be an episode of The Penguins of Madagascar.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: false)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: false)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -343,7 +345,7 @@ public sealed class ReplacementPairingDropOnlyTests
 
         //Assert
         Assert.Equal(ReplacementPairingVerdict.Review, result.Verdict);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, null, OnlyDropSettles: false)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, null, OnlyDropSettles: false)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -358,6 +360,6 @@ public sealed class ReplacementPairingDropOnlyTests
 
         //Assert
         Assert.Equal(ReplacementPairingVerdict.Pass, result.Verdict);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, null, OnlyDropSettles: false)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, null, OnlyDropSettles: false)], result.OldCopies.InEnglish());
     }
 }

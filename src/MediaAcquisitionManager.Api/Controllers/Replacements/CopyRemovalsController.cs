@@ -40,7 +40,7 @@ public class CopyRemovalsController(ICopyRemovalService removals) : ControllerBa
         return result.Status switch
         {
             CopyRemovalStatus.Done => Ok(result.List),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -79,8 +79,8 @@ public class CopyRemovalsController(ICopyRemovalService removals) : ControllerBa
     private ActionResult<CopyRemovalDto> Answer(CopyRemovalResult result) => result.Status switch
     {
         CopyRemovalStatus.Done => Ok(result.Removal),
-        CopyRemovalStatus.Invalid => this.BadRequestError(result.Error),
-        CopyRemovalStatus.Refused => this.ConflictError(result.Error),
+        CopyRemovalStatus.Invalid => this.BadRequestError(result.Error!),
+        CopyRemovalStatus.Refused => this.ConflictError(result.Error!),
         // The addressed group, file or removal: missing, with no body.
         _ => NotFound(),
     };

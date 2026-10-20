@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
@@ -36,7 +37,7 @@ public sealed partial class LibraryLinkService
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(link => link.WriteState, LibraryLinkWriteState.Queued)
-                    .SetProperty(link => link.WriteError, (string?)null)
+                    .SetProperty(link => link.WriteError, (Message?)null)
                     .SetProperty(link => link.WriteStateUtc, now)
                     // The click's id: progress survives a reload, and the links are protected (ProtectHeldIds) — the repair
                     // never replaces an id the library holds on its own.
@@ -72,7 +73,9 @@ public sealed partial class LibraryLinkService
     /// answer, so a process that died inside an Apply left none, and Jellyfin goes on with that Apply (a series for minutes)
     /// after the app that sent it is gone. Such a link — the reconciler's <c>RestartedError</c> — waits for the owner's own
     /// Retry too, as its sentence says: a repair click right after the restart would send a second Apply into a series still
-    /// being refreshed.
+    /// being refreshed. MAM-47 (ADR 0042) — compared in SQL as the column keeps it: the value-less message goes through the
+    /// column's converter, so the query compares the stored JSON of its key, and the startup converter turns an older
+    /// build's English into it before any request.
     /// </para>
     /// </remarks>
     private IQueryable<LibraryItemLinkEntity> RepairCandidateLinks() =>

@@ -143,7 +143,9 @@ public sealed class AuthRefreshHttpTests : IClassFixture<MediaAcquisitionManager
 
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("This session was refreshed a moment ago. Try again.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(
+            ("This session was refreshed a moment ago. Try again.", "account.session.refreshed-moments-ago"),
+            await response.ReadErrorBodyAsync(cancellationToken));
         // The browser already holds the rotated cookie; deleting it here would sign the tab out.
         Assert.Null(response.ReadSetCookie(RefreshCookieName));
         Assert.Equal(HttpStatusCode.OK, withNewestCookie.StatusCode);
@@ -171,7 +173,7 @@ public sealed class AuthRefreshHttpTests : IClassFixture<MediaAcquisitionManager
 
         //Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Equal(SessionEnded, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal((SessionEnded, "account.session.ended"), await response.ReadErrorBodyAsync(cancellationToken));
         AssertDeletesTheCookie(response);
         // Revoked for both holders: even the newest cookie and its access token stop working.
         Assert.Equal(HttpStatusCode.Unauthorized, withNewestCookie.StatusCode);

@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -221,7 +222,7 @@ public sealed class QBittorrentAdapterFilesTests : IDisposable
         //Assert
         // The version has just answered at this address, so the 404 is the torrent gone, not a wrong address.
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal(TorrentGoneError, result.Error);
+        Assert.Equal(TorrentGoneError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -243,7 +244,7 @@ public sealed class QBittorrentAdapterFilesTests : IDisposable
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, before.Status);
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal(TorrentGoneError, result.Error);
+        Assert.Equal(TorrentGoneError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -260,7 +261,7 @@ public sealed class QBittorrentAdapterFilesTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "qBittorrent's Web API wasn't found at this address (404 Not Found). Use the address of qBittorrent's Web UI, such as http://192.168.1.10:8080.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.DoesNotContain(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == FilesPath);
     }
 
@@ -280,7 +281,7 @@ public sealed class QBittorrentAdapterFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotFilesError, result.Error);
+        Assert.Equal(NotFilesError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -324,7 +325,7 @@ public sealed class QBittorrentAdapterFilesTests : IDisposable
         Assert.Equal(longest, Assert.Single(kept.Value!).RelativePath);
         Assert.Equal(4096, longest.Length);
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, refused.Status);
-        Assert.Equal(NotFilesError, refused.Error);
+        Assert.Equal(NotFilesError, TestTexts.En(refused.Error));
     }
 
     [Theory]
@@ -428,7 +429,7 @@ public sealed class QBittorrentAdapterFilesTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedError, result.Error);
+        Assert.Equal(expectedError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Single(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == FilesPath);
     }
@@ -446,7 +447,7 @@ public sealed class QBittorrentAdapterFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("qBittorrent refused the session it had just opened.", result.Error);
+        Assert.Equal("qBittorrent refused the session it had just opened.", TestTexts.En(result.Error));
         Assert.Equal(
             ["POST /api/v2/auth/login", "GET /api/v2/app/version with session 1", "GET /api/v2/torrents/files with session 1"],
             Describe(_harness.QBittorrentHttp.Requests));
@@ -492,7 +493,7 @@ public sealed class QBittorrentAdapterFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
-        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", result.Error);
+        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", TestTexts.En(result.Error));
         Assert.DoesNotContain(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == FilesPath);
     }
 
@@ -511,7 +512,7 @@ public sealed class QBittorrentAdapterFilesTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedError, result.Error);
+        Assert.Equal(expectedError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -531,7 +532,7 @@ public sealed class QBittorrentAdapterFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("qBittorrent at http://qbittorrent.test:8080 didn't answer within 0.1 seconds.", result.Error);
+        Assert.Equal("qBittorrent at http://qbittorrent.test:8080 didn't answer within 0.1 seconds.", TestTexts.En(result.Error));
     }
 
     [Fact]

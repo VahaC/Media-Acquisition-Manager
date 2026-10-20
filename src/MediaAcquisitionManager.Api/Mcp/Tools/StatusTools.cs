@@ -4,7 +4,9 @@ using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Mcp.Results;
 using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Api.Services.Recommendations;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Protocol;
@@ -16,7 +18,7 @@ namespace MediaAcquisitionManager.Api.Mcp.Tools;
 /// <remarks>
 /// What a member reads too, shaped by the services as the web app shapes it — no Settings health, which only the owner
 /// reads there and no token reads at all (Vasyl's decision f, ADR 0040). Built per call by the SDK, with the request's
-/// services.
+/// services. MAM-47 (ADR 0042) — the summary is written in the request's language, one key per role and access.
 /// </remarks>
 [McpServerToolType]
 public sealed class StatusTools(
@@ -24,7 +26,8 @@ public sealed class StatusTools(
     ILibrarySyncService librarySync,
     IRecommendationRunService recommendationRuns,
     IRecommendationListService recommendationLists,
-    McpToolResults results)
+    McpToolResults results,
+    IRequestTexts texts)
 {
     [McpServerTool(
         Name = "get_status",
@@ -61,13 +64,23 @@ public sealed class StatusTools(
             await recommendationRuns.GetLatestAsync(userId, cancellationToken),
             await recommendationLists.ListFailedSourcesAsync(userId, cancellationToken));
 
-        var who = isOwner ? "the installation owner" : "a member";
-        var access = caller.Access == PersonalAccessTokenAccess.ReadAndDownload ? "Read and download" : "Read only";
-        return results.Success(
-            $"You act as {caller.UserName} ({who}) with the {access} token “{caller.Name}”, on MAM {McpServerIdentity.Version}; "
-            + $"{Count(status.Library.Items.Count, "library source")}, {Count(status.FailedRecommendationSources.Count, "release source")} failing.",
-            status);
+        // MAM-47 (ADR 0042) — a whole sentence per role and access, as the web app labels each; the two counted nouns are
+        // tallies of their own, each with its plural forms.
+        var readAndDownload = caller.Access == PersonalAccessTokenAccess.ReadAndDownload;
+        var key = (isOwner, readAndDownload) switch
+        {
+            (true, true) => "status.summary.owner-read-and-download",
+            (true, false) => "status.summary.owner-read-only",
+            (false, true) => "status.summary.member-read-and-download",
+            (false, false) => "status.summary.member-read-only",
+        };
+        var summary = Message.Of(
+            key,
+            ("user", caller.UserName),
+            ("token", caller.Name),
+            ("version", McpServerIdentity.Version),
+            ("sources", Message.Of("status.tally.library-sources", ("count", status.Library.Items.Count))),
+            ("failing", Message.Of("status.tally.release-sources-failing", ("count", status.FailedRecommendationSources.Count))));
+        return results.Success(texts.Render(summary), status);
     }
-
-    private static string Count(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 }

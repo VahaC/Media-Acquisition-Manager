@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paging;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,10 +25,10 @@ public sealed class UserAccountService(
     TimeProvider time,
     ILogger<UserAccountService> logger) : IUserAccountService
 {
-    private const string OwnerCannotBeDisabled = "The installation owner can't be disabled.";
-    private const string OwnerCannotBeDeleted = "The installation owner can't be deleted.";
-    private const string CurrentPasswordRequired = "Enter your current password.";
-    private const string CurrentPasswordIncorrect = "The current password is incorrect.";
+    private static readonly Message OwnerCannotBeDisabled = Message.Of("account.users.owner-cannot-be-disabled");
+    private static readonly Message OwnerCannotBeDeleted = Message.Of("account.users.owner-cannot-be-deleted");
+    private static readonly Message CurrentPasswordRequired = Message.Of("account.password.current-required");
+    private static readonly Message CurrentPasswordIncorrect = Message.Of("account.password.current-incorrect");
 
     public async Task<UserListResult> ListAsync(string? search, int page, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -346,7 +347,7 @@ public sealed class UserAccountService(
     }
 
     private static UserAccountResult NameTaken(string userName) =>
-        UserAccountResult.NameTaken($"A user named “{userName}” already exists.");
+        UserAccountResult.NameTaken(Message.Of("account.users.name-taken", ("name", MessageText.Clean(userName))));
 
     // Information, not Warning: a mistyped password is routine, and the per-user rate limit already
     // bounds how many guesses a stolen access token buys.

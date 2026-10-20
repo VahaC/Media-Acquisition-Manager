@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,8 +21,8 @@ public sealed class RecommendationRunService(
     TimeProvider time,
     ILogger<RecommendationRunService> logger) : IRecommendationRunService
 {
-    /// <summary>The sentence of a run the queue refused; the reconciler fails one with it too.</summary>
-    internal const string QueueFullError = "Too many recommendation runs are waiting. Try again in a minute.";
+    /// <summary>Why a run the queue refused failed; the reconciler fails one with it too.</summary>
+    internal static readonly Message QueueFullError = Message.Of("recommendations.run.queue-full");
 
     public Task<RecommendationRunStartResult> StartAsync(Guid requestedByUserId, CancellationToken cancellationToken = default) =>
         QueueAsync(RecommendationRunTrigger.Requested, requestedByUserId, cancellationToken);
@@ -99,7 +100,7 @@ public sealed class RecommendationRunService(
 
         if (!queue.TryEnqueue(run.Id))
         {
-            // The run stays as history of the attempt, failed with the same sentence the owner gets.
+            // The run stays as history of the attempt, failed with the same reason the owner gets.
             await db.RecommendationRuns
                 .Where(queued => queued.Id == run.Id && queued.Status == RecommendationRunStatus.Queued)
                 .MarkFailedAsync(QueueFullError, time.GetUtcNow().UtcDateTime);

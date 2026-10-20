@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Paging;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Paging;
 
@@ -21,7 +22,7 @@ public sealed class PagingRulesTests
         var error = PagingRules.Validate(page, 20);
 
         //Assert
-        Assert.Equal(PageError, error);
+        Assert.Equal(PageError, TestTexts.En(error));
     }
 
     [Theory]
@@ -37,7 +38,7 @@ public sealed class PagingRulesTests
         var error = PagingRules.Validate(1, pageSize);
 
         //Assert
-        Assert.Equal(PageSizeError, error);
+        Assert.Equal(PageSizeError, TestTexts.En(error));
     }
 
     [Theory]
@@ -64,6 +65,6 @@ public sealed class PagingRulesTests
         var error = PagingRules.Validate(0, 0);
 
         //Assert
-        Assert.Equal(PageError, error);
+        Assert.Equal(PageError, TestTexts.En(error));
     }
 }

@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Core.Paths;
 
 /// <summary>
@@ -8,8 +10,9 @@ namespace MediaAcquisitionManager.Core.Paths;
 /// </summary>
 /// <param name="Status">How the path mapped back.</param>
 /// <param name="ServicePath">The service's path in canonical form; <c>null</c> unless <see cref="HasServicePath"/>.</param>
-/// <param name="Reason">A readable sentence saying why there is no service path; <c>null</c> when there is one.</param>
-public sealed record ServicePathMapResult(PathMapStatus Status, string? ServicePath, string? Reason)
+/// <param name="Reason">Why there is no service path, as a message the Api renders (ADR 0042); <c>null</c> when there
+/// is one.</param>
+public sealed record ServicePathMapResult(PathMapStatus Status, string? ServicePath, Message? Reason)
 {
     /// <summary>Whether <see cref="ServicePath"/> is a path the service may be asked about.</summary>
     public bool HasServicePath => Status is PathMapStatus.Identity or PathMapStatus.Mapped;

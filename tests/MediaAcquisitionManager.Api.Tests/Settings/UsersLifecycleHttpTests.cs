@@ -22,7 +22,8 @@ public sealed class UsersLifecycleHttpTests : IClassFixture<MediaAcquisitionMana
     private const string DownloadsUrl = "/api/downloads";
 
     // Byte for byte what every failed sign-in answers: a disabled user must not be told apart.
-    private const string InvalidCredentialsBody = """{"error":"The user name or password is incorrect."}""";
+    private static readonly string InvalidCredentialsBody =
+        ErrorBody.Json("The user name or password is incorrect.", "account.sign-in.invalid-credentials");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IUserSeeder _users = null!;
@@ -240,7 +241,9 @@ public sealed class UsersLifecycleHttpTests : IClassFixture<MediaAcquisitionMana
 
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("The installation owner can't be disabled.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(
+            ("The installation owner can't be disabled.", "account.users.owner-cannot-be-disabled"),
+            await response.ReadErrorBodyAsync(cancellationToken));
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
         await _factory.WithDbAsync(async db =>
         {
@@ -538,7 +541,9 @@ public sealed class UsersLifecycleHttpTests : IClassFixture<MediaAcquisitionMana
 
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("The installation owner can't be deleted.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(
+            ("The installation owner can't be deleted.", "account.users.owner-cannot-be-deleted"),
+            await response.ReadErrorBodyAsync(cancellationToken));
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
         await _factory.WithDbAsync(async db =>
         {

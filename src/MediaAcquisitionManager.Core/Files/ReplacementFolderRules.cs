@@ -1,11 +1,12 @@
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Files;
 
 /// <summary>
 /// MAM-24 — what the library folders ticked for replacement may be when the installation owner saves the Media folders
-/// page (ADR 0033). Each rule answers one readable sentence, or <c>null</c> when the ticks are acceptable — the
-/// rules-class pattern of <see cref="AllowedRootRules"/>.
+/// page (ADR 0033). Each rule answers why the ticks are refused, as a message the Api renders (ADR 0042), or <c>null</c>
+/// when they are acceptable — the rules-class pattern of <see cref="AllowedRootRules"/>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,17 +27,17 @@ public static class ReplacementFolderRules
     /// <summary>The <see cref="AllowedRootRules"/> bound, which the column shares.</summary>
     public const int MaximumPathLength = AllowedRootRules.MaximumPathLength;
 
-    private const string TooManyError = "The app can have at most 50 library folders ticked for replacement.";
-    private const string BlankError = "Each library folder ticked for replacement needs its path.";
-    private const string TooLongError = "A library folder's path can be at most 1024 characters long.";
-    private const string ControlCharacterError = "A library folder's path can't contain line breaks or other control characters.";
+    private static readonly Message TooManyError = Message.Of("files.replacement-folders.too-many", ("count", MaximumCount));
+    private static readonly Message BlankError = Message.Of("files.replacement-folders.path-missing");
+    private static readonly Message TooLongError = Message.Of("files.replacement-folders.too-long", ("count", MaximumPathLength));
+    private static readonly Message ControlCharacterError = Message.Of("files.replacement-folders.control-characters");
 
     /// <summary>
-    /// The sentence saying what is wrong with <paramref name="folders"/>, or <c>null</c>. The first failure wins — the
+    /// Why <paramref name="folders"/> are refused, or <c>null</c>. The first failure wins — the
     /// rules of each path in turn, then a folder ticked twice — and a path that parsed is echoed in its canonical form.
     /// </summary>
     /// <param name="folders">The ticked library folders as the page sent them.</param>
-    public static string? Validate(IReadOnlyList<string?> folders)
+    public static Message? Validate(IReadOnlyList<string?> folders)
     {
         if (folders.Count > MaximumCount)
             return TooManyError;
@@ -53,8 +54,8 @@ public static class ReplacementFolderRules
                 return error switch
                 {
                     PathParseError.ControlCharacter => ControlCharacterError,
-                    PathParseError.DotSegment => $"“{folder}” contains . or .. as a folder name, so it can't be ticked for replacement.",
-                    _ => $"“{folder}” is not a full path, so it can't be ticked for replacement.",
+                    PathParseError.DotSegment => Message.Of("files.replacement-folders.dot-segment", ("path", folder)),
+                    _ => Message.Of("files.replacement-folders.not-full-path", ("path", folder)),
                 };
             }
 
@@ -67,7 +68,7 @@ public static class ReplacementFolderRules
             for (var second = first + 1; second < parsed.Count; second++)
             {
                 if (parsed[first].IsSameAs(parsed[second]))
-                    return $"“{parsed[first]}” is ticked twice. Keep one.";
+                    return Message.Of("files.replacement-folders.ticked-twice", ("path", parsed[first].ToString()));
             }
         }
 

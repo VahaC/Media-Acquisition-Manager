@@ -1,4 +1,3 @@
-using System.Globalization;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Integrations;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
@@ -8,6 +7,7 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,21 +46,8 @@ public sealed class LibrarySyncRunner(
     /// </summary>
     private static readonly MediaWorkKind[] Lists = [MediaWorkKind.Movie, MediaWorkKind.Series, MediaWorkKind.Episode];
 
-    private const string RemovedBeforeStartError = "The integration was removed before the sync started.";
-    private const string RemovedWhileSyncingError = "The integration was removed while it was being synced; nothing was stored.";
-    private const string SwitchedOffBeforeStartError = "“{0}” was switched off before the sync started.";
-
-    // ADR 0008 — the three ways a read shows the library changed under it. {0} is the type's display
-    // name and {3} the list's noun (movies, series, episodes); each ends by saying nothing was stored and
-    // what to do.
-    private const string TotalChangedError =
-        "{0} listed {1} {3} when the sync began and {2} by its end, so its library changed while it was being read. Nothing was changed here; sync again once {0}'s library scan has finished.";
-
-    private const string PagesShiftedError =
-        "{0}'s list of {3} shifted between two pages, so its library changed while it was being read. Nothing was changed here; sync again once {0}'s library scan has finished.";
-
-    private const string DistinctCountError =
-        "The sync read {1} different {3} of the {2} {0} listed, so its library changed while it was being read. Nothing was changed here; sync again once {0}'s library scan has finished.";
+    private static readonly Message RemovedBeforeStartError = Message.Of("library.sync.removed-before-start");
+    private static readonly Message RemovedWhileSyncingError = Message.Of("library.sync.removed-while-syncing");
 
     public async Task RunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
@@ -102,7 +89,7 @@ public sealed class LibrarySyncRunner(
 
         if (!integration.IsEnabled)
         {
-            await FailAsync(runId, integration.Id, "SwitchedOff", Format(SwitchedOffBeforeStartError, integration.Name), settings: null);
+            await FailAsync(runId, integration.Id, "SwitchedOff", Message.Of("library.sync.switched-off-before-start", ("integration", integration.Name)), settings: null);
             return;
         }
 
@@ -220,7 +207,7 @@ public sealed class LibrarySyncRunner(
             }
 
             if (list.Items.Count != list.FirstTotal)
-                return ReadOutcome.Failed("LibraryChanged", Format(DistinctCountError, displayName, list.Items.Count, list.FirstTotal, list.Noun));
+                return ReadOutcome.Failed("LibraryChanged", list.DistinctCountError(displayName));
         }
 
         return new ReadOutcome([.. lists.SelectMany(list => list.Items.Values)], null, null);
@@ -244,10 +231,10 @@ public sealed class LibrarySyncRunner(
         var page = result.Value!;
         list.FirstTotal ??= page.TotalCount;
         if (page.TotalCount != list.FirstTotal)
-            return ReadOutcome.Failed("LibraryChanged", Format(TotalChangedError, displayName, list.FirstTotal, page.TotalCount, list.Noun));
+            return ReadOutcome.Failed("LibraryChanged", list.TotalChangedError(displayName, page.TotalCount));
         if (list.BoundaryId is not null
             && (page.Items.Count == 0 || !string.Equals(page.Items[0].SourceItemId, list.BoundaryId, StringComparison.Ordinal)))
-            return ReadOutcome.Failed("LibraryChanged", Format(PagesShiftedError, displayName, null, null, list.Noun));
+            return ReadOutcome.Failed("LibraryChanged", list.PagesShiftedError(displayName));
 
         foreach (var item in page.Items)
             list.Items[item.SourceItemId] = item;
@@ -260,7 +247,7 @@ public sealed class LibrarySyncRunner(
 
         // Short before the end: items went missing from under the read.
         if (page.Items.Count < LibraryPageSize)
-            return ReadOutcome.Failed("LibraryChanged", Format(PagesShiftedError, displayName, null, null, list.Noun));
+            return ReadOutcome.Failed("LibraryChanged", list.PagesShiftedError(displayName));
 
         list.BoundaryId = page.Items[^1].SourceItemId;
         list.StartIndex += LibraryPageSize - 1;
@@ -337,35 +324,33 @@ public sealed class LibrarySyncRunner(
     /// one that isn't HTTP included. Logged as a Warning with <paramref name="status"/> only, never the
     /// sentence, which can carry the address or what a service said back about a credential.
     /// </summary>
-    private async Task FailAsync(Guid runId, Guid? integrationId, string status, string error, IntegrationConnectionSettings? settings)
+    /// <remarks>MAM-47 (ADR 0042) — the pass masks every value of the message, nested ones too: the template holds no
+    /// secret, so what reached a sentence through a value is what it masks.</remarks>
+    private async Task FailAsync(Guid runId, Guid? integrationId, string status, Message error, IntegrationConnectionSettings? settings)
     {
-        var masked = settings is null ? error : SecretRedaction.Redact(error, settings.Secrets)!;
+        var masked = settings is null ? error : error.Redacted(settings.Secrets);
         await db.LibrarySyncRuns
             .Where(run => run.Id == runId && run.Status == LibrarySyncStatus.Running)
             .MarkFailedAsync(masked, time.GetUtcNow().UtcDateTime);
         logger.LogWarning("Library sync {RunId} of integration {IntegrationId} failed ({Status}).", runId, integrationId, status);
     }
 
-    private static string Format(string format, params object?[] values) => string.Format(CultureInfo.InvariantCulture, format, values);
-
-    /// <summary>What reading the items gave: every item, or the failure's status and sentence.</summary>
-    private sealed record ReadOutcome(IReadOnlyList<LibraryItem> Items, string? FailureStatus, string? Error)
+    /// <summary>What reading the items gave: every item, or the failure's status and reason.</summary>
+    private sealed record ReadOutcome(IReadOnlyList<LibraryItem> Items, string? FailureStatus, Message? Error)
     {
-        public static ReadOutcome Failed(string status, string error) => new([], status, error);
+        public static ReadOutcome Failed(string status, Message error) => new([], status, error);
     }
 
-    /// <summary>How far one of the library's lists has been read (MAM-32).</summary>
+    /// <summary>How far one of the library's lists has been read (MAM-32), and the reasons a read of it gives when the
+    /// library changed under it.</summary>
+    /// <remarks>
+    /// ADR 0008 — the three ways a read shows the library changed under it, each ending by saying nothing was stored and
+    /// what to do. MAM-47 (ADR 0042) — one key per list, never the list's noun as a value: the noun agrees with the
+    /// count, and in Ukrainian with the words around it, so it belongs to the template.
+    /// </remarks>
     private sealed class ListRead(MediaWorkKind kind)
     {
         public MediaWorkKind Kind { get; } = kind;
-
-        /// <summary>The list's noun in the sentences: "movies", "series", "episodes".</summary>
-        public string Noun { get; } = kind switch
-        {
-            MediaWorkKind.Movie => "movies",
-            MediaWorkKind.Series => "series",
-            _ => "episodes",
-        };
 
         /// <summary>By id, keeping the last listing of an id: the overlapping item is read twice by
         /// design.</summary>
@@ -378,5 +363,41 @@ public sealed class LibrarySyncRunner(
         public int StartIndex { get; set; }
 
         public bool IsDone { get; set; }
+
+        /// <summary>The total changed between the first page and <paramref name="lastTotal"/>'s; counted on the
+        /// first total, which the noun follows.</summary>
+        public Message TotalChangedError(string service, int lastTotal) => Message.Of(
+            Kind switch
+            {
+                MediaWorkKind.Movie => "library.sync.total-changed-movies",
+                MediaWorkKind.Series => "library.sync.total-changed-series",
+                _ => "library.sync.total-changed-episodes",
+            },
+            ("service", service),
+            ("count", FirstTotal!.Value),
+            ("last", lastTotal));
+
+        /// <summary>A page started at an item other than the previous page's last one, or ended short.</summary>
+        public Message PagesShiftedError(string service) => Message.Of(
+            Kind switch
+            {
+                MediaWorkKind.Movie => "library.sync.pages-shifted-movies",
+                MediaWorkKind.Series => "library.sync.pages-shifted-series",
+                _ => "library.sync.pages-shifted-episodes",
+            },
+            ("service", service));
+
+        /// <summary>Fewer different items were read than the list's total; counted on the items read, which the noun
+        /// follows.</summary>
+        public Message DistinctCountError(string service) => Message.Of(
+            Kind switch
+            {
+                MediaWorkKind.Movie => "library.sync.distinct-count-movies",
+                MediaWorkKind.Series => "library.sync.distinct-count-series",
+                _ => "library.sync.distinct-count-episodes",
+            },
+            ("service", service),
+            ("count", Items.Count),
+            ("listed", FirstTotal!.Value));
     }
 }

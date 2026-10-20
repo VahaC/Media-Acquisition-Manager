@@ -1,12 +1,13 @@
 using System.ComponentModel;
-using System.Globalization;
 using System.Security.Claims;
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mcp.Results;
 using MediaAcquisitionManager.Api.Services.Downloads;
 using MediaAcquisitionManager.Api.Services.PersonalAccessTokens;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -18,10 +19,12 @@ namespace MediaAcquisitionManager.Api.Mcp.Tools;
 /// <see cref="IDownloadService"/> scopes every job to its sender, as for the Jobs page: another user's job answers as a
 /// missing one (<see cref="McpToolErrors.JobNotFound"/>), the owner's to a member too. Nothing here asks the download
 /// client: the jobs are what the poller last read, and a cancel only stops following (ADR 0014). Built per call by the
-/// SDK, with the request's services.
+/// SDK, with the request's services. MAM-47 (ADR 0042) — every sentence in the language of the MCP request
+/// (<see cref="IRequestTexts"/>): English unless the client sends <c>Accept-Language</c>.
 /// </remarks>
 [McpServerToolType]
-public sealed class JobTools(IDownloadService downloads, IPersonalAccessTokenRefusals personalAccessTokenRefusals, McpToolResults results)
+public sealed class JobTools(
+    IDownloadService downloads, IPersonalAccessTokenRefusals personalAccessTokenRefusals, IRequestTexts texts, McpToolResults results)
 {
     /// <summary>The tool a refused cancel is recorded under, as the access gate records a tool's name.</summary>
     private const string CancelJob = "cancel_job";
@@ -59,12 +62,15 @@ public sealed class JobTools(IDownloadService downloads, IPersonalAccessTokenRef
         // By name, as the Jobs page sends them: the service reads a view and a status by name alone.
         var listed = await downloads.ListAsync(status?.ToString(), view?.ToString(), page, pageSize, user.GetUserId(), cancellationToken);
         if (listed.List is not { } list)
-            return McpToolResults.Error(listed.Error!);
+            return McpToolResults.Error(texts.Render(listed.Error!));
 
-        var matches = list.TotalCount == 1 ? "1 job matches" : $"{list.TotalCount} jobs match";
         return results.Success(
-            $"{matches}; this page lists {list.Items.Count}. Among all your jobs, NeedsYou holds {list.NeedsYouCount} and "
-            + $"InProgress {list.InProgressCount}.",
+            texts.Render(Message.Of(
+                "downloads.mcp.jobs.listed",
+                ("count", list.TotalCount),
+                ("shown", list.Items.Count),
+                ("needsYou", list.NeedsYouCount),
+                ("inProgress", list.InProgressCount))),
             list);
     }
 
@@ -87,14 +93,15 @@ public sealed class JobTools(IDownloadService downloads, IPersonalAccessTokenRef
         CancellationToken cancellationToken = default)
     {
         var userId = user.GetUserId();
-        if (await downloads.GetAsync(jobId, userId, cancellationToken) is not { } job)
-            return McpToolResults.Error(McpToolErrors.JobNotFound);
+        // MAM-47 — with the job's sentences as messages, which the summary nests (ADR 0042).
+        if (await downloads.ReadAsync(jobId, userId, cancellationToken) is not { } read)
+            return McpToolResults.Error(texts.Render(McpToolErrors.JobNotFound));
         // Page 1 of 25 always fits the list's rules, so only a job gone since the read above — its sender's account
         // removed — answers otherwise, as a missing job.
         if ((await downloads.ListFilesAsync(jobId, 1, FirstFiles, userId, cancellationToken)).List is not { } files)
-            return McpToolResults.Error(McpToolErrors.JobNotFound);
+            return McpToolResults.Error(texts.Render(McpToolErrors.JobNotFound));
 
-        return results.Success(JobSummary(job, files), new JobToolResult(job, files));
+        return results.Success(texts.Render(JobSummary(read, files)), new JobToolResult(read.Job, files));
     }
 
     [McpServerTool(
@@ -130,38 +137,52 @@ public sealed class JobTools(IDownloadService downloads, IPersonalAccessTokenRef
                 ?? throw new InvalidOperationException("cancel_job runs on a personal access token only.");
             await personalAccessTokenRefusals.RecordAsync(
                 tokenId, userId, PersonalAccessTokenRefusalReason.CancelEndsReplacement, McpToolAccessFilter.CallMethod, CancelJob, cancellationToken);
-            return McpToolResults.Error(PersonalAccessTokenErrors.CancelEndsReplacement);
+            return McpToolResults.Error(texts.Render(PersonalAccessTokenErrors.CancelEndsReplacement));
         }
 
         return cancelled.Status switch
         {
             DownloadCancelStatus.Cancelled => results.Success(
-                $"MAM no longer follows “{cancelled.Job!.ReleaseTitle}”: the job is Cancelled, and the torrent stays in "
-                + $"“{cancelled.Job.DownloadClientName}” as it is.",
+                texts.Render(Message.Of(
+                    "downloads.mcp.jobs.cancelled", ("release", cancelled.Job!.ReleaseTitle), ("client", cancelled.Job.DownloadClientName))),
                 cancelled.Job),
-            DownloadCancelStatus.NothingToStop or DownloadCancelStatus.StillBeingSent => McpToolResults.Error(cancelled.Error!),
-            _ => McpToolResults.Error(McpToolErrors.JobNotFound),
+            DownloadCancelStatus.NothingToStop or DownloadCancelStatus.StillBeingSent => McpToolResults.Error(texts.Render(cancelled.Error!)),
+            _ => McpToolResults.Error(texts.Render(McpToolErrors.JobNotFound)),
         };
     }
 
     // ── summaries ───────────────────────────────────────────────────────────────────────────────
 
     /// <summary>Where the job stands, why it stopped if it did, and how many of its files the answer lists.</summary>
-    private static string JobSummary(DownloadJobDto job, DownloadJobFileListResponse files)
+    /// <remarks>MAM-47 (ADR 0042) — a sentence per shape, with or without the progress and the job's own sentences (design
+    /// §2.3): how many files are listed is a clause of its own, the job's error and block reason are nested as the
+    /// messages its answer renders, and the status stays its API name.</remarks>
+    private static Message JobSummary(DownloadJobRead read, DownloadJobFileListResponse files)
     {
-        // Rounded down: a download at 99.6 % isn't done.
-        var progress = job.Progress is { } done
-            ? $" at {Math.Floor(done * 100).ToString(CultureInfo.InvariantCulture)}%"
-            : "";
+        var job = read.Job;
         var listed = files.TotalCount switch
         {
-            0 => "its download client hasn't listed its files yet",
-            1 => "its 1 file is listed",
-            var total when total <= files.Items.Count => $"its {total} files are listed",
-            var total => $"the first {files.Items.Count} of its {total} files are listed",
+            0 => Message.Of("downloads.mcp.job.listed.none-clause"),
+            var total when total <= files.Items.Count => Message.Of("downloads.mcp.job.listed.all-clause", ("count", total)),
+            var total => Message.Of("downloads.mcp.job.listed.first-clause", ("shown", files.Items.Count), ("count", total)),
         };
         // The job's own sentences, each a full one: why it failed, why a followed one isn't moving on.
-        var why = string.Concat(job.Error is { } error ? $" {error}" : "", job.BlockReason is { } blocked ? $" {blocked}" : "");
-        return $"“{job.ReleaseTitle}” in “{job.DownloadClientName}” is {job.Status}{progress}; {listed}.{why}";
+        MessageValue[] sentences = [.. new[] { read.Error, read.BlockReason }.OfType<Message>()];
+        var why = sentences.Length > 0 ? new ListValue(sentences) : null;
+        (string Name, MessageValue Value)[] values =
+            [("release", job.ReleaseTitle), ("client", job.DownloadClientName), ("status", job.Status.ToString()), ("listed", listed)];
+        // Rounded down: a download at 99.6 % isn't done. A number value is a decimal, so a progress that is no finite
+        // number — no client reports one — shows none rather than failing the answer.
+        if (job.Progress is { } done && double.IsFinite(done))
+        {
+            var percent = (decimal)Math.Floor(done * 100);
+            return why is null
+                ? Message.Of("downloads.mcp.job.summary-progress", [.. values, ("percent", percent)])
+                : Message.Of("downloads.mcp.job.summary-progress-why", [.. values, ("percent", percent), ("why", why)]);
+        }
+
+        return why is null
+            ? Message.Of("downloads.mcp.job.summary", values)
+            : Message.Of("downloads.mcp.job.summary-why", [.. values, ("why", why)]);
     }
 }

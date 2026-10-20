@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 
@@ -9,8 +10,7 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 // the browser is never sent to a third party and the image host never sees who looks.
 internal sealed partial class TmdbAdapter
 {
-    private const string NotAnImageError =
-        "TMDb's image host answered the poster with something other than a JPEG or PNG image.";
+    private static readonly Message NotAnImageError = Message.Of("tmdb.poster.not-an-image");
 
     /// <summary>The media types a poster is kept as: what TMDb serves posters as, and nothing the
     /// browser could run.</summary>
@@ -51,7 +51,7 @@ internal sealed partial class TmdbAdapter
                     HttpStatusCode.OK => await ReadPosterAsync(response, token),
                     // The path passed the pattern above, so it is safe to repeat.
                     HttpStatusCode.NotFound => IntegrationCallResult<CatalogImage>.Failed(
-                        IntegrationCallStatus.NotFound, $"TMDb's image host has no poster at {posterPath}."),
+                        IntegrationCallStatus.NotFound, Message.Of("tmdb.poster.none", ("path", posterPath))),
                     HttpStatusCode.TooManyRequests => IntegrationCallResult<CatalogImage>.Failed(IntegrationCallStatus.Refused, TooManyRequestsError),
                     _ => DescribeUnexpectedStatus<CatalogImage>(response, settings, sessionSecrets),
                 };

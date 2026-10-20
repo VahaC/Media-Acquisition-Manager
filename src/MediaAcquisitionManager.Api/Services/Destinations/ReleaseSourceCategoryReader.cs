@@ -4,6 +4,8 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Texts;
+using MediaAcquisitionManager.Infrastructure.Integrations;
 
 namespace MediaAcquisitionManager.Api.Services.Destinations;
 
@@ -37,7 +39,7 @@ public sealed class ReleaseSourceCategoryReader(
         // A switched-off source is left alone, the way a search leaves it (MAM-7's switch); then whether this
         // build can search through its type; then whether its stored secrets can be read; then the call.
         if (!source.IsEnabled)
-            return NotAsked(source, "Disabled", $"“{source.Name}” is switched off. Switch it on under Integrations to read its sections.");
+            return NotAsked(source, "Disabled", Message.Of("destinations.section.source-switched-off", ("source", source.Name)));
         if (adapters.Find<IReleaseSearchProvider>(source.AdapterType) is not { } provider)
             return NotAsked(source, "TypeUnavailable", ReleaseSources.TypeUnavailableError(source.AdapterType));
 
@@ -70,11 +72,11 @@ public sealed class ReleaseSourceCategoryReader(
                 source.AdapterType,
                 exception.GetType().FullName,
                 exception.StackTrace);
-            return Failed(source, IntegrationCallStatus.UnexpectedResponse, $"The app couldn't read what “{source.Name}” answered.", settings);
+            return Failed(source, IntegrationCallStatus.UnexpectedResponse, IntegrationAdapterMessages.UnreadableAnswer(source.Name), settings);
         }
     }
 
-    private ReleaseSourceCategories NotAsked(IntegrationConnectionEntity source, string reason, string error)
+    private ReleaseSourceCategories NotAsked(IntegrationConnectionEntity source, string reason, Message error)
     {
         logger.LogInformation(
             "Section listing of integration {IntegrationId} ({AdapterType}) did not ask it: {Reason}.", source.Id, source.AdapterType, reason);
@@ -82,13 +84,13 @@ public sealed class ReleaseSourceCategoryReader(
     }
 
     private ReleaseSourceCategories Failed(
-        IntegrationConnectionEntity source, IntegrationCallStatus status, string error, IntegrationConnectionSettings settings)
+        IntegrationConnectionEntity source, IntegrationCallStatus status, Message error, IntegrationConnectionSettings settings)
     {
         // Information: the status only — never the address or the sentence (the connection test's rule).
         logger.LogInformation(
             "Section listing of integration {IntegrationId} ({AdapterType}) failed: {Status}.", source.Id, source.AdapterType, status);
         // Masked again after the adapter (ADR 0007's second pass), which also covers an adapter that isn't
         // HTTP.
-        return ReleaseSourceCategories.NotListed(SecretRedaction.Redact(error, settings.Secrets)!);
+        return ReleaseSourceCategories.NotListed(error.Redacted(settings.Secrets));
     }
 }

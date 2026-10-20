@@ -2,7 +2,9 @@ using System.Text.Json;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Downloads;
 
@@ -35,9 +37,19 @@ public sealed class DestinationPathCheckTests
     private const string LibrariesUnknownError =
         "The app doesn't know the media library folders yet. Sync a library from the Library page, then look again.";
 
-    // MAM-30 — a folder client's own sentence for a folder it can't reach, passed through as it is.
+    // MAM-30 — a folder client's own sentence for a folder it can't reach, passed through as it is. MAM-47 — planted as
+    // the adapter makes it (its key and values), read back in English.
     private const string CantSeeProblem =
         "Transmission can't see “/downloads/movies” (No such file or directory). Mount that folder into Transmission, or add a path mapping on this integration that leads there, then look again.";
+
+    private static readonly Message CantSee = Message.Of(
+        "transmission.folder.not-seen",
+        ("service", "Transmission"),
+        ("folder", "/downloads/movies"),
+        ("reason", VendorText.Clean("No such file or directory", 300)));
+
+    private static readonly Message ServerError =
+        Message.Of("http.status.server-error", ("service", "qBittorrent"), ("status", "503 Service Unavailable"));
 
     [Fact]
     public async Task Check_of_the_adr_0003_samples_puts_every_qbittorrent_category_in_its_jellyfin_library()
@@ -209,7 +221,7 @@ public sealed class DestinationPathCheckTests
 
         //Assert
         // Nothing would follow from syncing a library while the folder itself is unknown.
-        Assert.Equal((DestinationPathStatus.PathUnknown, expected), (result.Status, result.Problem));
+        Assert.Equal((DestinationPathStatus.PathUnknown, expected), (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -414,7 +426,7 @@ public sealed class DestinationPathCheckTests
         const string problem = "“qBittorrent” is switched off. Switch it on under Integrations to check this destination.";
 
         //Act
-        var result = DestinationPathCheckResult.ClientDisabled(problem);
+        var result = DestinationPathCheckResult.ClientDisabled(Message.Legacy(problem));
 
         //Assert
         // Nothing was asked, so nothing is known about the folder.
@@ -428,7 +440,7 @@ public sealed class DestinationPathCheckTests
         const string problem = "qBittorrent answered 503 Service Unavailable. Its own log says why.";
 
         //Act
-        var result = DestinationPathCheckResult.ClientUnavailable(problem);
+        var result = DestinationPathCheckResult.ClientUnavailable(ServerError);
 
         //Assert
         Assert.Equal($"ClientUnavailable ∅ → ∅ [] {problem}", Describe(result));
@@ -438,7 +450,7 @@ public sealed class DestinationPathCheckTests
     public void Check_of_a_folder_the_client_can_not_see_is_folder_not_seen_naming_its_library_with_no_app_path()
     {
         //Arrange
-        ClientDestination destination = new("/downloads/movies", "/downloads/movies", "/downloads/movies", Problem: CantSeeProblem);
+        ClientDestination destination = new("/downloads/movies", "/downloads/movies", "/downloads/movies", Problem: CantSee);
 
         //Act
         var result = DestinationPathCheck.Check(destination, [DownloadsToMedia], SampleFolders);
@@ -456,7 +468,7 @@ public sealed class DestinationPathCheckTests
     public void Check_of_a_folder_the_client_can_not_see_outside_the_libraries_names_none(string folder)
     {
         //Arrange
-        ClientDestination destination = new(folder, folder, folder, Problem: CantSeeProblem);
+        ClientDestination destination = new(folder, folder, folder, Problem: CantSee);
 
         //Act
         var result = DestinationPathCheck.Check(destination, [DownloadsToMedia], SampleFolders);
@@ -469,7 +481,7 @@ public sealed class DestinationPathCheckTests
     public void Check_of_a_folder_the_client_can_not_see_says_so_before_the_libraries_are_known()
     {
         //Arrange
-        ClientDestination destination = new("/downloads/movies", "/downloads/movies", "/downloads/movies", Problem: CantSeeProblem);
+        ClientDestination destination = new("/downloads/movies", "/downloads/movies", "/downloads/movies", Problem: CantSee);
 
         //Act
         var result = DestinationPathCheck.Check(destination, [DownloadsToMedia], []);
@@ -545,7 +557,7 @@ public sealed class DestinationPathCheckTests
     public void Check_by_key_of_a_folder_the_client_can_not_see_is_folder_not_seen_with_the_clients_sentence()
     {
         //Arrange
-        ClientDestination[] destinations = [new("/downloads/movies", "/downloads/movies", "/downloads/movies", Problem: CantSeeProblem)];
+        ClientDestination[] destinations = [new("/downloads/movies", "/downloads/movies", "/downloads/movies", Problem: CantSee)];
 
         //Act
         var result = DestinationPathCheck.Check("/downloads/movies", destinations, [DownloadsToMedia], SampleFolders, DownloadDestinationKind.Folder, "Transmission");
@@ -570,5 +582,5 @@ public sealed class DestinationPathCheckTests
 
     // "<status> <service path> → <app path> [<libraries>] <problem>", "∅" for null.
     private static string Describe(DestinationPathCheckResult result) =>
-        $"{result.Status} {result.ServicePath ?? "∅"} → {result.AppPath ?? "∅"} [{string.Join(", ", result.LibraryNames)}] {result.Problem ?? "∅"}";
+        $"{result.Status} {result.ServicePath ?? "∅"} → {result.AppPath ?? "∅"} [{string.Join(", ", result.LibraryNames)}] {TestTexts.En(result.Problem) ?? "∅"}";
 }

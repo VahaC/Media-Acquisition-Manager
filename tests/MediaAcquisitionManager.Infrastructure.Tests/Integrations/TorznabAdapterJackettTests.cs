@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Search;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -57,7 +58,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to Jackett over Torznab; movie search by title, TV search by title, season and episode.", result.Message);
+        Assert.Equal("Connected to Jackett over Torznab; movie search by title, TV search by title, season and episode.", TestTexts.En(result.Message));
         // The copied address ends in /results/torznab/: the endpoint is that with /api (ADR 0004, VendorSamples README).
         var request = Assert.Single(_harness.TorznabHttp.Requests);
         Assert.Equal($"http://jackett.test:9117/api/v2.0/indexers/toloka/results/torznab/api?t=caps&apikey={ApiKey}", request.Uri.AbsoluteUri);
@@ -76,7 +77,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(RefusedKeyError, result.Message);
+        Assert.Equal(RefusedKeyError, TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -90,7 +91,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(RefusedKeyError, result.Error);
+        Assert.Equal(RefusedKeyError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -104,7 +105,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(RefusedKeyError, result.Error);
+        Assert.Equal(RefusedKeyError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -126,7 +127,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             $"The Torznab feed doesn't serve what this address names (error 201: {description}). Check the indexer in the feed's address, such as …/indexers/toloka/results/torznab/ for Jackett or …/1/api for Prowlarr.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -143,7 +144,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The Torznab feed doesn't serve what this address names (error 201: Indexer is not supported). Check the indexer in the feed's address, such as …/indexers/toloka/results/torznab/ for Jackett or …/1/api for Prowlarr.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -159,7 +160,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("The Torznab feed didn't understand the search (error 201: Incorrect parameter: invalid imdbid format).", result.Error);
+        Assert.Equal("The Torznab feed didn't understand the search (error 201: Incorrect parameter: invalid imdbid format).", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -175,7 +176,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address: Prowlarr's ends in /api, and Jackett's Copy Torznab Feed gives one ending in /results/torznab/.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -302,7 +303,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
-        Assert.Equal("The Torznab feed failed (error 900: Download of /dl/toloka/?jackett_apikey=***&path=***&file=x failed).", result.Error);
+        Assert.Equal("The Torznab feed failed (error 900: Download of /dl/toloka/?jackett_apikey=***&path=***&file=x failed).", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -317,7 +318,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(RefusedDownloadKeyError, result.Error);
+        Assert.Equal(RefusedDownloadKeyError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -332,7 +333,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal(DownloadNotFoundError, result.Error);
+        Assert.Equal(DownloadNotFoundError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -369,7 +370,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
         //Assert
         // The token and the key wherever the feed's text repeats them: a secret of this call, and named path=.
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
-        Assert.Equal("The Torznab feed failed to hand over the release (error 900: Token *** of ?jackett_apikey=***&path=***&file=*** failed).", result.Error);
+        Assert.Equal("The Torznab feed failed to hand over the release (error 900: Token *** of ?jackett_apikey=***&path=***&file=*** failed).", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -390,7 +391,7 @@ public sealed class TorznabAdapterJackettTests : IDisposable
         Assert.Equal(TorznabSamples.TorrentFile(), withTheKey.Value!.TorrentFile);
         // The stored link holds no key, so a key changed under Integrations is the one the next fetch sends.
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, withAnother.Status);
-        Assert.Equal(RefusedDownloadKeyError, withAnother.Error);
+        Assert.Equal(RefusedDownloadKeyError, TestTexts.En(withAnother.Error));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

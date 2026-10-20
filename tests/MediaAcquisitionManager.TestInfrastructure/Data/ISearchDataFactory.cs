@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -23,5 +24,5 @@ public interface ISearchDataFactory
         int position = 0,
         IntegrationCallStatus? status = IntegrationCallStatus.Succeeded,
         ReleaseSourceNotSearchedReason? notSearchedReason = null,
-        string? error = null);
+        Message? error = null);
 }

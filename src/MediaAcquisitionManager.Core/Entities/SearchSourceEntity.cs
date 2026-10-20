@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -22,7 +23,8 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class SearchSourceEntity : BaseEntity
 {
-    /// <summary>The longest <see cref="Error"/> the column holds; a longer sentence is cut to it.</summary>
+    /// <summary>The longest <see cref="Error"/> the column holds. MAM-47 (ADR 0042) — the message as JSON, fitted into it
+    /// by cutting its longest value (<c>MessageFit</c>).</summary>
     public const int ErrorMaximumLength = 1000;
 
     /// <summary>The search; the row is removed with it.</summary>
@@ -47,10 +49,10 @@ public class SearchSourceEntity : BaseEntity
     public ReleaseSourceNotSearchedReason? NotSearchedReason { get; set; }
 
     /// <summary>
-    /// A readable sentence saying what went wrong, with every secret masked; <c>null</c> when nothing
-    /// did. It can name the service's address, so only the installation owner reads it (the MAM-8 rule
-    /// for a sync run's error).
+    /// What went wrong, with every secret masked, as a message the Api renders in the reader's language (ADR 0042);
+    /// <c>null</c> when nothing did. It can name the service's address, so only the installation owner reads it (the
+    /// MAM-8 rule for a sync run's error).
     /// </summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? Error { get; set; }
+    public Message? Error { get; set; }
 }

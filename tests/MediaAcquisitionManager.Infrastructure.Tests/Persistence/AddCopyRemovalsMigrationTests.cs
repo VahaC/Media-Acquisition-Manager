@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -98,7 +99,7 @@ public sealed class AddCopyRemovalsMigrationTests : DatabaseTestBase
             (name.Id, name.ReplacementJobId, name.ReplacementJobFileId, name.Position, name.Kind, name.AllowedRoot, name.DeviceId, name.Inode, name.SizeBytes));
         Assert.Equal(
             (TestMedia.ModifiedUtc.Ticks, (int?)2, ReplacementNameState.Quarantined, (string?)"Held.", (long?)movedUtc.Ticks),
-            (name.ModifiedUtc.Ticks, name.LinkCount, name.State, name.Problem, name.MovedUtc?.Ticks));
+            (name.ModifiedUtc.Ticks, name.LinkCount, name.State, TestTexts.En(name.Problem), name.MovedUtc?.Ticks));
         Assert.Equal(0, await check.CopyRemovals.CountAsync(cancellationToken));
     }
 

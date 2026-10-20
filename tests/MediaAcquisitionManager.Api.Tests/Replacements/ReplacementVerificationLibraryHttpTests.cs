@@ -10,6 +10,7 @@ using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -101,12 +102,12 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, beforeTheHour.Reason));
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)JellyfinUnavailableReason), (atTheHour.State, atTheHour.Reason));
+        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, TestTexts.En(beforeTheHour.Reason)));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)JellyfinUnavailableReason), (atTheHour.State, TestTexts.En(atTheHour.Reason)));
         await AssertNeedsReviewAsync(job, JellyfinUnavailableReason, cancellationToken);
         // Jellyfin was never read, so nothing of it is kept; the files' evidence stays as checked.
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((string?)null, (DateTime?)null, (long?)7, (string?)null), (newFile.LibraryItemId, newFile.ReadUtc, newFile.Inode, newFile.Problem));
+        Assert.Equal(((string?)null, (DateTime?)null, (long?)7, (string?)null), (newFile.LibraryItemId, newFile.ReadUtc, newFile.Inode, TestTexts.En(newFile.Problem)));
         Assert.Single(_harness.JellyfinServer.ScanRequests);
     }
 
@@ -148,10 +149,10 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
 
         //Assert
         // An hour from the request to look, never a pass on an unread library.
-        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, beforeTheHour.Reason));
+        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, TestTexts.En(beforeTheHour.Reason)));
         await AssertNeedsReviewAsync(job, reason, cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((string?)null, (DateTime?)null, (Guid?)null, (string?)null), (newFile.LibraryItemId, newFile.ReadUtc, newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((string?)null, (DateTime?)null, (Guid?)null, (string?)null), (newFile.LibraryItemId, newFile.ReadUtc, newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
     }
 
     [Fact]
@@ -175,12 +176,12 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
 
         //Assert
         // Waiting, the file holds no problem yet: it may still be given an id.
-        Assert.Equal((ReplacementJobState.Inspecting, (string?)null, (string?)null), (beforeTheHour.State, beforeTheHour.Reason, pendingProblem));
+        Assert.Equal((ReplacementJobState.Inspecting, (string?)null, (string?)null), (beforeTheHour.State, TestTexts.En(beforeTheHour.Reason), TestTexts.En(pendingProblem)));
         await AssertNeedsReviewAsync(job, NoIdReason, cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(
             ((LibraryFileKind?)LibraryFileKind.Movie, true, (Guid?)null, (string?)NoIdReason),
-            (newFile.Kind, newFile.Refreshed, newFile.MediaWorkId, newFile.Problem));
+            (newFile.Kind, newFile.Refreshed, newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Empty(await _harness.NewFileIdentifiersAsync(cancellationToken));
         // The copy waits on the file: no "no new file" while it was still unidentified.
         Assert.Equal(((Guid?)null, (string?)null), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
@@ -209,7 +210,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         Assert.Equal(ReplacementJobState.Inspecting, waiting.State);
         Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id, CanCancel = true }, await _harness.LineAsync(job.Id, cancellationToken));
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Equal([(0, false, MediaIdentifierScheme.Imdb, AlienImdbId)], await _harness.NewFileIdentifiersAsync(cancellationToken));
         Assert.Equal((Guid?)newFile.Id, Assert.Single(await _harness.CopiesAsync(cancellationToken)).PairedNewFileId);
         // Asked once: every pass after read Jellyfin again.
@@ -239,12 +240,12 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, beforeTheHour.Reason));
+        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, TestTexts.En(beforeTheHour.Reason)));
         await AssertNeedsReviewAsync(job, reason, cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(
             (listed ? JellyfinItemIds.Of(JellyfinItemIds.MovieType, NewLibraryPath) : null, listed ? LibraryFileKind.Movie : (LibraryFileKind?)null, false, (string?)reason),
-            (newFile.LibraryItemId, newFile.Kind, newFile.Refreshed, newFile.Problem));
+            (newFile.LibraryItemId, newFile.Kind, newFile.Refreshed, TestTexts.En(newFile.Problem)));
         Assert.Equal(((Guid?)null, (string?)null), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
     }
 
@@ -278,7 +279,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
             },
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)NotAskedReason, (DateTime?)null), (replacement.State, replacement.Reason, replacement.LibraryAskedUtc));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)NotAskedReason, (DateTime?)null), (replacement.State, TestTexts.En(replacement.Reason), replacement.LibraryAskedUtc));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementNeedsReview, replacement.Id)],
             await _harness.CheckAuditsAsync(cancellationToken));
@@ -316,7 +317,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         //Assert
         Assert.Equal(
             (ReplacementJobState.Inspecting, (string?)null, (DateTime?)startedUtc, (DateTime?)askedUtc),
-            (pastTheChecksHour.State, pastTheChecksHour.Reason, pastTheChecksHour.InspectionStartedUtc, pastTheChecksHour.LibraryAskedUtc));
+            (pastTheChecksHour.State, TestTexts.En(pastTheChecksHour.Reason), pastTheChecksHour.InspectionStartedUtc, pastTheChecksHour.LibraryAskedUtc));
         Assert.Equal(
             new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, NotListedReason, false, 0)
             {
@@ -329,9 +330,9 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)NotListedReason, (DateTime?)startedUtc, (DateTime?)askedUtc),
-            (replacement.State, replacement.Reason, replacement.InspectionStartedUtc, replacement.LibraryAskedUtc));
+            (replacement.State, TestTexts.En(replacement.Reason), replacement.InspectionStartedUtc, replacement.LibraryAskedUtc));
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((string?)null, (string?)NotListedReason), (newFile.LibraryItemId, newFile.Problem));
+        Assert.Equal(((string?)null, (string?)NotListedReason), (newFile.LibraryItemId, TestTexts.En(newFile.Problem)));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementNeedsReview, replacement.Id)],
             await _harness.CheckAuditsAsync(cancellationToken));
@@ -375,7 +376,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(
             ((string?)HomeVideoPath, (Guid?)homeVideos.Id, (string?)HomeVideoPath, (long?)7, (string?)null),
-            (newFile.AppPath, newFile.LibraryIntegrationId, newFile.LibraryPath, newFile.Inode, newFile.Problem));
+            (newFile.AppPath, newFile.LibraryIntegrationId, newFile.LibraryPath, newFile.Inode, TestTexts.En(newFile.Problem)));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementNeedsReview, replacement.Id)],
             await _harness.CheckAuditsAsync(cancellationToken));
@@ -412,7 +413,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(
             ((DateTime?)TestMedia.ModifiedUtc, (string?)null, (string?)reason),
-            (newFile.ModifiedUtc, newFile.LibraryItemId, newFile.Problem));
+            (newFile.ModifiedUtc, newFile.LibraryItemId, TestTexts.En(newFile.Problem)));
         Assert.Empty(_factory.JellyfinHttp.Requests.Skip(jellyfinBefore));
     }
 
@@ -445,9 +446,9 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
             },
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)RemovedReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)RemovedReason), (replacement.State, TestTexts.En(replacement.Reason)));
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((string?)null, (string?)null), (newFile.LibraryItemId, newFile.Problem));
+        Assert.Equal(((string?)null, (string?)null), (newFile.LibraryItemId, TestTexts.En(newFile.Problem)));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementNeedsReview, replacement.Id)],
             await _harness.CheckAuditsAsync(cancellationToken));
@@ -557,7 +558,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
             },
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)reason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)reason), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementNeedsReview, replacement.Id)],
             await _harness.CheckAuditsAsync(cancellationToken));
@@ -569,5 +570,5 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
     private static (AuditAction, Guid?, AuditTargetKind?, Guid?, string?) Audited(AuditAction action, Guid replacementJobId) =>
         (action, null, AuditTargetKind.ReplacementJob, replacementJobId, AlienRelease);
 
-    private static (Guid? PairedNewFileId, string? Problem) CopyOutcome(ReplacementJobFileEntity copy) => (copy.PairedNewFileId, copy.Problem);
+    private static (Guid? PairedNewFileId, string? Problem) CopyOutcome(ReplacementJobFileEntity copy) => (copy.PairedNewFileId, TestTexts.En(copy.Problem));
 }

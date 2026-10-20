@@ -9,6 +9,7 @@ using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.TestInfrastructure;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -292,7 +293,7 @@ public sealed class JellyfinAdapterTvTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(expectedError, result.Error);
+        Assert.Equal(expectedError, TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -309,7 +310,7 @@ public sealed class JellyfinAdapterTvTests : IDisposable
         var result = await Library.ListItemsAsync(Settings, new LibraryPageRequest(kind, 0, 50), TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal((IntegrationCallStatus.UnexpectedResponse, expectedError), (result.Status, result.Error));
+        Assert.Equal((IntegrationCallStatus.UnexpectedResponse, expectedError), (result.Status, TestTexts.En(result.Error)));
     }
 
     [Theory]
@@ -382,7 +383,28 @@ public sealed class JellyfinAdapterTvTests : IDisposable
         //Assert
         Assert.Equal(
             "Jellyfin no longer finds the other parts of an episode it has just listed (404 Not Found); its library is changing. Try again once Jellyfin's library scan has finished.",
-            result.Error);
+            TestTexts.En(result.Error));
+    }
+
+    [Fact]
+    public async Task ListItems_of_a_stacked_episode_whose_id_is_not_a_guid_names_an_episode()
+    {
+        //Arrange
+        // MAM-47 — the kind is part of the sentence's key (jellyfin.items.odd-id.episode), so each kind's English is pinned.
+        var episode = JellyfinSamples.Episode(JellyfinSamples.YellowstoneS01E01Id);
+        episode["Id"] = "yellowstone-s01e01";
+        episode["PartCount"] = 2;
+        ArmEpisodes(episode);
+
+        //Act
+        var result = await Library.ListItemsAsync(Settings, EpisodesPage, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
+        Assert.Equal(
+            "The service at this address listed an episode in several parts under an id Jellyfin never gives, so the app won't ask for its other parts. Check the address.",
+            TestTexts.En(result.Error));
+        Assert.Null(result.Value);
     }
 
     // The server answering these episodes and nothing else, with their count as the total.

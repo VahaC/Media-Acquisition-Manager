@@ -1,0 +1,55 @@
+{
+  "quoted": "“{{text}}”",
+  "list": {
+    "separator": ", ",
+    "and": " and ",
+    "or": " or "
+  },
+  "size": {
+    "mib_one": "{{count, number}} MiB",
+    "mib_other": "{{count, number}} MiB",
+    "kib_one": "{{count, number}} KiB",
+    "kib_other": "{{count, number}} KiB",
+    "bytes_one": "{{count, number}} byte",
+    "bytes_other": "{{count, number}} bytes"
+  },
+  "legacy-text": "{{text}}",
+  "message-unavailable": "This message was written by another version of the app and can't be shown here ({{key}}).",
+  "request": {
+    "unknown-endpoint": "No API endpoint matches {{method}} {{path}}.",
+    "too-large": "The request body is larger than this server accepts.",
+    "unreadable": "The server could not read this request."
+  },
+  "server": {
+    "failed": "The server failed to process this request. Quote trace id {{traceId}} when you report it."
+  },
+  "health": {
+    "database-ready": "The database is reachable and every migration is applied.",
+    "database-cannot-open": "The database cannot be opened.",
+    "pending-migrations_one": "The database has {{count, number}} pending migration.",
+    "pending-migrations_other": "The database has {{count, number}} pending migrations.",
+    "check-threw": "The {{name}} check failed; see the server log."
+  },
+  "paging": {
+    "page-invalid": "Page must be 1 or more.",
+    "page-size-invalid": "Page size must be between 1 and 100."
+  },
+  "edition": {
+    "theatrical": "Theatrical cut",
+    "directors-cut": "Director's cut",
+    "extended": "Extended cut",
+    "unrated": "Unrated",
+    "uncut": "Uncut",
+    "remastered": "Remastered",
+    "special-edition": "Special edition",
+    "imax": "IMAX",
+    "open-matte": "Open matte",
+    "final-cut": "Final cut",
+    "redux": "Redux",
+    "international": "International cut",
+    "alternate": "Alternate cut",
+    "assembly": "Assembly cut",
+    "widescreen": "Widescreen",
+    "full-screen": "Full screen"
+  }
+}

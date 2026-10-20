@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 
@@ -11,7 +12,7 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 // session-get or torrent-get.
 internal sealed partial class TransmissionAdapter
 {
-    private const string NotTorrentsError = "The service at this address answered, but not with Transmission's torrents.";
+    private static readonly Message NotTorrentsError = IntegrationAdapterMessages.NotTorrents(DisplayName);
 
     /// <summary>Longer than any release name worth showing, short enough that a hostile name can't fill a job's row.</summary>
     private const int JobNameMaximumLength = 1000;

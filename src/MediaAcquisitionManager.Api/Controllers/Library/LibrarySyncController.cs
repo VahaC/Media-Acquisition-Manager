@@ -46,8 +46,8 @@ public class LibrarySyncController(ILibrarySyncService syncs) : ControllerBase
             // Missing, or not a media library: the same bare 404 as every missing row.
             LibrarySyncStartStatus.NotFound => NotFound(),
             // Switched off, a type this version can't read, or a sync already under way.
-            LibrarySyncStartStatus.Conflict => this.ConflictError(result.Error),
-            _ => this.UnavailableError(result.Error),
+            LibrarySyncStartStatus.Conflict => this.ConflictError(result.Error!),
+            _ => this.UnavailableError(result.Error!),
         };
     }
 

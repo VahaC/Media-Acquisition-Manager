@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Replacements;
 
@@ -17,7 +18,7 @@ namespace MediaAcquisitionManager.TestInfrastructure.Replacements;
 public sealed record PlantedCopy(
     string AppPath,
     FileFacts Facts,
-    string? Problem = null,
+    Message? Problem = null,
     bool OnlyDropSettles = false,
     DateTime? DroppedUtc = null,
     int? PairedWithNewFile = null,

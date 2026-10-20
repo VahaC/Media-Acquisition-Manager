@@ -4,10 +4,12 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
@@ -150,8 +152,8 @@ public sealed class LibraryLinkRepairDistributionHttpTests : IClassFixture<Media
             Assert.True(JsonNode.DeepEquals(refusedBefore[itemId], ItemOf(itemId)), $"The refused item {itemId} was changed.");
         }
 
-        Assert.All(seeded.ContinentalItems, itemId => Assert.Equal(string.Format(HoldsAnotherImdbSentence, ContinentalImdbId, ContinentalEpisodeImdbId), byItem[itemId].WriteError));
-        Assert.Equal(string.Format(HoldsAnotherImdbSentence, "tt1163854", "tt0056291"), byItem[PolanskiItemId].WriteError);
+        Assert.All(seeded.ContinentalItems, itemId => Assert.Equal(string.Format(HoldsAnotherImdbSentence, ContinentalImdbId, ContinentalEpisodeImdbId), TestTexts.En(byItem[itemId].WriteError)));
+        Assert.Equal(string.Format(HoldsAnotherImdbSentence, "tt1163854", "tt0056291"), TestTexts.En(byItem[PolanskiItemId].WriteError));
         // The 6 kept in the app are exactly as they were.
         Assert.All(keptBefore.Values, before => Assert.Equal((before.WriteState, before.WriteError, before.BatchId, before.IdentifiedUtc), (byItem[before.SourceItemId].WriteState, byItem[before.SourceItemId].WriteError, byItem[before.SourceItemId].BatchId, byItem[before.SourceItemId].IdentifiedUtc)));
         // One audit row per Apply that left the app, none for the 3 already showing, the 4 refused or the 6 kept.
@@ -256,7 +258,7 @@ public sealed class LibraryLinkRepairDistributionHttpTests : IClassFixture<Media
             await _links.Create(
                 _jellyfinIntegration, itemId, _movieWorkId, MediaIdentifierScheme.TmdbTv, "72710", LibraryLinkTarget.ShowEpisode, LibraryLinkWriteState.NotWritten, _owner.User,
                 configure: row => (row.SeasonNumber, row.EpisodeNumber, row.EpisodeImdbId, row.WriteError) =
-                    (1, 1, ContinentalEpisodeImdbId, "Jellyfin holds another IMDb id for this item, so the app wrote nothing."));
+                    (1, 1, ContinentalEpisodeImdbId, Message.Legacy("Jellyfin holds another IMDb id for this item, so the app wrote nothing.")));
             continentals.Add(itemId);
         }
 

@@ -234,6 +234,47 @@ public sealed class McpRecommendationToolsHttpTests : IClassFixture<MediaAcquisi
     }
 
     [Fact]
+    public async Task ListRecommendations_of_a_tab_with_one_work_says_one_recommendation()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var token = await _tokens.Create(_anna.User, PersonalAccessTokenAccess.ReadOnly);
+        await using var client = await _factory.ConnectMcpAsync(token.Secret, cancellationToken: cancellationToken);
+
+        //Act
+        var result = await client.CallToolAsync(ListTool, new Dictionary<string, object?> { ["tab"] = "Series" }, cancellationToken: cancellationToken);
+
+        //Assert
+        // MAM-47 (ADR 0042) — the summary's singular, a plural form of its own.
+        Assert.False(result.IsError);
+        Assert.Equal("1 recommendation on the Series tab in all; page 1 lists 1.", result.ReadText());
+        Assert.Equal([_breakingBad.Id], result.ReadStructured<RecommendationListResponse>().Items.Select(item => item.Id));
+    }
+
+    [Fact]
+    public async Task DismissRecommendation_of_a_series_names_it_a_series()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var token = await _tokens.Create(_anna.User, PersonalAccessTokenAccess.ReadAndDownload);
+        await using var client = await _factory.ConnectMcpAsync(token.Secret, cancellationToken: cancellationToken);
+
+        //Act
+        var result = await DismissAsync(client, "series", "1396", cancellationToken);
+
+        //Assert
+        // MAM-47 (ADR 0042) — a summary of its own per kind, with the kind as the rules keep it.
+        Assert.False(result.IsError);
+        Assert.Equal(new RecommendationDismissalToolResult("Series", "1396"), result.ReadStructured<RecommendationDismissalToolResult>());
+        Assert.Equal("Series 1396 is marked Not interested and leaves your recommendations; the web app can undo it.", result.ReadText());
+        await _factory.WithDbAsync(async db =>
+        {
+            var row = await db.RecommendationDismissals.SingleAsync(cancellationToken);
+            Assert.Equal((_anna.User.Id, MediaWorkKind.Series, "1396"), (row.UserId, row.Kind, row.CatalogId));
+        });
+    }
+
+    [Fact]
     public async Task DismissRecommendation_twice_is_a_success_both_times_and_keeps_one_mark()
     {
         //Arrange

@@ -57,7 +57,7 @@ public class PersonalAccessTokensController(IPersonalAccessTokenService personal
             // Ended by a reset, disable or delete that committed meanwhile: the challenge an ended session gets on its next
             // request, the same bytes (ADR 0002), so the web app treats it as it treats any ended session.
             PersonalAccessTokenCreateStatus.SessionEnded => Challenge(),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 

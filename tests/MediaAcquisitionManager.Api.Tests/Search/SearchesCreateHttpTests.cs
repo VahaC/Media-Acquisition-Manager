@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Search;
@@ -376,7 +377,7 @@ public sealed class SearchesCreateHttpTests : IClassFixture<MediaAcquisitionMana
                     (body.Sources[1].Id, body.Id, toloka.Id, "Toloka", 1, IntegrationCallStatus.Succeeded),
                 ],
                 sources.Select(source => (source.Id, source.SearchId, source.IntegrationConnectionId, source.Name, source.Position, source.Status)));
-            Assert.All(sources, source => Assert.Equal(((ReleaseSourceNotSearchedReason?)null, (string?)null), (source.NotSearchedReason, source.Error)));
+            Assert.All(sources, source => Assert.Equal(((ReleaseSourceNotSearchedReason?)null, (string?)null), (source.NotSearchedReason, TestTexts.En(source.Error))));
         });
     }
 

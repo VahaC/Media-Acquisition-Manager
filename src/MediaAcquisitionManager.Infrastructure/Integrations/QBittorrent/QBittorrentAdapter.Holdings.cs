@@ -1,7 +1,7 @@
-using System.Globalization;
 using System.Text.Json;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 
@@ -25,14 +25,6 @@ internal sealed partial class QBittorrentAdapter
     /// </summary>
     private static readonly Version HoldingsMinimumVersion = new(5, 2, 0);
 
-    /// <summary>
-    /// MAM-24 — the answer outgrew <see cref="IntegrationsInfrastructureExtensions.MaximumResponseBytes"/>: on a big
-    /// enough installation that is the honest size of the list, not a wrong address, as the shared sentence would say.
-    /// </summary>
-    private static readonly string HoldingsTooLargeError = string.Create(
-        CultureInfo.InvariantCulture,
-        $"qBittorrent's list of every torrent with its files is larger than the app reads ({IntegrationsInfrastructureExtensions.MaximumResponseBytes / (1024 * 1024)} MiB), so the app couldn't tell which torrents hold these copies.");
-
     /// <inheritdoc/>
     /// <remarks>
     /// <para>
@@ -53,7 +45,9 @@ internal sealed partial class QBittorrentAdapter
     /// <para>
     /// The answer is about 2 KB a torrent plus about 300 bytes a file. One larger than the client buffers
     /// (<see cref="IntegrationsInfrastructureExtensions.MaximumResponseBytes"/>) is a failed read in its own words
-    /// (<see cref="HoldingsTooLargeError"/>), which the caller reports as copies it couldn't check.
+    /// (<see cref="IntegrationAdapterMessages.HoldingsTooLarge"/>), which the caller reports as copies it couldn't check:
+    /// on a big enough installation that is the honest size of the list, not a wrong address, as the shared sentence
+    /// would say.
     /// </para>
     /// </remarks>
     public Task<IntegrationCallResult<IReadOnlyList<ClientJobWithFiles>>> ListJobsWithFilesAsync(
@@ -64,7 +58,7 @@ internal sealed partial class QBittorrentAdapter
             settings,
             (client, sessionSecrets, token) => ReadJobsWithFilesAsync(client, settings, sessionSecrets, token),
             cancellationToken,
-            oversizeError: HoldingsTooLargeError);
+            oversizeError: IntegrationAdapterMessages.HoldingsTooLarge(Descriptor.DisplayName));
     }
 
     private async Task<IntegrationCallResult<IReadOnlyList<ClientJobWithFiles>>> ReadJobsWithFilesAsync(
@@ -77,14 +71,15 @@ internal sealed partial class QBittorrentAdapter
         {
             return IntegrationCallResult<IReadOnlyList<ClientJobWithFiles>>.Failed(
                 IntegrationCallStatus.UnsupportedVersion,
-                $"This is qBittorrent {reported}; telling which torrents hold a library file needs qBittorrent {HoldingsMinimumVersion.ToString(2)} or later.");
+                Message.Of(
+                    "qbittorrent.version.too-old-for-holdings", ("version", Shown(reported!)), ("minimum", HoldingsMinimumVersion.ToString(2))));
         }
 
         var (answer, readFailure) = await GetAsync(client, settings, call!, "api/v2/torrents/info?includeFiles=true", sessionSecrets, cancellationToken);
         if (readFailure is not null)
             return Failed<IReadOnlyList<ClientJobWithFiles>>(readFailure);
 
-        (List<ClientJobWithFiles>? Jobs, string? Error) read;
+        (List<ClientJobWithFiles>? Jobs, Message? Error) read;
         using (answer)
         using (var document = await TryReadJsonAsync(answer!, cancellationToken))
         {
@@ -102,7 +97,7 @@ internal sealed partial class QBittorrentAdapter
     /// <c>hash</c>, <see cref="NotFilesError"/> when a torrent's <c>files</c> isn't one of files each with a usable
     /// <c>name</c>.
     /// </summary>
-    private static (List<ClientJobWithFiles>? Jobs, string? Error) ReadJobsWithFiles(JsonElement root, string?[] secrets)
+    private static (List<ClientJobWithFiles>? Jobs, Message? Error) ReadJobsWithFiles(JsonElement root, string?[] secrets)
     {
         if (root.ValueKind != JsonValueKind.Array)
             return (null, NotTorrentsError);

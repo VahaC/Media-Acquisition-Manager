@@ -1,14 +1,13 @@
 using System.Globalization;
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Catalog;
-using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Integrations;
-using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,7 +28,7 @@ public sealed class LibraryLinkWriter(
     TimeProvider time,
     ILogger<LibraryLinkWriter> logger) : ILibraryLinkWriter
 {
-    internal const string AppErrorMessage = "The identification stopped because of an error in the app. Its log says more.";
+    internal static readonly Message AppErrorMessage = Message.Of("library-links.write.app-error");
 
     /// <summary>
     /// How long after the audit row of a series' last Apply the app keeps from sending another for it. Jellyfin's Apply runs
@@ -42,11 +41,13 @@ public sealed class LibraryLinkWriter(
     private static readonly TimeSpan SeriesWait = TimeSpan.FromMinutes(10);
 
     /// <summary>R12 — a library switched off is never identified in; the link waits for it.</summary>
-    internal static string SwitchedOffError(string name) => $"“{name}” is switched off. Switch it on under Integrations, then retry.";
+    internal static Message SwitchedOffError(string name) => Message.Of("library-links.write.switched-off", ("integration", name));
 
     /// <summary>The series wait of <see cref="SeriesWait"/>: when the last attempt's ten minutes are over, in UTC.</summary>
-    internal static string SeriesStillWorkingError(DateTime untilUtc) =>
-        $"Jellyfin may still be working on this series after the last attempt; try again after {untilUtc.ToString("HH:mm", CultureInfo.InvariantCulture)} UTC.";
+    /// <remarks>MAM-47 (ADR 0042) — the one time of day a stored message holds: kept as the text <c>HH:mm</c> it always was
+    /// (the template owns "UTC"), as the reader reads it the same in any language.</remarks>
+    internal static Message SeriesStillWorkingError(DateTime untilUtc) =>
+        Message.Of("library-links.write.series-still-working", ("time", untilUtc.ToString("HH:mm", CultureInfo.InvariantCulture)));
 
     public async Task<LibraryLinkWriteResult> WriteAsync(Guid linkId, Guid attemptId, AuditActor? actor, CancellationToken cancellationToken = default)
     {
@@ -234,17 +235,17 @@ public sealed class LibraryLinkWriter(
 
     /// <summary>
     /// The claimed link's final state (R9): only while it is still <c>Writing</c> under this claim, never cancelled —
-    /// once the library was called, its outcome is recorded whatever happened to the caller.
+    /// once the library was called, its outcome is recorded whatever happened to the caller. MAM-47 (ADR 0042) — the error
+    /// is stored as key and values, fitted into its column by the column's converter, so nothing is cut here.
     /// </summary>
     private async Task<LibraryLinkWriteResult> SettleAsync(
         LibraryItemLinkEntity link,
         Guid attemptId,
         LibraryLinkWriteState state,
-        string? error,
+        Message? error,
         IdentifiedChange identified = IdentifiedChange.Keep,
         LibraryIdentifyOutcome? outcome = null)
     {
-        var storedError = error is null ? null : FileInspectionRunUpdates.Cut(error, LibraryItemLinkEntity.ErrorMaximumLength);
         var now = time.GetUtcNow().UtcDateTime;
         var settled = await db.LibraryItemLinks
             .Where(row => row.Id == link.Id && row.WriteState == LibraryLinkWriteState.Writing && row.WriteAttemptId == attemptId)
@@ -253,7 +254,7 @@ public sealed class LibraryLinkWriter(
                 {
                     setters
                         .SetProperty(row => row.WriteState, state)
-                        .SetProperty(row => row.WriteError, storedError)
+                        .SetProperty(row => row.WriteError, error)
                         .SetProperty(row => row.WriteStateUtc, now);
                     if (identified == IdentifiedChange.Set)
                         setters.SetProperty(row => row.IdentifiedUtc, (DateTime?)now);
@@ -271,12 +272,12 @@ public sealed class LibraryLinkWriter(
                 LibraryLinkWriteState.KeptInApp => LibraryLinkWriteStatus.KeptInApp,
                 _ => LibraryLinkWriteStatus.NotWritten,
             },
-            storedError,
+            error,
             outcome);
     }
 
-    // The sentences already come masked from the adapter; masked again here (ADR 0007's "masked twice").
-    private static string Masked(string error, IntegrationConnectionSettings settings) => SecretRedaction.Redact(error, settings.Secrets)!;
+    // The messages already come masked from the adapter; their values are masked again here (ADR 0007's "masked twice").
+    private static Message Masked(Message error, IntegrationConnectionSettings settings) => error.Redacted(settings.Secrets);
 
     /// <summary>The audit row's name of the link's identifications: the item's title when it was linked, else the
     /// catalog's, else the item's id.</summary>

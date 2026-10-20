@@ -1,8 +1,8 @@
 using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Api.Services.Library;
-using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,10 +27,6 @@ public sealed partial class LibraryLinkSuggestionService(
     /// <summary>The longest part of a request echoed back in a sentence.</summary>
     private const int EchoLength = 64;
 
-    private const string KindMissingError = "Choose a TMDb film (Movie) or show (Series).";
-
-    private static string KindInvalidError(string kind) => $"“{Echo(kind)}” is not a TMDb kind. Use Movie or Series.";
-
     /// <summary>A film (<c>Movie</c>) or a show (<c>Series</c>), any case; <c>null</c> for anything else — an episode is
     /// never a catalog work of its own (ADR 0017).</summary>
     private static MediaWorkKind? CatalogKindOf(string text) =>
@@ -51,10 +47,10 @@ public sealed partial class LibraryLinkSuggestionService(
         return [.. await searches.Select(search => search.MediaWorkId).ToListAsync(cancellationToken)];
     }
 
-    /// <summary>A catalog call's failure as the owner reads it: masked again with the call's secrets, a second pass after
-    /// the adapter's own (the MAM-7 rule).</summary>
-    private static string Masked<T>(IntegrationCallResult<T> result, CatalogConnection catalog) where T : class =>
-        SecretRedaction.Redact(result.Error!, catalog.Settings.Secrets)!;
+    /// <summary>A catalog call's failure as the owner reads it: its values masked again with the call's secrets, a second
+    /// pass after the adapter's own (the MAM-7 rule).</summary>
+    private static Message Masked<T>(IntegrationCallResult<T> result, CatalogConnection catalog) where T : class =>
+        result.Error!.Redacted(catalog.Settings.Secrets);
 
     private static string Echo(string value) =>
         value.Length <= EchoLength ? value : string.Concat(value.AsSpan(0, EchoLength - 1), "…");

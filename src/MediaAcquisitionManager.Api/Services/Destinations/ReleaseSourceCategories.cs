@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Search;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Destinations;
 
@@ -9,10 +10,11 @@ namespace MediaAcquisitionManager.Api.Services.Destinations;
 /// of every secret of the call before it gets here.
 /// </remarks>
 /// <param name="Categories">Its categories in its own order; empty when it couldn't be asked.</param>
-/// <param name="Error">The sentence saying why it couldn't be asked; <c>null</c> when it answered.</param>
-public sealed record ReleaseSourceCategories(IReadOnlyList<ReleaseCategory> Categories, string? Error)
+/// <param name="Error">Why it couldn't be asked, as a message the Api renders (ADR 0042); <c>null</c> when it
+/// answered.</param>
+public sealed record ReleaseSourceCategories(IReadOnlyList<ReleaseCategory> Categories, Message? Error)
 {
     public static ReleaseSourceCategories Listed(IReadOnlyList<ReleaseCategory> categories) => new(categories, null);
 
-    public static ReleaseSourceCategories NotListed(string error) => new([], error);
+    public static ReleaseSourceCategories NotListed(Message error) => new([], error);
 }

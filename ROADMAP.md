@@ -131,7 +131,14 @@ it rests on the tests — the key-parity test and every page rendered in Ukraini
 a browser check on a copy of Vasyl's development database on 2026-10-17 (the migration on real data,
 every page in Ukrainian at desktop and phone width, the language switch, and TMDb switched to
 English and read again in about 3 minutes), and wasn't tried on production.
-MAM-47 and MAM-48 aren't built yet.
+MAM-47 (built on 2026-10-20 for 0.5.0) writes every sentence the server sends in the language the
+request's `Accept-Language` asks for — the page's own in the web app, English for a script or an
+assistant that doesn't ask —, gives every API error a stable `code`, keeps no sentence in the
+database but a key and its values, and converts the English an older version stored as the app starts
+(ADR 0042); it rests on the tests, run a second time in a pseudo-language that catches any sentence
+left out of the locale files, and on the conversion of a copy of production's database on
+2026-10-20, where every stored sentence read back exactly, and wasn't tried on production.
+MAM-48 isn't built yet.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
@@ -2525,8 +2532,8 @@ app in Ukrainian.
     newest releases of the last 14 days that matched no work unresolved again; the Description keeps the reader's language and a link's title stays a snapshot (ADR
     0025's MAM-46 section). With another language than Ukrainian, release matching for
     recommendations rests on the original title (ADR 0024's MAM-46 section).
-  - *What stays English:* the server's sentences until MAM-47, the release notes, and data as its
-    source wrote it.
+  - *What stays English:* the release notes, and data as its source wrote it; the server's
+    sentences did until MAM-47 (below).
   - *Settled while building, accepted by Vasyl on 2026-10-17:* `en` maps to `en-US`, not to
     TMDb's first English (`en-AG`); a blank catalog language counts as left out; a language change on a
     switched-off TMDb queues nothing; the suggestions' candidates are read again in every run, not
@@ -2540,13 +2547,56 @@ app in Ukrainian.
     `Users.Language`, `IntegrationConnections.CatalogLanguage` (`uk-UA` on every TMDb row) and the
     five catalog tables' language stamps (`uk-UA` on every cached row) —, all in `mam.db`, so the
     data directory's backup keeps them.
-- **MAM-47 The server's sentences in the user's language:** every sentence the server writes —
-  warnings, reasons, refusals, errors, about 800 of them — in the language of whoever asks (the
-  user's, else `Accept-Language`, else English), from JSON files like the web app's. The database
-  keeps no sentence in any language, only a reason's key and its values; the migration converts the
-  English sentences it already holds by the templates they were built from, so old jobs read in
-  Ukrainian too, and keeps a service's own words as they are (Vasyl's decisions of 2026-10-14). API
-  errors carry the key as well. A new ADR amends ADR 0001.
+- **MAM-47 The server's sentences in the user's language** (built on 2026-10-20, release 0.5.0;
+  resting on the tests, run a second time in a pseudo-language, and on the conversion of a copy of
+  production's database; not tried on production): every sentence the server
+  writes — warnings, reasons, refusals, errors, about 850 of them — in the language the request asks
+  for, from JSON files like the web app's. The database keeps no sentence in any language, only a
+  reason's key and its values, so old jobs read in Ukrainian too, and a service's own words stay as
+  they are (Vasyl's decisions of 2026-10-14). API errors carry the key as well. ADR 0042 amends ADR
+  0001. Vasyl's decisions of 2026-10-19, before the build: (1) the owner's consent tick is kept as
+  the claim and reads in the reader's language, and its audit row names the claim in no language,
+  older rows rewritten the same way; (2) a body or a query value the framework can't bind keeps
+  ASP.NET's own answer, without a code; (3) the build ran in parallel worktrees, no branch and no
+  commit; (4) a rollback to an older image may show the converted reasons as raw JSON; (5) another
+  product's menu named in a Ukrainian sentence is its own Ukrainian label where it has a Ukrainian
+  interface (Jellyfin, qBittorrent) and its English one where it has none (Transmission's web
+  interface, Jackett). Defaults he was told and kept: the request's `Accept-Language` decides, never
+  the account's saved language — the ticket said "the user's, else `Accept-Language`" —; scripts and
+  MCP clients get English unless they ask; what an AI assistant's model reads stays English; the
+  stored English is converted by a startup step in C#, not by a migration as the ticket said (R22);
+  the code is the message's key; the pseudo pass runs in every test run. As built:
+  - *The message:* `Core/Texts/Message`, a key and named values — text, a service's own words
+    (`VendorText`, cleaned and masked), a number, a size, a running time, a list or another message
+    —, made where the sentence was made, under the same names (`DownloadErrors`,
+    `FileInventoryMessages`, every `*Rules.Validate…`); a key is one whole literal, its first segment
+    the file.
+  - *The files:* `src/MediaAcquisitionManager.Api/Locales/{en,uk}/<area>.json`, 20 areas, embedded in
+    the Api, i18next's shape with a hint on every value that isn't text, the English byte for byte
+    what each sentence said; `Locales/older-en.json` is where a wording an older build stored and
+    today's templates no longer hold would go — empty in 0.5.0, as every sentence production's copy
+    held read back with today's English.
+  - *The language:* `RequestLanguage.Of`, the first of `en` and `uk` in `Accept-Language`, else
+    English; `Users.Language` isn't read, so the 401 of every cause stays one answer per header. The
+    web app refetches what is on screen when its language changes (`lib/query-client.ts`).
+  - *Where words are written:* only in the Api, when it answers — mappers, the services that build a
+    DTO's sentence, the MCP tools, the health writer, through the singleton `IRequestTexts`;
+    background work stores the message, and logs stay English.
+  - *Errors:* `{ "error", "code" }` from one writer, `ApiErrorBody`, for every error body, the 401,
+    the 403s, the 429s and the exception handler's included; a key a column may hold is never renamed
+    or removed (`retired-keys.txt`). Four DTO fields carry the key beside their sentence, which the
+    Library page and the TMDb dialog compare instead of the words.
+  - *The columns:* the 21 sentence columns keep their shape and hold JSON through one EF value
+    converter — no migration —, a long reason cut inside its longest value, a column with no message
+    JSON read as its words; `StoredTextConverter` converts the stored English at start, verified by
+    writing each reading again, rows it can't read kept as their words and marked with its version.
+    On the copy of production's database (`tools/mam47/`, run by Vasyl on 2026-10-20) it read all 26
+    texts — 22 sentences converted exactly, 4 audit rows named by their claim, none kept.
+  - *The proofs:* the pseudo pass, which `run-tests.sh` and Jenkins run by default (about a minute
+    and a half more per run), the IL scan, the key, parity, label, column and round-trip tests, the
+    converter's tests, and a class of Ukrainian samples per area.
+  - *Backup/restore:* nothing new to back up: the same columns of `mam.db` hold the key and values,
+    and the audit rows of confirmations their claim's label.
 - **MAM-48 Verify Phase E against the live installation.**
 
 **Out of scope:** OAuth sign-in and an endpoint open to the internet for claude.ai's connectors;
@@ -2561,7 +2611,7 @@ identical 401. The SDK's own MCP client against the real host: the tool list per
 tool on canned data, a send refused for a read-only token, a member seeing only their own jobs. The
 `uk` resources of the web app and of the server against the English ones (keys, placeholders,
 plural forms); a pseudo-language run proving every server sentence goes through the files; the
-migration of stored sentences on a copy of production's database. MAM-5's:
+conversion of stored sentences on a copy of production's database. MAM-5's:
 `PersonalAccessTokenAuthenticationHttpTests` (who a token is, a member's token reading its own jobs
 only, the one 401 byte for byte against a refused session token's, "last used" and no write lock
 within the minute, the shared sign-in limit and its 429, a burst of guesses held to ten lookups),
@@ -2614,7 +2664,29 @@ and the cached rows), the new write in `PersonalAccessTokenWritesHttpTests`; and
 `api.test.ts`, `LanguageCard.test.tsx`, `RecommendationTabs.test.tsx`, `IntegrationDialog.test.tsx`, `IntegrationsPage.test.tsx`,
 `catalog-languages.test.ts`, `src/locales/locales.test.ts` (every Ukrainian namespace against the
 English one) and `src/test/ukrainian-pages.test.tsx` (every route in Ukrainian, nothing English or
-unresolved on screen), with `src/test/plural-probe.ts`'s Ukrainian counts.
+unresolved on screen), with `src/test/plural-probe.ts`'s Ukrainian counts. MAM-47's:
+`RequestLanguageHttpTests` (the header's ranking, a malformed one, the language a user saved never
+read), the Ukrainian 401s of `AuthSignInHttpTests` and `PersonalAccessTokenAuthenticationHttpTests`,
+`ApiErrorBodyTests`, `ErrorBodyHttpTests`, `MessageRendererTests`, `RequestTextsTests`,
+`PluralRulesTests`, `LanguageFormatsTests` and `EnglishFormatPinTests` (each call site's English
+format), `MessageTests`, `MessageJsonTests`, `MessageFitTests`, `MessageTextTests` and
+`VendorTextTests`, `MessageColumnTests` and `ModelHasNoPendingChangesTests` (the columns, no
+migration), `MessageRoundTripTests` and `StoredEnglishCorpusTests` (every wording read back, real
+stored English, cut texts), `ReplacementConfirmationLabelTests`, the conventions
+`NoLiteralSentenceTests`, `KeysInUseTests`, `LocaleParityTests`, `ServerLabelsTests`,
+`MessageColumnsTests` and `PseudoSentenceFieldsTests`, the pseudo pass's own `PseudoPassHttpTests`,
+`PseudoWriteGuardTests` and `PseudoLogGuardTests`, `StoredTextConverterTests` (every message
+column of the model and the audit rows planted with older English, a second run changing nothing, a
+kept row tried again under a newer version, a failure in the middle of a page, null and empty texts
+left alone, the TMDb links' restart and no-episode-IMDb rows), `StoredTextConverterStartupHttpTests`
+(converted before the first request, a failing column, the Jobs list in Ukrainian),
+`ProductionCopyConversionTests` (the copy of production, skipped without one), and one class of
+Ukrainian samples per area — `AuthUkrainianHttpTests`, `ProfileUkrainianHttpTests`,
+`DownloadsUkrainianHttpTests`, `SearchUkrainianHttpTests`, `DestinationsUkrainianHttpTests`,
+`IntegrationsUkrainianHttpTests`, `LibraryUkrainianHttpTests`, `LibraryLinksUkrainianHttpTests`,
+`DuplicatesUkrainianHttpTests`, `ReplacementsUkrainianHttpTests`,
+`RecommendationsUkrainianHttpTests`, `McpUkrainianHttpTests` and `HealthUkrainianHttpTests`; and in
+the web app `query-client.test.ts`, `LibrarySyncPanel.test.tsx` and `TmdbLinkEditor.test.tsx`.
 
 **Acceptance bar:** on production (MAM-48): a read-only token reads jobs with `curl` and is refused
 a send, and a revoked token answers 401 at once; Claude Code connected by the README's line finds a

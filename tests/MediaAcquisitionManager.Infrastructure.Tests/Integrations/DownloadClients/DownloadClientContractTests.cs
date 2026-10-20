@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Integrations.DownloadClients;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations.DownloadClients;
 
@@ -591,6 +592,6 @@ public abstract class DownloadClientContractTests : IDisposable
             _ => throw new ArgumentOutOfRangeException(nameof(member), member, "Not a member of the contract."),
         };
 
-        static (IntegrationCallStatus, string?) Outcome<T>(IntegrationCallResult<T> result) where T : class => (result.Status, result.Error);
+        static (IntegrationCallStatus, string?) Outcome<T>(IntegrationCallResult<T> result) where T : class => (result.Status, TestTexts.En(result.Error));
     }
 }

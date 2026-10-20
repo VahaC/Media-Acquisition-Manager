@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaAcquisitionManager.Core.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Integrations;
 
@@ -152,7 +153,7 @@ public sealed class CatalogLanguageRulesTests
         var error = CatalogLanguageRules.Validate(language, Tmdb, "TMDb", out var matched);
 
         //Assert
-        Assert.Equal($"“{echoed}” is not one of TMDb's catalog languages. Use one of the tags its adapter type lists, such as en-US or uk-UA.", error);
+        Assert.Equal($"“{echoed}” is not one of TMDb's catalog languages. Use one of the tags its adapter type lists, such as en-US or uk-UA.", TestTexts.En(error));
         Assert.Null(matched);
     }
 
@@ -165,7 +166,7 @@ public sealed class CatalogLanguageRulesTests
         var error = CatalogLanguageRules.Validate("uk-UA", null, "Jellyfin", out var matched);
 
         //Assert
-        Assert.Equal("Jellyfin has no catalog language to choose. Leave catalogLanguage out.", error);
+        Assert.Equal("Jellyfin has no catalog language to choose. Leave catalogLanguage out.", TestTexts.En(error));
         Assert.Null(matched);
     }
 

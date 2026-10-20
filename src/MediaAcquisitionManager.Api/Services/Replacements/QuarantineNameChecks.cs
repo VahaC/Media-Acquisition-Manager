@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -11,12 +12,13 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// (ADR 0030, ADR 0033), and the small facts every write over such a name reads — where it may be written, what the move
 /// recorded of it, how many names its file has now —: a replacement's names (MAM-26) and a removal's alike.
 /// </summary>
-/// <remarks>Reads the disk only; writes nothing. Each sentence names the file or the folder it is about.</remarks>
+/// <remarks>Reads the disk only; writes nothing. Each sentence names the file or the folder it is about — MAM-47 (ADR
+/// 0042) — as a message of the <c>replacements.quarantine</c> keys.</remarks>
 internal static class QuarantineNameChecks
 {
     /// <summary>The {error} of a write the file system refused without saying why; the contract always says, but a name's
     /// problem is never left blank.</summary>
-    public const string NoReasonError = "The file system gave no reason.";
+    public static readonly Message NoReasonError = Message.Of("replacements.quarantine.no-reason");
 
     /// <summary>
     /// The roots a write of <paramref name="row"/> may act inside: its own allowed root alone, the one whose quarantine
@@ -51,8 +53,8 @@ internal static class QuarantineNameChecks
     /// <summary>What the move recorded of <paramref name="row"/>: what the write contract must find before it writes.</summary>
     public static FileFacts FactsOf(QuarantinedNameEntity row) => new(row.SizeBytes, row.ModifiedUtc, row.DeviceId, row.Inode, row.LinkCount);
 
-    /// <summary>The file's own name, quoted: what a stop's sentence names.</summary>
-    public static string NameOf(QuarantinedNameEntity row) => ReplacementText.Quote(ReplacementText.FileNameOf(row.AppPath));
+    /// <summary>The file's own name, cleaned and cut: what a stop's sentence names (the template quotes it).</summary>
+    public static string NameOf(QuarantinedNameEntity row) => MessageText.Clean(ReplacementText.FileNameOf(row.AppPath));
 
     /// <summary>Whether <paramref name="row"/>'s old path lies in a ticked folder now (ADR 0033): the gate the move went
     /// through, which Restore goes through again.</summary>
@@ -73,7 +75,7 @@ internal static class QuarantineNameChecks
     /// still the one the move put there, nothing at its old path, and its old folder still there. The platform and the
     /// switch are the caller's to check first, in its own words.
     /// </summary>
-    public static async Task<string?> RestoreRefusalAsync(
+    public static async Task<Message?> RestoreRefusalAsync(
         IFileInventory files,
         IFileQuarantine quarantine,
         IEnumerable<QuarantinedNameEntity> names,
@@ -83,22 +85,26 @@ internal static class QuarantineNameChecks
         foreach (var row in names)
         {
             if (RootsOf(row, gate) is not { } roots)
-                return $"{ReplacementText.Quote(QuarantineOf(row))} is no longer inside the Media folders, so nothing was put back.";
+                return Message.Of("replacements.quarantine.restore.outside-media-folders", ("quarantine", MessageText.Clean(QuarantineOf(row))));
             if (!IsInTickedFolder(row, gate))
-                return $"{ReplacementText.Quote(row.AppPath)} is no longer in a folder ticked for replacement, so nothing was put back.";
+                return Message.Of("replacements.quarantine.restore.not-ticked", ("path", MessageText.Clean(row.AppPath)));
             if (await ChangedInQuarantineAsync(files, row, roots, cancellationToken))
-                return $"{ReplacementText.Quote(row.QuarantinePath)} changed in the quarantine since it was moved there, so nothing was put back.";
+                return Message.Of("replacements.quarantine.restore.changed", ("path", MessageText.Clean(row.QuarantinePath)));
 
             // The folder the name goes back into, listed through the write contract, which never makes it again; and
             // anything at the old path among its names — a file, a folder, a link, one leading nowhere too, which a look
             // following it would find nothing at — is something a rename back would have to go around.
             var folder = await quarantine.ListFolderNamesAsync(row.AppPath, roots, cancellationToken);
             if (folder.Status == FileQuarantineStatus.NotFound)
-                return $"The folder {ReplacementText.Quote(FolderOf(row.AppPath))} is gone, so nothing was put back; the app creates no folder.";
+                return Message.Of("replacements.quarantine.restore.folder-gone", ("folder", MessageText.Clean(FolderOf(row.AppPath))));
             if (folder is not { Status: FileQuarantineStatus.Done, Value: { } namesThere })
-                return $"The app couldn't look in the folder of {ReplacementText.Quote(row.AppPath)}: {folder.Error ?? NoReasonError} Nothing was put back.";
+            {
+                return Message.Of(
+                    "replacements.quarantine.restore.folder-unread", ("path", MessageText.Clean(row.AppPath)), ("error", folder.Error ?? NoReasonError));
+            }
+
             if (namesThere.Any(name => IsNameOf(row.AppPath, name)))
-                return $"{ReplacementText.Quote(row.AppPath)} already holds a file, so nothing was put back.";
+                return Message.Of("replacements.quarantine.restore.occupied", ("path", MessageText.Clean(row.AppPath)));
         }
 
         return null;
@@ -110,15 +116,15 @@ internal static class QuarantineNameChecks
     /// the quarantine belongs to the allowed root, not to a library folder (ADR 0033). The platform and the switch are the
     /// caller's to check first, in its own words.
     /// </summary>
-    public static async Task<string?> DeleteRefusalAsync(
+    public static async Task<Message?> DeleteRefusalAsync(
         IFileInventory files, IEnumerable<QuarantinedNameEntity> names, ReplacementGateState gate, CancellationToken cancellationToken)
     {
         foreach (var row in names)
         {
             if (RootsOf(row, gate) is not { } roots)
-                return $"{ReplacementText.Quote(QuarantineOf(row))} is no longer inside the Media folders, so nothing was deleted.";
+                return Message.Of("replacements.quarantine.delete.outside-media-folders", ("quarantine", MessageText.Clean(QuarantineOf(row))));
             if (await ChangedInQuarantineAsync(files, row, roots, cancellationToken))
-                return $"{ReplacementText.Quote(row.QuarantinePath)} changed in the quarantine since it was moved there, so nothing was deleted.";
+                return Message.Of("replacements.quarantine.delete.changed", ("path", MessageText.Clean(row.QuarantinePath)));
         }
 
         return null;

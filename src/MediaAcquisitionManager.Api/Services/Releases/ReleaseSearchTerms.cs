@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Search;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Releases;
 
@@ -26,7 +27,7 @@ public sealed record ReleaseSearchTerms(string Text, int? Year, string? ImdbId, 
     /// into <paramref name="terms"/> (<c>null</c> when there is a sentence). A blank year, id or season
     /// asks for none.
     /// </summary>
-    public static string? Read(
+    public static Message? Read(
         string? text, string? year, string? imdbId, string? tmdbId, string? season, out ReleaseSearchTerms? terms)
     {
         terms = null;

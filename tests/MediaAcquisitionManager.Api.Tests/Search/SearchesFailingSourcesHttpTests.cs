@@ -7,6 +7,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -30,6 +31,10 @@ public sealed class SearchesFailingSourcesHttpTests : IClassFixture<MediaAcquisi
 
     private const string UnreachableError =
         $"Couldn't reach Torznab at {TolokaAddress}: nothing accepted the connection. Check the address and port, and that Torznab is running.";
+
+    // MAM-47 (ADR 0042) — what an image before 0.5.0 stored for a source, or one rolled back to has written since: the
+    // sentence itself, which the startup converter hasn't made a message of yet.
+    private const string OlderError = "Torznab couldn't be reached.";
 
     private static readonly int SampleMovieCount = TorznabSamples.ItemCount - TorznabSamples.NonMovieItemCount;
 
@@ -81,7 +86,7 @@ public sealed class SearchesFailingSourcesHttpTests : IClassFixture<MediaAcquisi
         await _factory.WithDbAsync(async db =>
         {
             var stored = await db.SearchSources.AsNoTracking().SingleAsync(source => source.Id == sources[1].Id, cancellationToken);
-            Assert.Equal((IntegrationCallStatus.Refused, RefusedError, 1), (stored.Status!.Value, stored.Error, stored.Position));
+            Assert.Equal((IntegrationCallStatus.Refused, RefusedError, 1), (stored.Status!.Value, TestTexts.En(stored.Error), stored.Position));
             Assert.Equal(
                 [sources[0].Id],
                 await db.Releases.AsNoTracking().Select(release => release.SearchSourceId!.Value).Distinct().ToListAsync(cancellationToken));
@@ -176,7 +181,7 @@ public sealed class SearchesFailingSourcesHttpTests : IClassFixture<MediaAcquisi
         await _factory.WithDbAsync(async db =>
         {
             var stored = await db.SearchSources.AsNoTracking().SingleAsync(source => source.Name == "Toloka", cancellationToken);
-            Assert.Equal((failure, toloka.Error), (stored.Status!.Value, stored.Error));
+            Assert.Equal((failure, toloka.Error), (stored.Status!.Value, TestTexts.En(stored.Error)));
             Assert.Equal(0, await db.Releases.CountAsync(release => release.SearchSourceId == stored.Id, cancellationToken));
         });
     }
@@ -219,7 +224,7 @@ public sealed class SearchesFailingSourcesHttpTests : IClassFixture<MediaAcquisi
         Assert.Equal(SampleMovieCount, Assert.Single(sources, source => source.Name == "Other").ReleaseCount);
         // Kept whoever searched: whether to show it is decided on every read.
         await _factory.WithDbAsync(async db =>
-            Assert.Equal(UnreachableError, (await db.SearchSources.AsNoTracking().SingleAsync(source => source.Id == toloka.Id, cancellationToken)).Error));
+            Assert.Equal(UnreachableError, TestTexts.En((await db.SearchSources.AsNoTracking().SingleAsync(source => source.Id == toloka.Id, cancellationToken)).Error)));
     }
 
     [Fact]
@@ -260,6 +265,26 @@ public sealed class SearchesFailingSourcesHttpTests : IClassFixture<MediaAcquisi
         var toloka = Assert.Single((await ReadAsync(response, cancellationToken)).Sources);
         Assert.Equal((IntegrationCallStatus.Unreachable, UnreachableError, 0), (toloka.Status!.Value, toloka.Error, toloka.ReleaseCount));
         Assert.Equal(requestsBefore, _factory.TorznabHttp.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Get_as_the_owner_of_a_source_whose_row_holds_an_older_versions_words_shows_them_as_they_are()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _integrations.Create("torznab", "Toloka", TolokaAddress, apiKey: ApiKey);
+        _toloka.Intercept = _ => throw new HttpRequestException(HttpRequestError.ConnectionError, "refused");
+        var search = await CreateAsync(_owner, cancellationToken);
+        await _factory.WithDbAsync(db => db.Database.ExecuteSqlAsync($"""UPDATE "SearchSources" SET "Error" = {OlderError}""", cancellationToken));
+
+        //Act
+        var response = await _factory.GetHttpRequest($"{BaseUrl}/{search.Id}", _owner.AccessToken);
+
+        //Assert
+        // The column reads words it holds as a message of them, shown as they are (design §5.2).
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var toloka = Assert.Single((await ReadAsync(response, cancellationToken)).Sources);
+        Assert.Equal((IntegrationCallStatus.Unreachable, OlderError), (toloka.Status!.Value, toloka.Error));
     }
 
     [Fact]

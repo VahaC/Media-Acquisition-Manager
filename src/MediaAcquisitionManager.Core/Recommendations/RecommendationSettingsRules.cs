@@ -1,9 +1,11 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Core.Recommendations;
 
 /// <summary>
 /// MAM-33 — what a user's recommendation settings may be, and what they are before the user saves any
-/// (Vasyl's decision 5). The MAM-4 rules-class pattern: a sentence for a value refused, <c>null</c> for one
-/// accepted.
+/// (Vasyl's decision 5). The MAM-4 rules-class pattern: a message the Api renders (ADR 0042) for a value refused,
+/// <c>null</c> for one accepted.
 /// </summary>
 public static class RecommendationSettingsRules
 {
@@ -20,8 +22,8 @@ public static class RecommendationSettingsRules
     /// </summary>
     public const int MaximumDailySearchLimit = 500;
 
-    /// <summary>The sentence a limit outside the range gets.</summary>
-    public const string DailySearchLimitError = "The daily search limit is a whole number from 0 to 500.";
+    /// <summary>What a limit outside the range gets.</summary>
+    public static readonly Message DailySearchLimitError = Message.Of("recommendations.settings.daily-search-limit-invalid");
 
     /// <summary>
     /// The settings of a user who never saved: every tab on (Vasyl's decision of 2026-10-05, so a new user
@@ -33,6 +35,6 @@ public static class RecommendationSettingsRules
     /// <summary><see cref="DailySearchLimitError"/> for a limit that is missing or outside
     /// <see cref="MinimumDailySearchLimit"/>–<see cref="MaximumDailySearchLimit"/>; <c>null</c> for one
     /// inside it.</summary>
-    public static string? ValidateDailySearchLimit(int? limit) =>
+    public static Message? ValidateDailySearchLimit(int? limit) =>
         limit is >= MinimumDailySearchLimit and <= MaximumDailySearchLimit ? null : DailySearchLimitError;
 }

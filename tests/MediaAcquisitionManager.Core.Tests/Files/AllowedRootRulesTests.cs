@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Files;
 
@@ -92,7 +93,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate(paths, appStyle);
 
         //Assert
-        Assert.Equal(TooManyError, error);
+        Assert.Equal(TooManyError, TestTexts.En(error));
     }
 
     [Theory]
@@ -110,7 +111,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate(paths, appStyle);
 
         //Assert
-        Assert.Equal(BlankError, error);
+        Assert.Equal(BlankError, TestTexts.En(error));
     }
 
     [Theory]
@@ -125,7 +126,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate([tooLong], appStyle);
 
         //Assert
-        Assert.Equal(TooLongError, error);
+        Assert.Equal(TooLongError, TestTexts.En(error));
     }
 
     [Theory]
@@ -159,7 +160,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate(paths, appStyle);
 
         //Assert
-        Assert.Equal(ControlCharacterError, error);
+        Assert.Equal(ControlCharacterError, TestTexts.En(error));
     }
 
     [Theory]
@@ -180,7 +181,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate(paths, PathStyle.Posix);
 
         //Assert
-        Assert.Equal(string.Format(LinuxNotAFullPathError, echoed), error);
+        Assert.Equal(string.Format(LinuxNotAFullPathError, echoed), TestTexts.En(error));
     }
 
     [Theory]
@@ -199,7 +200,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate(paths, PathStyle.Windows);
 
         //Assert
-        Assert.Equal(string.Format(WindowsNotAFullPathError, echoed), error);
+        Assert.Equal(string.Format(WindowsNotAFullPathError, echoed), TestTexts.En(error));
     }
 
     [Theory]
@@ -221,7 +222,7 @@ public sealed class AllowedRootRulesTests
 
         //Assert
         // Echoed as typed (trimmed): it never parsed, so it has no canonical form.
-        Assert.Equal(string.Format(DotSegmentError, echoed), error);
+        Assert.Equal(string.Format(DotSegmentError, echoed), TestTexts.En(error));
     }
 
     [Theory]
@@ -241,7 +242,7 @@ public sealed class AllowedRootRulesTests
 
         //Assert
         // Echoed in canonical form, the way it would have been stored.
-        Assert.Equal(string.Format(WindowsPathOnLinuxError, echoed), error);
+        Assert.Equal(string.Format(WindowsPathOnLinuxError, echoed), TestTexts.En(error));
     }
 
     [Theory]
@@ -257,7 +258,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate(paths, PathStyle.Windows);
 
         //Assert
-        Assert.Equal(string.Format(LinuxPathOnWindowsError, echoed), error);
+        Assert.Equal(string.Format(LinuxPathOnWindowsError, echoed), TestTexts.En(error));
     }
 
     [Theory]
@@ -272,7 +273,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate(paths, PathStyle.Posix);
 
         //Assert
-        Assert.Equal(string.Format(LinuxWholeFileSystemError, echoed), error);
+        Assert.Equal(string.Format(LinuxWholeFileSystemError, echoed), TestTexts.En(error));
     }
 
     [Theory]
@@ -290,7 +291,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate(paths, PathStyle.Windows);
 
         //Assert
-        Assert.Equal(string.Format(WindowsWholeFileSystemError, echoed), error);
+        Assert.Equal(string.Format(WindowsWholeFileSystemError, echoed), TestTexts.En(error));
     }
 
     [Theory]
@@ -310,7 +311,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate(paths, appStyle);
 
         //Assert
-        Assert.Equal(string.Format(ListedTwiceError, echoed), error);
+        Assert.Equal(string.Format(ListedTwiceError, echoed), TestTexts.En(error));
     }
 
     [Fact]
@@ -346,7 +347,7 @@ public sealed class AllowedRootRulesTests
 
         //Assert
         // The inner one is named first, then the outer one that already allows it, whichever came first.
-        Assert.Equal(string.Format(InsideAnotherError, inner, outer), error);
+        Assert.Equal(string.Format(InsideAnotherError, inner, outer), TestTexts.En(error));
     }
 
     [Theory]
@@ -374,7 +375,7 @@ public sealed class AllowedRootRulesTests
         var error = AllowedRootRules.Validate(paths, PathStyle.Posix);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Fact]

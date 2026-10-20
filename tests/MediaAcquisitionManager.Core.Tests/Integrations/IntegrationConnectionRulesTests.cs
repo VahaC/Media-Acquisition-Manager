@@ -2,6 +2,7 @@ using System.Globalization;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Integrations;
 
@@ -34,7 +35,7 @@ public sealed class IntegrationConnectionRulesTests
         var error = IntegrationConnectionRules.ValidateName(name);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -122,7 +123,7 @@ public sealed class IntegrationConnectionRulesTests
         var error = IntegrationConnectionRules.ValidateBaseUrl(baseUrl);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -138,7 +139,7 @@ public sealed class IntegrationConnectionRulesTests
         var error = IntegrationConnectionRules.ValidateBaseUrl(baseUrl);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -156,7 +157,7 @@ public sealed class IntegrationConnectionRulesTests
 
         //Assert
         Assert.NotNull(error);
-        Assert.DoesNotContain("planted-key-0123", error);
+        Assert.DoesNotContain("planted-key-0123", TestTexts.En(error));
     }
 
     [Theory]
@@ -192,7 +193,7 @@ public sealed class IntegrationConnectionRulesTests
         var error = IntegrationConnectionRules.ValidateUserName(userName, adapter);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -207,7 +208,7 @@ public sealed class IntegrationConnectionRulesTests
         var error = IntegrationConnectionRules.ValidateUserName(userName, Type("qbittorrent"));
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -242,7 +243,7 @@ public sealed class IntegrationConnectionRulesTests
         var error = IntegrationConnectionRules.ValidateCredentials(adapter, hasUserName, hasPassword, hasApiKey);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -260,7 +261,7 @@ public sealed class IntegrationConnectionRulesTests
         var error = IntegrationConnectionRules.ValidateCredentials(adapter, hasUserName, hasPassword, hasApiKey);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -275,7 +276,7 @@ public sealed class IntegrationConnectionRulesTests
         var error = IntegrationConnectionRules.ValidateCredentials(adapter, hasUserName, hasPassword, hasApiKey: false);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]

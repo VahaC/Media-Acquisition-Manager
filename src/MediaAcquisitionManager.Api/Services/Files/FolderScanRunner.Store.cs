@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Files;
@@ -118,7 +119,7 @@ public sealed partial class FolderScanRunner
             var finishedUtc = time.GetUtcNow().UtcDateTime;
             var problem = walk.Problems.Count == 0
                 ? null
-                : FileInspectionRunUpdates.Cut(walk.Problems[0].Error ?? UnscannedPlaceError, FolderScanRunEntity.ErrorMaximumLength);
+                : walk.Problems[0].Error ?? UnscannedPlaceError;
             // Never cancelled, the LibrarySyncRunUpdates rule: once the outcome is decided it is written.
             var succeeded = await db.FolderScanRuns
                 .Where(run => run.Id == runId && run.Status == FolderScanStatus.Running)
@@ -154,8 +155,8 @@ public sealed partial class FolderScanRunner
     // ── what a scan carries ─────────────────────────────────────────────────────────────────────
 
     /// <summary>What a walk found, in walk order: each file once, the places it didn't go into or through,
-    /// and the sentence saying why it stopped short, when it did.</summary>
-    private sealed record Walk(List<ScannedFile> Files, List<FileListingEntry> Problems, string? LimitReached);
+    /// and why it stopped short, when it did, as a message the Api renders (ADR 0042).</summary>
+    private sealed record Walk(List<ScannedFile> Files, List<FileListingEntry> Problems, Message? LimitReached);
 
     /// <summary>One file the walk reached, with every name it was reached by, in walk order.</summary>
     private sealed record ScannedFile(List<NormalizedPath> Names);

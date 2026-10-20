@@ -1,11 +1,12 @@
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Files;
 
 /// <summary>
 /// What the allowed roots may be when the installation owner saves them (MAM-9, ADR 0009): the folders inside the
-/// app where it may read files. Each rule answers one readable sentence, or <c>null</c> when the list is
-/// acceptable — the rules-class pattern of <see cref="PathMappingRules"/>.
+/// app where it may read files. Each rule answers why the list is refused, as a message the Api renders (ADR 0042), or
+/// <c>null</c> when it is acceptable — the rules-class pattern of <see cref="PathMappingRules"/>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,10 +26,10 @@ public static class AllowedRootRules
     /// <summary>Longer than any mount point anyone types, the <see cref="PathMappingRules"/> bound.</summary>
     public const int MaximumPathLength = PathMappingRules.MaximumPathLength;
 
-    private const string TooManyError = "The app can have at most 20 media folders.";
-    private const string BlankError = "Each media folder needs its path.";
-    private const string TooLongError = "A media folder's path can be at most 1024 characters long.";
-    private const string ControlCharacterError = "A media folder's path can't contain line breaks or other control characters.";
+    private static readonly Message TooManyError = Message.Of("files.allowed-roots.too-many", ("count", MaximumCount));
+    private static readonly Message BlankError = Message.Of("files.allowed-roots.path-missing");
+    private static readonly Message TooLongError = Message.Of("files.allowed-roots.too-long", ("count", MaximumPathLength));
+    private static readonly Message ControlCharacterError = Message.Of("files.allowed-roots.control-characters");
 
     /// <summary>
     /// The style of the paths this app opens: the operating system it runs on. A root of the other
@@ -37,14 +38,14 @@ public static class AllowedRootRules
     public static PathStyle PlatformStyle => OperatingSystem.IsWindows() ? PathStyle.Windows : PathStyle.Posix;
 
     /// <summary>
-    /// The sentence saying what is wrong with <paramref name="paths"/>, or <c>null</c>. Pass the paths as
+    /// Why <paramref name="paths"/> are refused, or <c>null</c>. Pass the paths as
     /// typed: surrounding whitespace is ignored. The first failure wins — the rules of each path in turn,
     /// then those between paths — and a path that parsed is echoed in its canonical form.
     /// </summary>
     /// <param name="paths">The folders as the owner typed them.</param>
     /// <param name="appStyle">The style of the paths the app opens; <see cref="PlatformStyle"/> outside
     /// tests.</param>
-    public static string? Validate(IReadOnlyList<string?> paths, PathStyle appStyle)
+    public static Message? Validate(IReadOnlyList<string?> paths, PathStyle appStyle)
     {
         if (paths.Count > MaximumCount)
             return TooManyError;
@@ -62,18 +63,16 @@ public static class AllowedRootRules
             if (!NormalizedPath.TryParse(text, out var root, out var error))
             {
                 return error == PathParseError.DotSegment
-                    ? $"“{text}” contains . or .. as a folder name. Write the folder's full path without them."
-                    : $"“{text}” is not a full path. Start it with {Example(appStyle, root: true)}.";
+                    ? PathMappingRules.DotSegmentError(text)
+                    : OnPlatform(appStyle, "files.allowed-roots.not-full-path-windows", "files.allowed-roots.not-full-path-linux", text);
             }
 
+            // Root and app styles differ, so the app's style names the shape: a Linux path on Windows or the other way.
             if (root.Style != appStyle)
-            {
-                return $"“{root}” is a {StyleName(root.Style)} path, but this app runs on {StyleName(appStyle)}. " +
-                    $"Give the folder's path inside the app, such as {Example(appStyle, root: false)}.";
-            }
+                return OnPlatform(appStyle, "files.allowed-roots.linux-path-on-windows", "files.allowed-roots.windows-path-on-linux", root.ToString());
 
             if (root.Segments.Count == 0)
-                return $"“{root}” is the whole file system. Name the folder the media is in, such as {Example(appStyle, root: false)}.";
+                return OnPlatform(appStyle, "files.allowed-roots.whole-file-system-windows", "files.allowed-roots.whole-file-system-linux", root.ToString());
 
             parsed.Add(root);
         }
@@ -83,7 +82,7 @@ public static class AllowedRootRules
             for (var second = first + 1; second < parsed.Count; second++)
             {
                 if (parsed[first].IsSameAs(parsed[second]))
-                    return $"“{parsed[first]}” is listed twice. Keep one.";
+                    return Message.Of("files.allowed-roots.listed-twice", ("path", parsed[first].ToString()));
             }
         }
 
@@ -92,7 +91,7 @@ public static class AllowedRootRules
             foreach (var inner in parsed)
             {
                 if (inner.IsUnder(outer) && !inner.IsSameAs(outer))
-                    return $"“{inner}” is inside “{outer}”, which already allows it. Keep only “{outer}”.";
+                    return Message.Of("files.allowed-roots.nested", ("inner", inner.ToString()), ("outer", outer.ToString()));
             }
         }
 
@@ -106,13 +105,8 @@ public static class AllowedRootRules
             ? root.ToString()
             : throw new ArgumentException($"An allowed root was normalised before it was validated ({error}).", nameof(paths)))];
 
-    private static string StyleName(PathStyle style) => style == PathStyle.Windows ? "Windows" : "Linux";
-
-    private static string Example(PathStyle style, bool root) => (style, root) switch
-    {
-        (PathStyle.Windows, true) => @"a drive letter such as D:\",
-        (PathStyle.Windows, false) => @"D:\Media",
-        (_, true) => "/",
-        _ => "/media",
-    };
+    // MAM-47 — one whole sentence per platform rather than "Windows"/"Linux" and an example path filled into one frame:
+    // the example is words of the template, never a value, and each language words the platform its own way.
+    private static Message OnPlatform(PathStyle appStyle, string windowsKey, string linuxKey, string path) =>
+        appStyle == PathStyle.Windows ? Message.Of(windowsKey, ("path", path)) : Message.Of(linuxKey, ("path", path));
 }

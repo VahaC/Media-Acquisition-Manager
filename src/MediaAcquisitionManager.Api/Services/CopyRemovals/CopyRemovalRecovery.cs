@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -117,7 +118,7 @@ public sealed class CopyRemovalRecovery(
         var roots = await db.AllowedRoots.AsNoTracking().OrderBy(root => root.Position).Select(root => root.Path).ToListAsync(cancellationToken);
 
         // Every disk read before the transaction: none is held across one.
-        var found = new List<(CopyRemovalNameEntity Name, ReplacementNameState State, string? Problem)>();
+        var found = new List<(CopyRemovalNameEntity Name, ReplacementNameState State, Message? Problem)>();
         var undecided = 0;
         foreach (var name in names.Where(name => name.State is ReplacementNameState.Moving or ReplacementNameState.Restoring or ReplacementNameState.Deleting))
         {
@@ -178,7 +179,7 @@ public sealed class CopyRemovalRecovery(
     /// otherwise at the write's own end — <c>NotMoved</c> for a move —, the reason saying how far it got. The library is owed
     /// a notice when a name left it or came back.
     /// </summary>
-    private static (CopyRemovalState End, string? Reason, bool NoticeDue, AuditAction EndAction) EndOf(
+    private static (CopyRemovalState End, Message? Reason, bool NoticeDue, AuditAction EndAction) EndOf(
         CopyRemovalState state, IReadOnlyList<ReplacementNameState> states, CopyRemovalNameEntity? lostVideo)
     {
         var held = states.Any(name => name == ReplacementNameState.Quarantined);
@@ -246,20 +247,29 @@ public sealed class CopyRemovalRecovery(
         }
     }
 
-    // ── a restart's cut ──
+    // ── a restart's cut ── MAM-47 (ADR 0042) — the replacements.quarantine keys' "-removal" variants, how far the write got
+    // nested as its tally.
 
-    private static string CutWhileMovingReason((int Count, int Total) moved) =>
-        ReplacementNameTally.AfterColon("The app stopped while moving this copy", ReplacementNameTally.InQuarantine(moved.Count, moved.Total));
+    private static Message CutWhileMovingReason((int Count, int Total) moved) =>
+        ReplacementNameTally.InQuarantine(moved.Count, moved.Total) is { } tally
+            ? Message.Of("replacements.quarantine.cut.moving-removal-tally", ("tally", tally))
+            : Message.Of("replacements.quarantine.cut.moving-removal");
 
     // The video looked up by device and inode where it was and where it was going, and found in neither: both paths in
     // full, as that is where the owner looks — the removal waits for review with no button to press.
-    private static string LostWhileMovingReason(string path, string quarantinePath) =>
-        $"The app stopped while moving this copy, and found its video neither at {ReplacementText.Quote(path)} nor in the quarantine at "
-        + $"{ReplacementText.Quote(quarantinePath)}. Look in both places to see where it went.";
+    private static Message LostWhileMovingReason(string path, string quarantinePath) =>
+        Message.Of(
+            "replacements.quarantine.lost.moving-removal",
+            ("path", MessageText.Clean(path)),
+            ("quarantine", MessageText.Clean(quarantinePath)));
 
-    private static string CutWhileRestoringReason((int Count, int Total) restored) =>
-        ReplacementNameTally.AfterColon("The app stopped while putting this copy back", ReplacementNameTally.BackWhereTheyWere(restored.Count, restored.Total));
+    private static Message CutWhileRestoringReason((int Count, int Total) restored) =>
+        ReplacementNameTally.BackWhereTheyWere(restored.Count, restored.Total) is { } tally
+            ? Message.Of("replacements.quarantine.cut.restoring-removal-tally", ("tally", tally))
+            : Message.Of("replacements.quarantine.cut.restoring-removal");
 
-    private static string CutWhileDeletingReason((int Count, int Total) deleted) =>
-        ReplacementNameTally.AfterColon("The app stopped while deleting this copy permanently", ReplacementNameTally.Deleted(deleted.Count, deleted.Total));
+    private static Message CutWhileDeletingReason((int Count, int Total) deleted) =>
+        ReplacementNameTally.Deleted(deleted.Count, deleted.Total) is { } tally
+            ? Message.Of("replacements.quarantine.cut.deleting-removal-tally", ("tally", tally))
+            : Message.Of("replacements.quarantine.cut.deleting-removal");
 }

@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 
@@ -6,10 +7,10 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 /// or why not.</summary>
 /// <param name="Status"><see cref="LibraryLinkStatus.Succeeded"/> or <see cref="LibraryLinkStatus.Invalid"/>.</param>
 /// <param name="List">The page when listed.</param>
-/// <param name="Error">The sentence for a library or a page the list doesn't take.</param>
-public sealed record ConfidentSuggestionListResult(LibraryLinkStatus Status, ConfidentSuggestionListResponse? List, string? Error)
+/// <param name="Error">Why a library or a page isn't taken, as a message the Api renders (ADR 0042).</param>
+public sealed record ConfidentSuggestionListResult(LibraryLinkStatus Status, ConfidentSuggestionListResponse? List, Message? Error)
 {
     public static ConfidentSuggestionListResult Listed(ConfidentSuggestionListResponse list) => new(LibraryLinkStatus.Succeeded, list, null);
 
-    public static ConfidentSuggestionListResult Invalid(string error) => new(LibraryLinkStatus.Invalid, null, error);
+    public static ConfidentSuggestionListResult Invalid(Message error) => new(LibraryLinkStatus.Invalid, null, error);
 }

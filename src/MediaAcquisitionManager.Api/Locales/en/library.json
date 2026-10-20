@@ -1,0 +1,46 @@
+{
+  "list": {
+    "sort-unknown": "“{{value}}” is not a sort. Use Title, TitleDescending, Newest, Oldest, Largest or Added.",
+    "kind-unknown": "“{{value}}” is not a kind filter. Use Movie or Series.",
+    "season-unknown": "“{{value}}” is not a season. Use a season number, or None for the episodes without one.",
+    "location-unknown": "“{{value}}” is not a library.",
+    "identifiers-unknown": "“{{value}}” is not an identifier filter. Use Missing."
+  },
+  "sync": {
+    "queue-full": "Too many library syncs are waiting. Try again in a minute.",
+    "switched-off": "“{{integration}}” is switched off. Switch it on under Integrations to sync it.",
+    "already-syncing": "“{{integration}}” is already being synced.",
+    "type-unavailable": "This version of the app can't read a library from “{{type}}”.",
+    "restarted": "The app restarted before this sync finished. Start it again.",
+    "app-error": "The sync stopped because of an error in the app. Its log says more.",
+    "removed-before-start": "The integration was removed before the sync started.",
+    "removed-while-syncing": "The integration was removed while it was being synced; nothing was stored.",
+    "switched-off-before-start": "“{{integration}}” was switched off before the sync started.",
+    "total-changed-movies_one": "{{service}} listed {{count, number}} movie when the sync began and {{last, number}} by its end, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "total-changed-movies_other": "{{service}} listed {{count, number}} movies when the sync began and {{last, number}} by its end, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "total-changed-series_one": "{{service}} listed {{count, number}} series when the sync began and {{last, number}} by its end, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "total-changed-series_other": "{{service}} listed {{count, number}} series when the sync began and {{last, number}} by its end, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "total-changed-episodes_one": "{{service}} listed {{count, number}} episode when the sync began and {{last, number}} by its end, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "total-changed-episodes_other": "{{service}} listed {{count, number}} episodes when the sync began and {{last, number}} by its end, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "pages-shifted-movies": "{{service}}'s list of movies shifted between two pages, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "pages-shifted-series": "{{service}}'s list of series shifted between two pages, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "pages-shifted-episodes": "{{service}}'s list of episodes shifted between two pages, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "distinct-count-movies_one": "The sync read {{count, number}} different movie of the {{listed, number}} {{service}} listed, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "distinct-count-movies_other": "The sync read {{count, number}} different movies of the {{listed, number}} {{service}} listed, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "distinct-count-series_one": "The sync read {{count, number}} different series of the {{listed, number}} {{service}} listed, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "distinct-count-series_other": "The sync read {{count, number}} different series of the {{listed, number}} {{service}} listed, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "distinct-count-episodes_one": "The sync read {{count, number}} different episode of the {{listed, number}} {{service}} listed, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished.",
+    "distinct-count-episodes_other": "The sync read {{count, number}} different episodes of the {{listed, number}} {{service}} listed, so its library changed while it was being read. Nothing was changed here; sync again once {{service}}'s library scan has finished."
+  },
+  "poster": {
+    "fetch-failed": "The media library couldn't send this poster."
+  },
+  "mcp": {
+    "search": {
+      "listed_one": "The library lists {{count, number}} work; page {{page, number}} lists {{listed, number}}.",
+      "listed_other": "The library lists {{count, number}} works; page {{page, number}} lists {{listed, number}}.",
+      "matched_one": "{{count, number}} work matches “{{text}}”; page {{page, number}} lists {{listed, number}}.",
+      "matched_other": "{{count, number}} works match “{{text}}”; page {{page, number}} lists {{listed, number}}."
+    }
+  }
+}

@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
@@ -15,6 +16,7 @@ using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -170,7 +172,7 @@ public sealed class ReplacementQuarantineHoldsHttpTests : IClassFixture<MediaAcq
                 (TheatricalPath, ReplacementNameKind.Video, ReplacementNameState.Quarantined, (string?)null),
                 (TheatricalSrtPath, ReplacementNameKind.Companion, ReplacementNameState.Stayed, CompanionHeldProblem),
             ],
-            names.Select(name => (name.AppPath, name.Kind, name.State, name.Problem)));
+            names.Select(name => (name.AppPath, name.Kind, name.State, TestTexts.En(name.Problem))));
         // The subtitles stay where the torrent has them; only the video was renamed, and the stayed name has no write's rows.
         Assert.Equal([(TheatricalPath, ReplacementVerificationHarness.QuarantinePathOf(replacement.Id, TheatricalPath))], _factory.Quarantine.Renames);
         Assert.Equal(FileInventoryStatus.Found, (await _factory.Files.DescribeAsync(TheatricalSrtPath, [ReplacementVerificationHarness.MediaRoot], cancellationToken)).Status);
@@ -225,14 +227,14 @@ public sealed class ReplacementQuarantineHoldsHttpTests : IClassFixture<MediaAcq
         _harness.QBittorrent.RemoveTorrent(torrent.Hash);
         await _factory.WithDbAsync(db => db.ReplacementJobs
             .Where(row => row.Id == replacement.Id && row.State == ReplacementJobState.NeedsReview && row.QuarantineCheckedUtc != null)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.State, ReplacementJobState.Verified).SetProperty(row => row.Reason, (string?)null), cancellationToken));
+            .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.State, ReplacementJobState.Verified).SetProperty(row => row.Reason, (Message?)null), cancellationToken));
         _factory.Time.Advance(ReplacementQuarantineTracker.PassInterval);
 
         //Act
         await QuarantineAsync(cancellationToken);
 
         //Assert
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)HeldReason), (held.State, held.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)HeldReason), (held.State, TestTexts.En(held.Reason)));
         var line = await _harness.LineAsync(job.Id, cancellationToken);
         Assert.Equal((ReplacementJobState.Quarantined, (string?)null), (line!.State, line.Reason));
         // The stop's problem no longer holds; both names moved.
@@ -691,8 +693,8 @@ public sealed class ReplacementQuarantineHoldsHttpTests : IClassFixture<MediaAcq
         var stopped = await StoredAsync(replacement.Id, cancellationToken);
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)reason, (DateTime?)now, (DateTime?)null),
-            (stopped.State, stopped.Reason, stopped.QuarantineCheckedUtc, stopped.LibraryNoticeDueUtc));
-        Assert.Equal(problem, Assert.Single(await _harness.CopiesAsync(cancellationToken)).Problem);
+            (stopped.State, TestTexts.En(stopped.Reason), stopped.QuarantineCheckedUtc, stopped.LibraryNoticeDueUtc));
+        Assert.Equal(problem, TestTexts.En(Assert.Single(await _harness.CopiesAsync(cancellationToken)).Problem));
         Assert.Empty(await NamesAsync(cancellationToken));
         Assert.Equal([JobAudited(AuditAction.ReplacementNeedsReview, replacement.Id)], await _harness.QuarantineAuditsAsync(cancellationToken));
         Assert.Empty(_factory.Quarantine.Renames);

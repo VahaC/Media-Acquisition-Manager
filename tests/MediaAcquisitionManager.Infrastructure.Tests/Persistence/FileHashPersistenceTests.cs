@@ -1,9 +1,11 @@
 using System.Globalization;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -212,7 +214,8 @@ public sealed class FileHashPersistenceTests : DatabaseTestBase
                 FileInspectionRunStatus.Succeeded,
                 FileInspectionTrigger.Requested,
                 createdUtc: started.AddMinutes(1),
-                hashing: new PlantedHashing(3, Checked: 3, Read: 1, ProblemCount: 1, Problem: HashProblem));
+                hashing: new PlantedHashing(
+                    3, Checked: 3, Read: 1, ProblemCount: 1, Problem: FileInventoryMessages.ChangedWhileHashing("/media/movies/Taken (2008)/Taken (2008) BDRemux.mkv")));
         }
 
         //Act
@@ -272,7 +275,7 @@ public sealed class FileHashPersistenceTests : DatabaseTestBase
     private static IFileInspectionRunDataFactory Runs(ApplicationDbContext db) => new FileInspectionRunDataFactory(db, TimeProvider.System);
 
     private static (int? Candidates, int Checked, int Read, int ProblemCount, string? Problem) Hashing(FileInspectionRunEntity run) =>
-        (run.HashCandidates, run.HashCandidatesChecked, run.HashCandidatesRead, run.HashProblemCount, run.HashProblem);
+        (run.HashCandidates, run.HashCandidatesChecked, run.HashCandidatesRead, run.HashProblemCount, TestTexts.En(run.HashProblem));
 
     /// <summary>Whether a hash is stored under the test file's key with <paramref name="modifiedUtc"/>, asked as the
     /// inspection asks before it reads a file.</summary>

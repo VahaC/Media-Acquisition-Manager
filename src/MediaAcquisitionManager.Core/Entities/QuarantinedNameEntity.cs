@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -16,7 +17,8 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public abstract class QuarantinedNameEntity : BaseEntity
 {
-    /// <summary>The longest <see cref="Problem"/> kept, as a replacement's own reason; a longer sentence is cut to it.</summary>
+    /// <summary>The longest <see cref="Problem"/> kept, as a replacement's own reason; a longer message is fitted to it
+    /// (MAM-47: its longest value cut).</summary>
     public const int ProblemMaximumLength = ReplacementJobEntity.ReasonMaximumLength;
 
     /// <summary>The 0-based position among its owner's names, in the order they move: each video, then its companions. A
@@ -59,9 +61,9 @@ public abstract class QuarantinedNameEntity : BaseEntity
     public ReplacementNameState State { get; set; }
 
     /// <summary>Why it stayed, wasn't put back or deleted, or was lost — for a companion a torrent holds, the hold's own
-    /// sentence —, one readable sentence; <c>null</c> otherwise.</summary>
+    /// sentence —, as a message the Api renders (MAM-47, ADR 0042); <c>null</c> otherwise.</summary>
     [MaxLength(ProblemMaximumLength)]
-    public string? Problem { get; set; }
+    public Message? Problem { get; set; }
 
     /// <summary>When it was renamed into the quarantine; <c>null</c> before.</summary>
     public DateTime? MovedUtc { get; set; }

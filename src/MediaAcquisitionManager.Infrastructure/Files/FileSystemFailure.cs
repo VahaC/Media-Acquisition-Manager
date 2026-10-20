@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Files;
 
@@ -10,7 +11,7 @@ namespace MediaAcquisitionManager.Infrastructure.Files;
 internal static class FileSystemFailure
 {
     /// <summary>A refusal with its status and sentence.</summary>
-    public static FileInventoryResult<T> Refused<T>(FileInventoryStatus status, string error) where T : class =>
+    public static FileInventoryResult<T> Refused<T>(FileInventoryStatus status, Message error) where T : class =>
         new(status, null, error);
 
     /// <summary>A refusal of one step carried on as the result of the next.</summary>

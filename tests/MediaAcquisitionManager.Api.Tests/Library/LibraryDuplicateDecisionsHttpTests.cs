@@ -41,8 +41,8 @@ public sealed class LibraryDuplicateDecisionsHttpTests : IClassFixture<MediaAcqu
     private const string UnknownKey = "0123456789abcdef0123456789abcdef";
 
     // Spelled out rather than read from the product code: these are what the owner reads on the page.
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
     private const string DecisionMissingError = "A decision is needed: Confirmed or Dismissed.";
     private const string UnreadableBodyError = "The body must be JSON with a decision, such as { \"decision\": \"Confirmed\" }.";
 
@@ -406,7 +406,8 @@ public sealed class LibraryDuplicateDecisionsHttpTests : IClassFixture<MediaAcqu
         // The { error } shape the Duplicates page shows: never [ApiController]'s problem details.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(UnreadableBodyError, await response.ReadErrorAsync(cancellationToken));
+        // MAM-47 (ADR 0042) — with its key as the code, the same in every language.
+        Assert.Equal(ErrorBody.Json(UnreadableBodyError, "duplicates.decision.unreadable-body"), await response.Content.ReadAsStringAsync(cancellationToken));
         await AssertNothingWrittenAsync(cancellationToken);
     }
 

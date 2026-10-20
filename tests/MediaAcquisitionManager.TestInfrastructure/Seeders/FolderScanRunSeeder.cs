@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Seeders;
@@ -16,7 +17,7 @@ public sealed class FolderScanRunSeeder(IServiceProvider services) : SeederBase(
         int filesFound = 0,
         int? filesUnreported = null,
         int problemCount = 0,
-        string? problem = null,
-        string? error = null) =>
+        Message? problem = null,
+        Message? error = null) =>
         Runs.Create(status, requestedBy?.Id, requestedBy?.UserName, createdUtc, filesFound, filesUnreported, problemCount, problem, error);
 }

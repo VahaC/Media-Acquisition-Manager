@@ -6,11 +6,13 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -143,7 +145,7 @@ public sealed class ReplacementScheduleSendFolderClientHttpTests : IClassFixture
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         _factory.FolderClient.DestinationJobsFailure = IntegrationCallResult<IReadOnlyList<ClientJob>>.Failed(
-            IntegrationCallStatus.TimedOut, "Transmission didn't answer in time.");
+            IntegrationCallStatus.TimedOut, Message.Legacy("Transmission didn't answer in time."));
         var release = await FindAlienAsync();
 
         //Act
@@ -239,9 +241,9 @@ public sealed class ReplacementScheduleSendFolderClientHttpTests : IClassFixture
         await _factory.WithDbAsync(async db =>
         {
             var row = await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal((DownloadJobStatus.Failed, error, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App), (row.Status, row.Error, row.ErrorOrigin));
+            Assert.Equal((DownloadJobStatus.Failed, error, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App), (row.Status, TestTexts.En(row.Error), row.ErrorOrigin));
             var replacement = await db.ReplacementJobs.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal((ReplacementJobState.Failed, (string?)RefusedBeforeSentReason), (replacement.State, replacement.Reason));
+            Assert.Equal((ReplacementJobState.Failed, (string?)RefusedBeforeSentReason), (replacement.State, TestTexts.En(replacement.Reason)));
         });
         Assert.Empty(_factory.FolderClient.Submissions);
     }

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -23,7 +24,8 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class ReplacementJobNewFileEntity : BaseEntity
 {
-    /// <summary>The longest <see cref="Problem"/> kept, as the job's own reason; a longer sentence is cut to it.</summary>
+    /// <summary>The longest <see cref="Problem"/> kept, as the job's own reason; a longer message is fitted to it (MAM-47:
+    /// its longest value cut).</summary>
     public const int ProblemMaximumLength = ReplacementJobEntity.ReasonMaximumLength;
 
     /// <summary>The longest library item id kept: a library's ids are short (Jellyfin's are 32 hexadecimal digits),
@@ -127,7 +129,8 @@ public class ReplacementJobNewFileEntity : BaseEntity
     /// <see cref="ReplacementJobWorkEntity.MediaWorkId"/>); <c>null</c> while none is. No key: a snapshot.</summary>
     public Guid? MediaWorkId { get; set; }
 
-    /// <summary>Why this file stopped the job, one readable sentence; <c>null</c> when it didn't.</summary>
+    /// <summary>Why this file stopped the job, as a message the Api renders (MAM-47, ADR 0042); <c>null</c> when it
+    /// didn't.</summary>
     [MaxLength(ProblemMaximumLength)]
-    public string? Problem { get; set; }
+    public Message? Problem { get; set; }
 }

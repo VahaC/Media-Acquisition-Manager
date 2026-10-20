@@ -5,11 +5,13 @@ using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -106,19 +108,19 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
 
         //Assert
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Verified, (string?)null), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Verified, (string?)null), (replacement.State, TestTexts.En(replacement.Reason)));
         // The episode left paired with its new file; the extra one, of the job's work, simply added.
         var newFiles = await _harness.NewFilesAsync(cancellationToken);
         Assert.Equal(
             [((string?)NewPathOf(1), (Guid?)_yellowstone.Id, (string?)null), (NewPathOf(3), _yellowstone.Id, null)],
-            newFiles.Select(file => (file.AppPath, file.MediaWorkId, file.Problem)));
+            newFiles.Select(file => (file.AppPath, file.MediaWorkId, TestTexts.En(file.Problem))));
         // The dropped copy's row is as the drop left it: no pair, no problem, no mark, no running time read for it.
         Assert.Equal(
             [
                 ((Guid?)newFiles[0].Id, (string?)null, false, (long?)ContinentalMilliseconds, (DateTime?)null),
                 (null, null, false, null, droppedUtc),
             ],
-            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.PairedNewFileId, copy.Problem, copy.OnlyDropSettles, copy.DurationMilliseconds, copy.DroppedUtc)));
+            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.PairedNewFileId, TestTexts.En(copy.Problem), copy.OnlyDropSettles, copy.DurationMilliseconds, copy.DroppedUtc)));
         // Jellyfin was read for the episode left — and never for the dropped one, under any id its old file could have.
         var readPaths = _factory.JellyfinHttp.Requests.Select(request => request.Uri.AbsolutePath).ToList();
         Assert.Contains($"/Items/{JellyfinItemIds.Of(JellyfinItemIds.EpisodeType, OldLibraryPathOf(1))}", readPaths);
@@ -154,7 +156,7 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
         //Assert
         Assert.Equal(ReplacementJobState.Verified, (await _harness.ReplacementAsync(cancellationToken)).State);
         var newFiles = await _harness.NewFilesAsync(cancellationToken);
-        Assert.All(newFiles, file => Assert.Equal(((Guid?)_yellowstone.Id, (string?)null), (file.MediaWorkId, file.Problem)));
+        Assert.All(newFiles, file => Assert.Equal(((Guid?)_yellowstone.Id, (string?)null), (file.MediaWorkId, TestTexts.En(file.Problem))));
         Assert.Equal(
             [(Guid?)newFiles[0].Id, null],
             (await _harness.CopiesAsync(cancellationToken)).Select(copy => copy.PairedNewFileId));
@@ -181,10 +183,10 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
 
         //Assert
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)OldCopyItselfReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)OldCopyItselfReason), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Equal(
             [((string?)NewPathOf(1), (string?)null), (NewPathOf(2), OldCopyItselfReason)],
-            (await _harness.NewFilesAsync(cancellationToken)).Select(file => (file.AppPath, file.Problem)));
+            (await _harness.NewFilesAsync(cancellationToken)).Select(file => (file.AppPath, TestTexts.En(file.Problem))));
         Assert.Equal(droppedUtc, (await _harness.CopiesAsync(cancellationToken))[1].DroppedUtc);
         // Stopped by the files' checks: Jellyfin was never asked to look.
         Assert.Empty(_harness.JellyfinServer.ScanRequests);
@@ -215,10 +217,10 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
 
         //Assert
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)TwoNewFilesReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)TwoNewFilesReason), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Equal(
             [((Guid?)null, (string?)TwoNewFilesReason, false), (null, NoSecondEpisodeReason, true)],
-            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.PairedNewFileId, copy.Problem, copy.OnlyDropSettles)));
+            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.PairedNewFileId, TestTexts.En(copy.Problem), copy.OnlyDropSettles)));
     }
 
     [Fact]
@@ -253,13 +255,13 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
                 (null, NoSecondEpisodeReason, true),
                 (null, NoThirdEpisodeReason, true),
             ],
-            stopped.Select(copy => (copy.PairedNewFileId, copy.Problem, copy.OnlyDropSettles)));
+            stopped.Select(copy => (copy.PairedNewFileId, TestTexts.En(copy.Problem), copy.OnlyDropSettles)));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal((ReplacementJobState.Inspecting, true), (replacement.State, replacement.LibraryAskedUtc is not null));
         // The new files read afresh, nothing of Jellyfin's last word kept on them.
         Assert.Equal(
             [((string?)NewPathOf(1), (Guid?)null, (string?)null), (NewPathOf(4), null, null)],
-            (await _harness.NewFilesAsync(cancellationToken)).Select(file => (file.AppPath, file.MediaWorkId, file.Problem)));
+            (await _harness.NewFilesAsync(cancellationToken)).Select(file => (file.AppPath, file.MediaWorkId, TestTexts.En(file.Problem))));
         // The copies left in the job start over; the dropped one keeps its last problem and mark.
         Assert.Equal(
             [
@@ -267,7 +269,7 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
                 (null, null, false, null),
                 (null, NoThirdEpisodeReason, true, droppedUtc),
             ],
-            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.PairedNewFileId, copy.Problem, copy.OnlyDropSettles, copy.DroppedUtc)));
+            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.PairedNewFileId, TestTexts.En(copy.Problem), copy.OnlyDropSettles, copy.DroppedUtc)));
     }
 
     [Theory]
@@ -317,13 +319,13 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
         Assert.Equal(ReplacementJobState.Inspecting, waitedState);
         Assert.Equal(
             [((Guid?)null, (string?)FirstEpisodeTooShortReason, true), (null, null, false)],
-            waited.Select(copy => (copy.PairedNewFileId, copy.Problem, copy.OnlyDropSettles)));
+            waited.Select(copy => (copy.PairedNewFileId, TestTexts.En(copy.Problem), copy.OnlyDropSettles)));
         // This pass stopped on the changed file, or the unread library, before any pairing: it keeps nothing the pass
         // before it found, so the reason is the one thing that stopped the job.
         Assert.Equal(
             [((Guid?)null, (string?)null, false), (null, null, false)],
-            stopped.Select(copy => (copy.PairedNewFileId, copy.Problem, copy.OnlyDropSettles)));
-        Assert.Equal([changed ? reason : null, null], stoppedNewFiles.Select(file => file.Problem));
+            stopped.Select(copy => (copy.PairedNewFileId, TestTexts.En(copy.Problem), copy.OnlyDropSettles)));
+        Assert.Equal([changed ? reason : null, null], stoppedNewFiles.Select(file => TestTexts.En(file.Problem)));
         // Retry is offered — a new check may well settle it — and goes through.
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)reason, (ReplacementStop?)ReplacementStop.Check, true, 0),
@@ -351,16 +353,16 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
         var droppedUtc = await DropAsync(1, cancellationToken);
         await _factory.WithDbAsync(db => db.ReplacementJobs
             .Where(row => row.Id == replacement.Id && row.State == ReplacementJobState.NeedsReview && row.QuarantineCheckedUtc != null)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.State, ReplacementJobState.Verified).SetProperty(row => row.Reason, (string?)null), cancellationToken));
+            .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.State, ReplacementJobState.Verified).SetProperty(row => row.Reason, (Message?)null), cancellationToken));
         _factory.Time.Advance(ReplacementQuarantineTracker.PassInterval);
 
         //Act
         await QuarantineAsync(cancellationToken);
 
         //Assert
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)HeldReason), (held.State, held.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)HeldReason), (held.State, TestTexts.En(held.Reason)));
         var moved = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Quarantined, (string?)null), (moved.State, moved.Reason));
+        Assert.Equal((ReplacementJobState.Quarantined, (string?)null), (moved.State, TestTexts.En(moved.Reason)));
         // Episode 1 alone planned and moved; episode 2 where it was, with the torrent's stop kept as its history.
         var names = await NamesAsync(cancellationToken);
         var copies = await _harness.CopiesAsync(cancellationToken);
@@ -371,7 +373,7 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
         Assert.Equal([OldPathOf(1)], await _harness.ChangedOldCopiesAsync(cancellationToken));
         Assert.Equal(
             [((string?)null, (DateTime?)null), (HeldReason, droppedUtc)],
-            copies.Select(copy => (copy.Problem, copy.DroppedUtc)));
+            copies.Select(copy => (TestTexts.En(copy.Problem), copy.DroppedUtc)));
         Assert.Equal(
             [
                 AuditAction.ReplacementScheduled,
@@ -407,11 +409,11 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
         await new ReplacementQuarantinePlanter(_factory, _harness).PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: NoSecondEpisodeReason,
+            reason: PlantedMessage.Of(NoSecondEpisodeReason),
             copies:
             [
                 new PlantedCopy(OldPathOf(1), TestMedia.File(inode: 21), SeasonNumber: 2, EpisodeNumber: 1),
-                new PlantedCopy(OldPathOf(2), TestMedia.File(inode: 22), NoSecondEpisodeReason, OnlyDropSettles: true, DroppedUtc: dropped ? now : null, SeasonNumber: 2, EpisodeNumber: 2),
+                new PlantedCopy(OldPathOf(2), TestMedia.File(inode: 22), PlantedMessage.Of(NoSecondEpisodeReason), OnlyDropSettles: true, DroppedUtc: dropped ? now : null, SeasonNumber: 2, EpisodeNumber: 2),
             ],
             inspectionStartedUtc: now);
         var release = await _harness.FindAsync("Yellowstone", 2018, Release, ReleaseKind.Tv, YellowstoneImdbId);
@@ -517,7 +519,7 @@ public sealed class ReplacementDroppedCopyHttpTests : IClassFixture<MediaAcquisi
     private Task BackToTheCheckAsync(CancellationToken cancellationToken) =>
         _factory.WithDbAsync(db => db.ReplacementJobs
             .Where(row => row.State == ReplacementJobState.NeedsReview && row.QuarantineCheckedUtc == null)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.State, ReplacementJobState.Downloaded).SetProperty(row => row.Reason, (string?)null), cancellationToken));
+            .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.State, ReplacementJobState.Downloaded).SetProperty(row => row.Reason, (Message?)null), cancellationToken));
 
     /// <summary>One pass of the mover, which must not have logged an error.</summary>
     private async Task QuarantineAsync(CancellationToken cancellationToken)

@@ -45,7 +45,7 @@ public class ProfileController(IRecommendationSettingsService recommendationSett
         return result.Status switch
         {
             RecommendationSettingsSaveStatus.Saved => Ok(result.Settings),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -66,7 +66,7 @@ public class ProfileController(IRecommendationSettingsService recommendationSett
             // The /me rule: the user was deleted after the token's session check, which to the caller is a session that has
             // ended.
             UserLanguageSaveStatus.UserGone => Challenge(),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 }

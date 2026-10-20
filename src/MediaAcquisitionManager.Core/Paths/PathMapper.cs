@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Core.Paths;
 
 /// <summary>
@@ -28,8 +30,9 @@ public static class PathMapper
     /// </summary>
     public static PathMapResult Map(string servicePath, IReadOnlyList<PathMappingPair> pairs)
     {
+        // MAM-47 — "" for a null path, which the interpolated sentence printed as nothing: a text value is never null.
         if (!NormalizedPath.TryParse(servicePath, out var path, out _))
-            return new PathMapResult(PathMapStatus.Invalid, null, $"“{servicePath}” is not a full path the app can map.");
+            return new PathMapResult(PathMapStatus.Invalid, null, Message.Of("integrations.path-map.not-full-path", ("path", servicePath ?? "")));
 
         // The owner declared no mapping, so the service sees the files where the app does.
         if (pairs.Count == 0)
@@ -49,8 +52,7 @@ public static class PathMapper
             // into two folders and name a different place.
             if (appPrefix.Style == PathStyle.Windows && remainder.FirstOrDefault(segment => segment.Contains('\\')) is { } unwritable)
             {
-                return new PathMapResult(PathMapStatus.Invalid, null,
-                    $"“{path}” can't be written under “{appPrefix}”: its folder name “{unwritable}” contains \\, which separates folders in a Windows path.");
+                return new PathMapResult(PathMapStatus.Invalid, null, Unwritable(path, appPrefix, unwritable));
             }
 
             var result = appPrefix.Append(remainder);
@@ -62,10 +64,13 @@ public static class PathMapper
         {
             // Pairs exist, so identity is not a fallback: the owner said how this service's paths
             // map, and this one isn't covered.
-            0 => new PathMapResult(PathMapStatus.NotCovered, null, $"No path mapping of this integration covers “{path}”."),
+            0 => new PathMapResult(PathMapStatus.NotCovered, null, Message.Of("integrations.path-map.not-covered", ("path", path.ToString()))),
             1 => new PathMapResult(PathMapStatus.Mapped, results[0].ToString(), null),
-            _ => new PathMapResult(PathMapStatus.Ambiguous, null,
-                $"The path mappings of this integration send “{path}” to different places: “{results[0]}” and “{results[1]}”."),
+            _ => new PathMapResult(PathMapStatus.Ambiguous, null, Message.Of(
+                "integrations.path-map.ambiguous",
+                ("path", path.ToString()),
+                ("first", results[0].ToString()),
+                ("second", results[1].ToString()))),
         };
     }
 
@@ -77,7 +82,7 @@ public static class PathMapper
     public static ServicePathMapResult MapBack(string appPath, IReadOnlyList<PathMappingPair> pairs)
     {
         if (!NormalizedPath.TryParse(appPath, out var path, out _))
-            return new ServicePathMapResult(PathMapStatus.Invalid, null, $"“{appPath}” is not a full path the app can map back.");
+            return new ServicePathMapResult(PathMapStatus.Invalid, null, Message.Of("integrations.path-map.not-full-path-back", ("path", appPath ?? "")));
 
         // The owner declared no mapping, so the service sees the files where the app does.
         if (pairs.Count == 0)
@@ -98,8 +103,7 @@ public static class PathMapper
             // service prefix, would turn into two folders and name a different place.
             if (servicePrefix.Style == PathStyle.Windows && remainder.FirstOrDefault(segment => segment.Contains('\\')) is { } unwritable)
             {
-                return new ServicePathMapResult(PathMapStatus.Invalid, null,
-                    $"“{path}” can't be written under “{servicePrefix}”: its folder name “{unwritable}” contains \\, which separates folders in a Windows path.");
+                return new ServicePathMapResult(PathMapStatus.Invalid, null, Unwritable(path, servicePrefix, unwritable));
             }
 
             // Agreeing pairs collapse by the service's own rules: two Windows spellings in another letter case are one
@@ -112,10 +116,17 @@ public static class PathMapper
         return results.Count switch
         {
             // Pairs exist, so identity is not a fallback, as in Map.
-            0 => new ServicePathMapResult(PathMapStatus.NotCovered, null, $"No path mapping of this integration leads to “{path}”."),
+            0 => new ServicePathMapResult(PathMapStatus.NotCovered, null, Message.Of("integrations.path-map.not-covered-back", ("path", path.ToString()))),
             1 => new ServicePathMapResult(PathMapStatus.Mapped, results[0].ToString(), null),
-            _ => new ServicePathMapResult(PathMapStatus.Ambiguous, null,
-                $"The path mappings of this integration lead to “{path}” from different places: “{results[0]}” and “{results[1]}”."),
+            _ => new ServicePathMapResult(PathMapStatus.Ambiguous, null, Message.Of(
+                "integrations.path-map.ambiguous-back",
+                ("path", path.ToString()),
+                ("first", results[0].ToString()),
+                ("second", results[1].ToString()))),
         };
     }
+
+    // One wording both ways: a folder name holding a backslash can't go under a Windows prefix.
+    private static Message Unwritable(NormalizedPath path, NormalizedPath prefix, string folderName) =>
+        Message.Of("integrations.path-map.unwritable-folder-name", ("path", path.ToString()), ("prefix", prefix.ToString()), ("name", folderName));
 }

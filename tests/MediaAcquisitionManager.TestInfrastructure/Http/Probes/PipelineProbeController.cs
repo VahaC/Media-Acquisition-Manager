@@ -50,6 +50,14 @@ public class PipelineProbeController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// MAM-47 — a body cut short, for the exception handler's other client-fault path: TestServer never truncates a
+    /// body, so the probe throws exactly what Kestrel throws when a client stops sending before its Content-Length.
+    /// </summary>
+    [HttpPost("truncated-body")]
+    public IActionResult TruncatedBody() =>
+        throw new BadHttpRequestException("Unexpected end of request content.", StatusCodes.Status400BadRequest);
+
     /// <summary>A DateTime without a zone and an enum — for the JSON options.</summary>
     [HttpGet("instant")]
     public ActionResult<PipelineProbeInstantResponse> Instant() =>

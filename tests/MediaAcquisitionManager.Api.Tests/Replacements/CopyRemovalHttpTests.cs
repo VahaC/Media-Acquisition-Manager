@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -117,7 +118,7 @@ public sealed class CopyRemovalHttpTests : IClassFixture<MediaAcquisitionManager
             names,
             name => Assert.Equal(
                 (ReplacementVerificationHarness.MediaRoot, TestMedia.DeviceId, TestMedia.ModifiedUtc, (int?)1, (string?)null, (DateTime?)now),
-                (name.AllowedRoot, name.DeviceId, name.ModifiedUtc, name.LinkCount, name.Problem, name.MovedUtc)));
+                (name.AllowedRoot, name.DeviceId, name.ModifiedUtc, name.LinkCount, TestTexts.En(name.Problem), name.MovedUtc)));
         // The answer's names are the rows, in a replacement's shape.
         Assert.Equal(
             names.Select(name => new ReplacementNameDto(name.Id, name.Kind, name.AppPath, name.QuarantinePath, name.SizeBytes, false, name.State, null)),
@@ -271,7 +272,7 @@ public sealed class CopyRemovalHttpTests : IClassFixture<MediaAcquisitionManager
         var removal = Assert.Single(await _removals.RemovalsAsync(cancellationToken));
         Assert.Equal(
             (CopyRemovalState.NotMoved, (string?)VideoNotMovedReason, (DateTime?)null, (DateTime?)null),
-            (removal.State, removal.Reason, removal.QuarantinedUtc, removal.LibraryNoticeDueUtc));
+            (removal.State, TestTexts.En(removal.Reason), removal.QuarantinedUtc, removal.LibraryNoticeDueUtc));
         var names = await _removals.NamesAsync(removal.Id, cancellationToken);
         Assert.Equal(
             [
@@ -279,7 +280,7 @@ public sealed class CopyRemovalHttpTests : IClassFixture<MediaAcquisitionManager
                 (RemovedNfoPath, ReplacementNameState.Planned, (string?)null),
                 (RemovedSrtPath, ReplacementNameState.Planned, (string?)null),
             ],
-            names.Select(name => (name.AppPath, name.State, name.Problem)));
+            names.Select(name => (name.AppPath, name.State, TestTexts.En(name.Problem))));
         Assert.Empty(_factory.Quarantine.Renames);
         Assert.Equal((FileInventoryStatus.Found, (long?)2), await WhatIsAtAsync(RemovedPath, cancellationToken));
         Assert.Equal(
@@ -323,7 +324,7 @@ public sealed class CopyRemovalHttpTests : IClassFixture<MediaAcquisitionManager
         // or delete — what sits at its quarantine name is another file.
         Assert.Equal(
             (CopyRemovalState.NeedsReview, (string?)reason, (DateTime?)null, (DateTime?)null),
-            (removal.State, removal.Reason, removal.QuarantinedUtc, removal.LibraryNoticeDueUtc));
+            (removal.State, TestTexts.En(removal.Reason), removal.QuarantinedUtc, removal.LibraryNoticeDueUtc));
         var names = await _removals.NamesAsync(removal.Id, cancellationToken);
         Assert.Equal(
             [
@@ -331,7 +332,7 @@ public sealed class CopyRemovalHttpTests : IClassFixture<MediaAcquisitionManager
                 (RemovedNfoPath, ReplacementNameState.Planned, (string?)null),
                 (RemovedSrtPath, ReplacementNameState.Planned, (string?)null),
             ],
-            names.Select(name => (name.AppPath, name.State, name.Problem)));
+            names.Select(name => (name.AppPath, name.State, TestTexts.En(name.Problem))));
         Assert.Equal((FileInventoryStatus.Found, (long?)99), await WhatIsAtAsync(quarantinePath, cancellationToken));
         Assert.Equal((FileInventoryStatus.NotFound, (long?)null), await WhatIsAtAsync(RemovedPath, cancellationToken));
         Assert.Equal(
@@ -442,7 +443,7 @@ public sealed class CopyRemovalHttpTests : IClassFixture<MediaAcquisitionManager
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(IncompleteError, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(ErrorBody.Json(IncompleteError, "duplicates.removal.request-incomplete"), await response.Content.ReadAsStringAsync(cancellationToken));
         await AssertNothingWrittenAsync(cancellationToken);
     }
 
@@ -479,7 +480,8 @@ public sealed class CopyRemovalHttpTests : IClassFixture<MediaAcquisitionManager
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(UnreadableBodyError, await response.ReadErrorAsync(cancellationToken));
+        // MAM-47 (ADR 0042) — with its key as the code, the same in every language.
+        Assert.Equal(ErrorBody.Json(UnreadableBodyError, "duplicates.removal.unreadable-body"), await response.Content.ReadAsStringAsync(cancellationToken));
         await AssertNothingWrittenAsync(cancellationToken);
     }
 

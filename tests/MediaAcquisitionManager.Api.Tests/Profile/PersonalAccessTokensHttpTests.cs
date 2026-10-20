@@ -36,7 +36,7 @@ public sealed class PersonalAccessTokensHttpTests : IClassFixture<MediaAcquisiti
     private const string UsersUrl = "/api/settings/users";
     private const string NewPassword = "brand-new-password";
 
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
 
     // Spelled out rather than read from the product code: these are what the Create token dialog shows.
     private const string NameRequired = "Give the token a name, such as “Claude on the laptop”.";
@@ -236,17 +236,18 @@ public sealed class PersonalAccessTokensHttpTests : IClassFixture<MediaAcquisiti
     }
 
     [Theory]
-    [InlineData("an empty name", NameRequired)]
-    [InlineData("a whitespace-only name", NameRequired)]
-    [InlineData("a missing name", NameRequired)]
-    [InlineData("a name of 101 characters", NameTooLong)]
-    [InlineData("a missing access", AccessRequired)]
-    [InlineData("an access number that names no access", AccessRequired)]
-    [InlineData("a missing lifetime", LifetimeRequired)]
-    [InlineData("a lifetime number that names no lifetime", LifetimeRequired)]
-    [InlineData("an access that isn't one of the names", UnreadableBody)]
-    [InlineData("a lifetime that isn't one of the names", UnreadableBody)]
-    public async Task Create_with_a_field_missing_or_wrong_is_400_with_its_sentence_and_stores_nothing(string wrong, string expectedError)
+    [InlineData("an empty name", NameRequired, "account.token.name-required")]
+    [InlineData("a whitespace-only name", NameRequired, "account.token.name-required")]
+    [InlineData("a missing name", NameRequired, "account.token.name-required")]
+    [InlineData("a name of 101 characters", NameTooLong, "account.token.name-too-long")]
+    [InlineData("a missing access", AccessRequired, "account.token.access-required")]
+    [InlineData("an access number that names no access", AccessRequired, "account.token.access-required")]
+    [InlineData("a missing lifetime", LifetimeRequired, "account.token.lifetime-required")]
+    [InlineData("a lifetime number that names no lifetime", LifetimeRequired, "account.token.lifetime-required")]
+    [InlineData("an access that isn't one of the names", UnreadableBody, "account.token.unreadable-body")]
+    [InlineData("a lifetime that isn't one of the names", UnreadableBody, "account.token.unreadable-body")]
+    public async Task Create_with_a_field_missing_or_wrong_is_400_with_its_sentence_and_stores_nothing(
+        string wrong, string expectedError, string expectedCode)
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -271,7 +272,7 @@ public sealed class PersonalAccessTokensHttpTests : IClassFixture<MediaAcquisiti
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(expectedError, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal((expectedError, expectedCode), await response.ReadErrorBodyAsync(cancellationToken));
         await AssertNothingStoredAsync(cancellationToken);
     }
 

@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -23,7 +24,7 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class RecommendationRunEntity : AuditableEntity
 {
-    /// <summary>The longest <see cref="Error"/> the column holds; a longer sentence is cut to it.</summary>
+    /// <summary>The longest <see cref="Error"/> the column holds; a longer message is fitted into it (ADR 0042).</summary>
     public const int ErrorMaximumLength = 1000;
 
     /// <summary>What queued it.</summary>
@@ -69,8 +70,8 @@ public class RecommendationRunEntity : AuditableEntity
     /// <summary>How many works it recommends, for every user together; <c>null</c> unless it succeeded.</summary>
     public int? CandidateCount { get; set; }
 
-    /// <summary>A readable sentence saying why the run failed, the catalog's secrets masked; <c>null</c>
-    /// unless it failed.</summary>
+    /// <summary>Why the run failed, as a message the Api renders (ADR 0042), the catalog's secrets masked in its values;
+    /// <c>null</c> unless it failed.</summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? Error { get; set; }
+    public Message? Error { get; set; }
 }

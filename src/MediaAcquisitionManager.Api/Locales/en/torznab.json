@@ -1,0 +1,57 @@
+{
+  "not-torznab": "The service at this address answered, but not with Torznab capabilities. Check that the address is the feed's Torznab URL.",
+  "not-search-results": "The service at this address answered, but not with Torznab search results. Check that the address is the feed's Torznab URL.",
+  "not-found": "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address: Prowlarr's ends in /api, and Jackett's Copy Torznab Feed gives one ending in /results/torznab/.",
+  "too-many-requests": "The Torznab feed is refusing requests for now (429 Too Many Requests). Try again in a few minutes.",
+  "connected": {
+    "no-search": "Connected to {{server, vendor}} over Torznab, but it offers no movie or TV search.",
+    "tv-only": "Connected to {{server, vendor}} over Torznab, but it offers no movie search; TV search by {{tv, list:and:message}}.",
+    "movie": "Connected to {{server, vendor}} over Torznab; movie search by {{movie, list:and:message}}.",
+    "movie-and-tv": "Connected to {{server, vendor}} over Torznab; movie search by {{movie, list:and:message}}, TV search by {{tv, list:and:message}}."
+  },
+  "connected-to-feed": {
+    "no-search": "Connected to the feed over Torznab, but it offers no movie or TV search.",
+    "tv-only": "Connected to the feed over Torznab, but it offers no movie search; TV search by {{tv, list:and:message}}.",
+    "movie": "Connected to the feed over Torznab; movie search by {{movie, list:and:message}}.",
+    "movie-and-tv": "Connected to the feed over Torznab; movie search by {{movie, list:and:message}}, TV search by {{tv, list:and:message}}."
+  },
+  "parameter": {
+    "title-clause": "title",
+    "imdb-id-clause": "IMDb id",
+    "tmdb-id-clause": "TMDb id",
+    "tvdb-id-clause": "TVDB id",
+    "year-clause": "year",
+    "season-clause": "season",
+    "episode-clause": "episode"
+  },
+  "error": {
+    "code-clause": "error {{code, number}}",
+    "described-clause": "error {{code, number}}: {{description, vendor}}"
+  },
+  "feed": {
+    "refusing": "The Torznab feed is refusing requests for now ({{error, message}}). Try again in a few minutes.",
+    "key-refused": "The Torznab feed refused the API key ({{error, message}}). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.",
+    "key-refused-status": "The Torznab feed refused the API key ({{status}}). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.",
+    "api-off": "The Torznab feed has its API switched off ({{error, message}}).",
+    "failed": "The Torznab feed failed ({{error, message}}).",
+    "wrong-indexer": "The Torznab feed doesn't serve what this address names ({{error, message}}). Check the indexer in the feed's address, such as …/indexers/toloka/results/torznab/ for Jackett or …/1/api for Prowlarr."
+  },
+  "search": {
+    "not-understood": "The Torznab feed didn't understand the search ({{error, message}}).",
+    "links-elsewhere": "The Torznab feed lists its downloads at {{origin, vendor}}, not at the address entered for it, so the app couldn't fetch them. Enter the feed at the address its download links use."
+  },
+  "download": {
+    "not-a-torrent": "The Torznab feed answered the download with something that isn't a .torrent file.",
+    "elsewhere": "The release's download link points somewhere other than the Torznab feed's address, so the app didn't fetch it.",
+    "key-missing": "The release's download link needs the Torznab feed's API key, and none is saved for the feed. Enter its API key.",
+    "not-found": "The Torznab feed couldn't hand over this release (404 Not Found): it may be gone, or the feed failed to fetch it; its own log says which.",
+    "gone": "The Torznab feed can't hand over this release any more ({{error, message}}). Search again.",
+    "gone-status": "The Torznab feed can't hand over this release any more ({{status}}). Search again.",
+    "failed": "The Torznab feed failed to hand over the release ({{error, message}}).",
+    "not-understood": "The Torznab feed didn't understand the download request ({{error, message}}).",
+    "redirect-without-target": "The Torznab feed answered the download with a redirect that doesn't say where to, and the app doesn't follow redirects.",
+    "redirect-own-address": "The Torznab feed sends this download on to another address of its own at {{origin, vendor}} instead of handing it over, and the app doesn't follow redirects.",
+    "redirect-elsewhere": "The Torznab feed sends this download on to {{origin, vendor}} instead of handing it over, and the app doesn't follow it. Switch off the feed's option to redirect downloads to the tracker.",
+    "redirect-scheme": "The Torznab feed sends this download on to a “{{scheme, vendor}}” link instead of handing it over, and the app doesn't follow it."
+  }
+}

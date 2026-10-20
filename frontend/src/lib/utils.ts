@@ -14,7 +14,8 @@ export function cn(...inputs: ClassValue[]): string {
  * The sentence to show for a failed request.
  *
  * The API answers every failure that carries a message with `{ "error": "<sentence>" }`, so that
- * sentence wins. It stays the API's English sentence in every UI language (ADR 0001). A request
+ * sentence wins. It is the API's sentence, in the language the page runs in (MAM-47, ADR 0042: the
+ * server follows the Accept-Language lib/api.ts sends); the `code` beside it isn't read here. A request
  * that never reached the API (isServerUnreachable) says so, which is more useful than axios's
  * "Network Error" or a proxy's "Bad Gateway". Anything else — an HTML error page, a bare status —
  * has nothing readable in it and gets `fallback`, which the caller words for its context

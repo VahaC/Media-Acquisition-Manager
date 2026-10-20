@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -10,20 +11,18 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// </summary>
 public sealed partial class ReplacementJobActions
 {
-    private const string NothingToRestoreError = "Nothing of this replacement is in the quarantine, so there's nothing to put back.";
+    private static readonly Message NothingToRestoreError = Message.Of("replacements.restore.nothing");
 
-    private const string RestoreSwitchedOffError =
-        "Replacement is switched off on the Media folders page, so nothing can be put back. Switch it on, then press Restore again.";
+    private static readonly Message RestoreSwitchedOffError = Message.Of("replacements.restore.switched-off");
 
     // MAM-26 — a platform whose write contract can't rename without risking a copy (anything but Linux): refused before
     // the claim, so the job isn't stopped for review over the platform it runs on.
-    private const string RestoreNotSupportedError = "The app can't rename files on the platform it runs on, so nothing was put back.";
+    private static readonly Message RestoreNotSupportedError = Message.Of("replacements.restore.unsupported");
 
     // MAM-26 — a Delete for good stopped part-way deleted a video: what is left of its copy — a subtitle, an .nfo — would go
     // back to the library alone, and the job would end saying the old copy is back. Retry settles the job where it rests,
     // and Delete for good takes what is left.
-    private const string VideoDeletedError =
-        "A video of this replacement was deleted permanently, so nothing is put back without it. Press Retry, then delete permanently what the quarantine still holds.";
+    private static readonly Message VideoDeletedError = Message.Of("replacements.restore.video-deleted");
 
     public async Task<ReplacementActionResult> RestoreAsync(Guid replacementJobId, Guid callerUserId, CancellationToken cancellationToken = default)
     {
@@ -44,7 +43,7 @@ public sealed partial class ReplacementJobActions
         if (!inHand.TryTake(replacementJobId))
             return ReplacementActionResult.Refused(BeingWorkedOnError);
 
-        string? stopped;
+        Message? stopped;
         try
         {
             stopped = await RunAsync(job, job.Replacement.State, names, RestoreWrite(), actor);
@@ -63,7 +62,7 @@ public sealed partial class ReplacementJobActions
     /// path in a ticked folder, the file in the quarantine still the one the move put there, nothing at its old path, and
     /// its old folder still there.
     /// </summary>
-    private async Task<string?> RestoreRefusalAsync(IReadOnlyList<ReplacementJobNameEntity> names, CancellationToken cancellationToken)
+    private async Task<Message?> RestoreRefusalAsync(IReadOnlyList<ReplacementJobNameEntity> names, CancellationToken cancellationToken)
     {
         if (!quarantine.Capabilities.CanRename)
             return RestoreNotSupportedError;
@@ -89,5 +88,6 @@ public sealed partial class ReplacementJobActions
             AuditAction.ReplacementNameRestoring,
             AuditAction.ReplacementNameRestored,
             AuditAction.ReplacementNameNotRestored,
-            SwitchedOffMidwayError));
+            SwitchedOffMidwayError,
+            QuarantineWording.Replacement));
 }

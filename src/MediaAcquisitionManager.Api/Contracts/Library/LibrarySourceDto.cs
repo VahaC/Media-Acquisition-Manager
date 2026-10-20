@@ -22,6 +22,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// give no path in this app, counted when asked, so it always agrees with the works list.</param>
 /// <param name="PathProblem">Why the first of those files has none; for the installation owner only,
 /// <c>null</c> for everyone else and when every file has a path.</param>
+/// <param name="PathProblemCode">MAM-47 — the key of <paramref name="PathProblem"/>'s sentence (ADR 0042), the same in
+/// every language; <c>null</c> exactly when it is.</param>
 /// <param name="Inspection">Where the app's own look at its files stands (MAM-9), counted when
 /// asked.</param>
 /// <param name="Space">How much room its files take on disk (MAM-19), each file counted once however many
@@ -36,5 +38,6 @@ public sealed record LibrarySourceDto(
     LibrarySyncRunDto? LastSucceededRun,
     int FilesWithoutAppPathCount,
     string? PathProblem,
+    string? PathProblemCode,
     LibrarySourceInspectionDto Inspection,
     LibrarySpaceDto Space);

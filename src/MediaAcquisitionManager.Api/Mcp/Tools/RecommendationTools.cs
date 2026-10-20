@@ -1,12 +1,15 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Security.Claims;
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mcp.Results;
 using MediaAcquisitionManager.Api.Services.Recommendations;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Recommendations;
+using MediaAcquisitionManager.Core.Texts;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -18,11 +21,12 @@ namespace MediaAcquisitionManager.Api.Mcp.Tools;
 /// The services as <c>GET /api/recommendations</c> and <c>PUT /api/recommendations/dismissals/{kind}/{catalogId}</c> call
 /// them, with the caller's own tabs and marks. The typed arguments go to the list as the query string's text, so every
 /// value — a page of 0, a genre of -18 — is checked by the same rules and refused with the same sentence; a tab the caller
-/// switched off is the service's sentence too. Built per call by the SDK, with the request's services.
+/// switched off is the service's sentence too. Built per call by the SDK, with the request's services. MAM-47 (ADR
+/// 0042) — the summaries and the refusals are written in the request's language, one key per shape.
 /// </remarks>
 [McpServerToolType]
 public sealed class RecommendationTools(
-    IRecommendationListService lists, IRecommendationDismissalService dismissals, McpToolResults results)
+    IRecommendationListService lists, IRecommendationDismissalService dismissals, McpToolResults results, IRequestTexts texts)
 {
     [McpServerTool(
         Name = "list_recommendations",
@@ -77,11 +81,13 @@ public sealed class RecommendationTools(
             pageSize.ToString(CultureInfo.InvariantCulture));
         var result = await lists.ListAsync(request, user.GetUserId(), cancellationToken);
         if (result.Status != RecommendationListStatus.Listed)
-            return McpToolResults.Error(result.Error!);
+            return McpToolResults.Error(texts.Render(result.Error!));
 
         var list = result.List!;
-        var works = list.TotalCount == 1 ? "1 recommendation" : $"{list.TotalCount} recommendations";
-        return results.Success($"{works} on the {tab} tab in all; page {list.Page} lists {list.Items.Count}.", list);
+        // The tab as the tool's argument names it: an API name, which the AI sends back.
+        var summary = Message.Of(
+            "recommendations.mcp.list.listed", ("count", list.TotalCount), ("tab", tab.ToString()), ("page", list.Page), ("listed", list.Items.Count));
+        return results.Success(texts.Render(summary), list);
     }
 
     [McpServerTool(
@@ -108,14 +114,20 @@ public sealed class RecommendationTools(
     {
         var result = await dismissals.DismissAsync(kind, catalogId, user.GetUserId(), cancellationToken);
         if (result.Status != RecommendationDismissalStatus.Done)
-            return McpToolResults.Error(result.Error!);
+            return McpToolResults.Error(texts.Render(result.Error!));
 
         // The mark as it is kept — "series" read as Series, the id trimmed —, which the service doesn't hand back: its
         // own rules, run again on values they have just accepted.
         RecommendationDismissalRules.Validate(kind, catalogId, out var markedKind, out var markedCatalogId);
         var marked = new RecommendationDismissalToolResult(markedKind!.Value.ToString(), markedCatalogId!);
-        return results.Success(
-            $"{marked.Kind} {marked.CatalogId} is marked Not interested and leaves your recommendations; the web app can undo it.",
-            marked);
+        // MAM-47 (ADR 0042) — a key per kind: the kind's name and the id would otherwise be two values side by side.
+        var summary = markedKind.Value switch
+        {
+            MediaWorkKind.Movie => Message.Of("recommendations.mcp.dismiss.movie-marked", ("catalogId", marked.CatalogId)),
+            MediaWorkKind.Series => Message.Of("recommendations.mcp.dismiss.series-marked", ("catalogId", marked.CatalogId)),
+            // The rules accept no other kind (RecommendationDismissalRules), so the mark above can't have one.
+            _ => throw new UnreachableException($"A {markedKind.Value} can't be marked Not interested."),
+        };
+        return results.Success(texts.Render(summary), marked);
     }
 }

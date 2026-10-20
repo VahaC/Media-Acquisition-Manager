@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mcp.Results;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
@@ -108,6 +109,28 @@ public sealed class McpStatusToolHttpTests : IClassFixture<MediaAcquisitionManag
         Assert.Contains("\"latestRecommendationRun\":null", JsonTextOf(result), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(true, PersonalAccessTokenAccess.ReadAndDownload, "You act as owner (the installation owner) with the Read and download token “Script”, on MAM ")]
+    [InlineData(true, PersonalAccessTokenAccess.ReadOnly, "You act as owner (the installation owner) with the Read only token “Script”, on MAM ")]
+    [InlineData(false, PersonalAccessTokenAccess.ReadAndDownload, "You act as member (a member) with the Read and download token “Script”, on MAM ")]
+    [InlineData(false, PersonalAccessTokenAccess.ReadOnly, "You act as member (a member) with the Read only token “Script”, on MAM ")]
+    public async Task GetStatus_summary_names_the_callers_role_and_the_tokens_access(bool asOwner, PersonalAccessTokenAccess access, string expected)
+    {
+        //Arrange
+        // MAM-47 (ADR 0042) — a whole sentence per role and access, so each of the four is spelled out here.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var token = await _tokens.Create(asOwner ? _owner.User : _member.User, access, name: "Script");
+        await using var client = await _factory.ConnectMcpAsync(token.Secret, cancellationToken: cancellationToken);
+
+        //Act
+        var result = await client.CallToolAsync(Tool, cancellationToken: cancellationToken);
+
+        //Assert
+        Assert.False(result.IsError);
+        Assert.StartsWith(expected, result.ReadText(), StringComparison.Ordinal);
+        Assert.EndsWith("; 0 library sources, 0 release sources failing.", result.ReadText(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task GetStatus_writes_its_json_text_with_cyrillic_as_it_is()
     {
@@ -135,7 +158,7 @@ public sealed class McpStatusToolHttpTests : IClassFixture<MediaAcquisitionManag
         var user = asTheOwner ? _owner : _member;
         var livingRoom = await _integrations.Create("jellyfin", "Living room", apiKey: JellyfinApiKey);
         var startedUtc = _factory.Time.GetUtcNow().UtcDateTime;
-        await new LibrarySyncRunSeeder(_factory.Scope).Create(livingRoom, LibrarySyncStatus.Failed, _owner.User, startedUtc, SyncError);
+        await new LibrarySyncRunSeeder(_factory.Scope).Create(livingRoom, LibrarySyncStatus.Failed, _owner.User, startedUtc, Message.Legacy(SyncError));
         var token = await _tokens.Create(user.User);
         var page = await ReadAsync<LibrarySourceListResponse>(LibrarySourcesUrl, user, cancellationToken);
         await using var client = await _factory.ConnectMcpAsync(token.Secret, cancellationToken: cancellationToken);

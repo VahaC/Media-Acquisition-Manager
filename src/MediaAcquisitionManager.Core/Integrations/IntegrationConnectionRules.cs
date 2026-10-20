@@ -1,10 +1,12 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Integrations;
 
 /// <summary>
 /// What an integration's name, address, user name and credentials may be (MAM-7). Each rule answers
-/// one readable sentence, or <c>null</c> when the value is acceptable — the MAM-4 rules-class pattern.
+/// why a value is refused, as a message the Api renders (ADR 0042), or <c>null</c> when the value is acceptable — the
+/// MAM-4 rules-class pattern.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -15,7 +17,9 @@ namespace MediaAcquisitionManager.Core.Integrations;
 /// so an indexer's address is never requested (ADR 0007).
 /// </para>
 /// <para>
-/// <c>{Display}</c> in a sentence is the adapter type's display name, a product name the owner knows.
+/// <c>{{service}}</c> in a message is the adapter type's display name, a product name the owner knows. MAM-47 — a key
+/// per credential and verb rather than "a user name" filled into one frame: in Ukrainian the noun's case follows the
+/// verb.
 /// </para>
 /// </remarks>
 public static class IntegrationConnectionRules
@@ -30,26 +34,29 @@ public static class IntegrationConnectionRules
     /// sent.</summary>
     public const int UserNameMaximumLength = 256;
 
-    private const string NameMissingError = "An integration needs a name.";
-    private const string NameTooLongError = "An integration name can be at most 64 characters long.";
-    private const string NameControlCharacterError = "An integration name can't contain line breaks or other control characters.";
-    private const string BaseUrlMissingError = "An integration needs the address of the service, such as http://192.168.1.10:8096.";
-    private const string BaseUrlTooLongError = "The address can be at most 2048 characters long.";
-    private const string BaseUrlNotHttpError = "The address must be a full http:// or https:// address, such as http://192.168.1.10:8096.";
-    private const string BaseUrlUserInfoError = "Leave the user name and password out of the address; they have fields of their own.";
-    private const string BaseUrlQueryError = "The address can't have a query (the part from ?). An API key has a field of its own.";
-    private const string BaseUrlFragmentError = "The address can't have a fragment (the part from #).";
-    private const string UserNameTooLongError = "A user name can be at most 256 characters long.";
-    private const string UserNameControlCharacterError = "A user name can't contain line breaks or other control characters.";
-    private const string PasswordWithoutUserNameError = "Enter the user name that goes with the password.";
+    private static readonly Message NameMissingError = Message.Of("integrations.connection.name-missing");
+    private static readonly Message NameTooLongError =
+        Message.Of("integrations.connection.name-too-long", ("count", NameMaximumLength));
+    private static readonly Message NameControlCharacterError = Message.Of("integrations.connection.name-control-characters");
+    private static readonly Message BaseUrlMissingError = Message.Of("integrations.connection.address-missing");
+    private static readonly Message BaseUrlTooLongError =
+        Message.Of("integrations.connection.address-too-long", ("count", BaseUrlMaximumLength));
+    private static readonly Message BaseUrlNotHttpError = Message.Of("integrations.connection.address-not-http");
+    private static readonly Message BaseUrlUserInfoError = Message.Of("integrations.connection.address-user-info");
+    private static readonly Message BaseUrlQueryError = Message.Of("integrations.connection.address-query");
+    private static readonly Message BaseUrlFragmentError = Message.Of("integrations.connection.address-fragment");
+    private static readonly Message UserNameTooLongError =
+        Message.Of("integrations.connection.user-name-too-long", ("count", UserNameMaximumLength));
+    private static readonly Message UserNameControlCharacterError = Message.Of("integrations.connection.user-name-control-characters");
+    private static readonly Message PasswordWithoutUserNameError = Message.Of("integrations.connection.password-without-user-name");
 
     /// <summary>The form names are compared in: trimmed and upper-cased, culture independent, so
     /// "Jellyfin" and "jellyfin " are one name.</summary>
     public static string NormalizeName(string name) => name.Trim().ToUpperInvariant();
 
-    /// <summary>The sentence saying what is wrong with <paramref name="name"/>, or <c>null</c>.
+    /// <summary>Why <paramref name="name"/> is refused, or <c>null</c>.
     /// Surrounding whitespace is ignored; whoever stores the name stores it trimmed.</summary>
-    public static string? ValidateName(string? name)
+    public static Message? ValidateName(string? name)
     {
         var trimmed = name?.Trim() ?? "";
         if (trimmed.Length == 0)
@@ -63,10 +70,10 @@ public static class IntegrationConnectionRules
     }
 
     /// <summary>
-    /// The sentence saying what is wrong with <paramref name="baseUrl"/>, or <c>null</c>. No sentence
+    /// Why <paramref name="baseUrl"/> is refused, or <c>null</c>. No message
     /// repeats the address: a pasted <c>?apikey=…</c> must not bounce back into a response or a log.
     /// </summary>
-    public static string? ValidateBaseUrl(string? baseUrl)
+    public static Message? ValidateBaseUrl(string? baseUrl)
     {
         var trimmed = baseUrl?.Trim() ?? "";
         if (trimmed.Length == 0)
@@ -101,17 +108,17 @@ public static class IntegrationConnectionRules
             .TrimEnd('/');
 
     /// <summary>
-    /// The sentence saying what is wrong with <paramref name="userName"/> for <paramref name="adapter"/>,
+    /// Why <paramref name="userName"/> is refused for <paramref name="adapter"/>,
     /// or <c>null</c>. A blank one is absent, not wrong: whether it is needed is
     /// <see cref="ValidateCredentials"/>'s question.
     /// </summary>
-    public static string? ValidateUserName(string? userName, IntegrationAdapterDescriptor adapter)
+    public static Message? ValidateUserName(string? userName, IntegrationAdapterDescriptor adapter)
     {
         var trimmed = userName?.Trim() ?? "";
         if (trimmed.Length == 0)
             return null;
         if (adapter.UserName == CredentialRequirement.NotUsed)
-            return NotUsedError(adapter, "a user name");
+            return Service("integrations.connection.user-name-not-used", adapter);
         if (trimmed.Length > UserNameMaximumLength)
             return UserNameTooLongError;
         if (trimmed.Any(char.IsControl))
@@ -120,25 +127,25 @@ public static class IntegrationConnectionRules
     }
 
     /// <summary>
-    /// The sentence saying which credential <paramref name="adapter"/> is missing or doesn't use, or
+    /// Which credential <paramref name="adapter"/> is missing or doesn't use, as a message the Api renders, or
     /// <c>null</c>. Checked on the <b>effective</b> state, after the secret changes of a request are
     /// applied: Set → present, Clear → absent, Keep → whether the stored column is non-null.
     /// </summary>
-    public static string? ValidateCredentials(IntegrationAdapterDescriptor adapter, bool hasUserName, bool hasPassword, bool hasApiKey)
+    public static Message? ValidateCredentials(IntegrationAdapterDescriptor adapter, bool hasUserName, bool hasPassword, bool hasApiKey)
     {
         if (adapter.UserName == CredentialRequirement.NotUsed && hasUserName)
-            return NotUsedError(adapter, "a user name");
+            return Service("integrations.connection.user-name-not-used", adapter);
         if (adapter.Password == CredentialRequirement.NotUsed && hasPassword)
-            return NotUsedError(adapter, "a password");
+            return Service("integrations.connection.password-not-used", adapter);
         if (adapter.ApiKey == CredentialRequirement.NotUsed && hasApiKey)
-            return NotUsedError(adapter, "an API key");
+            return Service("integrations.connection.api-key-not-used", adapter);
 
         if (adapter.UserName == CredentialRequirement.Required && !hasUserName)
-            return NeededError(adapter, "a user name");
+            return Service("integrations.connection.user-name-needed", adapter);
         if (adapter.Password == CredentialRequirement.Required && !hasPassword)
-            return NeededError(adapter, "a password");
+            return Service("integrations.connection.password-needed", adapter);
         if (adapter.ApiKey == CredentialRequirement.Required && !hasApiKey)
-            return NeededError(adapter, "an API key");
+            return Service("integrations.connection.api-key-needed", adapter);
 
         // Both optional (qBittorrent can let a subnet in without signing in): the service takes both
         // or neither, and half a pair would only fail at the first test with a vaguer sentence.
@@ -147,15 +154,12 @@ public static class IntegrationConnectionRules
             if (hasPassword && !hasUserName)
                 return PasswordWithoutUserNameError;
             if (hasUserName && !hasPassword)
-                return $"Enter the password that goes with the user name, or leave both empty if {adapter.DisplayName} lets this app in without signing in.";
+                return Service("integrations.connection.user-name-without-password", adapter);
         }
 
         return null;
     }
 
-    private static string NotUsedError(IntegrationAdapterDescriptor adapter, string credential) =>
-        $"{adapter.DisplayName} doesn't use {credential}.";
-
-    private static string NeededError(IntegrationAdapterDescriptor adapter, string credential) =>
-        $"{adapter.DisplayName} needs {credential}.";
+    // The message whose one value is the adapter type's display name.
+    private static Message Service(string key, IntegrationAdapterDescriptor adapter) => Message.Of(key, ("service", adapter.DisplayName));
 }

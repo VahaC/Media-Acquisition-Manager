@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -149,6 +150,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<CopyRemovalEntity> CopyRemovals => Set<CopyRemovalEntity>();
 
     public DbSet<CopyRemovalNameEntity> CopyRemovalNames => Set<CopyRemovalNameEntity>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) =>
+        // MAM-47 (ADR 0042) — every Message property is the TEXT column it was, holding {"k":…,"v":…} instead of English.
+        // The snapshot records the provider type (string, the entity's [MaxLength(1000)], TEXT) exactly as before, so no
+        // migration rebuilds a table (ADR 0009) and an older image still opens the database (ModelHasNoPendingChangesTests).
+        configurationBuilder.Properties<Message>().HaveConversion<MessageColumnConverter>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

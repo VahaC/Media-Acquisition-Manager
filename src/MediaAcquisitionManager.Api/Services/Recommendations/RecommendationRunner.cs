@@ -1,9 +1,9 @@
 using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
-using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Recommendations;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -59,9 +59,8 @@ public sealed partial class RecommendationRunner(
     /// </summary>
     public const int MaximumReasonTitles = 5;
 
-    /// <summary>MAM-33 — the sentence a run gets when its metadata catalog is removed while it computes.</summary>
-    internal const string CatalogRemovedError =
-        "The metadata catalog was removed while these recommendations were computed. The previous ones are kept.";
+    /// <summary>MAM-33 — why a run failed when its metadata catalog is removed while it computes.</summary>
+    internal static readonly Message CatalogRemovedError = Message.Of("recommendations.run.catalog-removed");
 
     /// <summary>
     /// MAM-33 — how long a release a source published stays "new" (<see cref="RecommendationReasonKind.NewAtSource"/>),
@@ -95,6 +94,7 @@ public sealed partial class RecommendationRunner(
         var connected = await catalogs.ConnectAsync(cancellationToken);
         if (connected.Connection is not { } catalog)
         {
+            // No secret was read: the connector's messages name the catalog's integration only, so nothing is masked.
             await FailAsync(runId, connected.Status.ToString(), connected.Error!, settings: null);
             return;
         }
@@ -128,7 +128,7 @@ public sealed partial class RecommendationRunner(
         {
             // MAM-33 — the catalog was removed after the run's gates: what it answers can't be stored as its own any more
             // (a catalog row's source must exist), so the store's save fails. The owner's doing, not a bug: the run fails
-            // with a sentence, and the previous recommendations stay. Any other failure to save is a bug.
+            // with a reason, and the previous recommendations stay. Any other failure to save is a bug.
             if (await db.IntegrationConnections.AnyAsync(integration => integration.Id == catalog.IntegrationId, cancellationToken))
                 throw;
             await FailAsync(runId, "CatalogRemoved", CatalogRemovedError, catalog.Settings);
@@ -175,21 +175,21 @@ public sealed partial class RecommendationRunner(
     }
 
     /// <summary>
-    /// Ends the run as failed with <paramref name="error"/>, masked again with the call's secrets — a second pass
-    /// after the adapter's own (the MAM-7 rule) — and cut to its column. Logged as a Warning with
-    /// <paramref name="status"/> only, never the sentence, which can carry the address.
+    /// Ends the run as failed with <paramref name="error"/>, its values masked again with the call's secrets — a second
+    /// pass after the adapter's own (the MAM-7 rule). Logged as a Warning with <paramref name="status"/> only, never the
+    /// message, which can carry the address.
     /// </summary>
-    private async Task FailAsync(Guid runId, string status, string error, IntegrationConnectionSettings? settings)
+    private async Task FailAsync(Guid runId, string status, Message error, IntegrationConnectionSettings? settings)
     {
-        var masked = settings is null ? error : SecretRedaction.Redact(error, settings.Secrets)!;
+        var masked = settings is null ? error : error.Redacted(settings.Secrets);
         await db.RecommendationRuns
             .Where(run => run.Id == runId && run.Status == RecommendationRunStatus.Running)
             .MarkFailedAsync(masked, time.GetUtcNow().UtcDateTime);
         logger.LogWarning("Recommendation run {RunId} failed ({Status}); the previous recommendations are kept.", runId, status);
     }
 
-    /// <summary>A catalog call's failure: its status and its sentence, already masked by the adapter.</summary>
-    private sealed record Failure(IntegrationCallStatus Status, string Error)
+    /// <summary>A catalog call's failure: its status and why, already masked by the adapter.</summary>
+    private sealed record Failure(IntegrationCallStatus Status, Message Error)
     {
         public static Failure Of<T>(IntegrationCallResult<T> result) where T : class => new(result.Status, result.Error!);
     }

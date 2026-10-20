@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
@@ -10,6 +11,7 @@ using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Logging;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -36,12 +38,6 @@ public sealed class ReplacementLibraryNoticeTests : IClassFixture<MediaAcquisiti
 
     private const string UpdatedCall = "POST /Library/Media/Updated";
     private const string HeldReason = "Held by the torrent “Alien.1979” in “qBittorrent”, so it stays where it is.";
-
-    // The reader's reasons for a notice, spelled out rather than read from product code.
-    private const string SwitchedOffNoticeReason = "“Living room” is switched off, so it can't be told that the old copies moved.";
-    private const string RemovedNoticeReason = "The library the old copies were in was removed from Integrations, so it can't be told that they moved.";
-    private const string RefusedNoticeReason =
-        "The app couldn't tell “Living room” that the old copies moved: Jellyfin answered 500 Internal Server Error. Its own log says why.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private ReplacementVerificationHarness _harness = null!;
@@ -84,7 +80,7 @@ public sealed class ReplacementLibraryNoticeTests : IClassFixture<MediaAcquisiti
         Assert.Equal(["Deleted", "Deleted"], Assert.Single(_harness.JellyfinServer.ScanUpdateTypes));
         // Taken: settled, and the job stays where the move left it.
         var row = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Quarantined, (string?)null, (DateTime?)null), (row.State, row.Reason, row.LibraryNoticeDueUtc));
+        Assert.Equal((ReplacementJobState.Quarantined, (string?)null, (DateTime?)null), (row.State, TestTexts.En(row.Reason), row.LibraryNoticeDueUtc));
         Assert.Equal(job.StateChangedUtc, row.StateChangedUtc);
         Assert.DoesNotContain(_factory.Logs.Entries, entry => entry.Level >= LogLevel.Warning);
     }
@@ -388,8 +384,11 @@ public sealed class ReplacementLibraryNoticeTests : IClassFixture<MediaAcquisiti
 
     // ── the reader's notice ─────────────────────────────────────────────────────────────────────
 
+    // MAM-47 — a notice's answer is read for its status alone (QuarantineNotices), so it carries no sentence: the ones it
+    // had were never shown, and went rather than be translated.
+
     [Fact]
-    public async Task Tell_of_a_switched_off_library_waits_with_the_notices_own_reason_and_asks_nothing()
+    public async Task Tell_of_a_switched_off_library_waits_with_no_reason_and_asks_nothing()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -399,12 +398,12 @@ public sealed class ReplacementLibraryNoticeTests : IClassFixture<MediaAcquisiti
         var answer = await TellAsync(_harness.Jellyfin.Id, [JellyfinVideoPath], LibraryFileChange.Deleted, cancellationToken);
 
         //Assert
-        Assert.Equal((ReplacementCheckStatus.Wait, "Living room", (string?)SwitchedOffNoticeReason), (answer.Status, answer.LibraryName, answer.Reason));
+        Assert.Equal((ReplacementCheckStatus.Wait, "Living room", (Message?)null), (answer.Status, answer.LibraryName, answer.Reason));
         Assert.Empty(_factory.JellyfinHttp.Requests.Skip(_jellyfinRequestsBefore));
     }
 
     [Fact]
-    public async Task Tell_of_a_library_that_refuses_waits_with_its_own_sentence()
+    public async Task Tell_of_a_library_that_refuses_waits_with_no_reason()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -414,12 +413,12 @@ public sealed class ReplacementLibraryNoticeTests : IClassFixture<MediaAcquisiti
         var answer = await TellAsync(_harness.Jellyfin.Id, [JellyfinVideoPath], LibraryFileChange.Created, cancellationToken);
 
         //Assert
-        Assert.Equal((ReplacementCheckStatus.Wait, (string?)RefusedNoticeReason), (answer.Status, answer.Reason));
+        Assert.Equal((ReplacementCheckStatus.Wait, (Message?)null), (answer.Status, answer.Reason));
         Assert.Equal(["Created"], Assert.Single(_harness.JellyfinServer.ScanUpdateTypes));
     }
 
     [Fact]
-    public async Task Tell_of_a_library_that_was_removed_is_given_up_with_the_notices_own_reason()
+    public async Task Tell_of_a_library_that_was_removed_is_given_up_with_no_reason()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -429,7 +428,7 @@ public sealed class ReplacementLibraryNoticeTests : IClassFixture<MediaAcquisiti
         var answer = await TellAsync(removed, [JellyfinVideoPath], LibraryFileChange.Deleted, cancellationToken);
 
         //Assert
-        Assert.Equal((ReplacementCheckStatus.Review, removed.ToString(), (string?)RemovedNoticeReason), (answer.Status, answer.LibraryName, answer.Reason));
+        Assert.Equal((ReplacementCheckStatus.Review, removed.ToString(), (Message?)null), (answer.Status, answer.LibraryName, answer.Reason));
         Assert.Empty(_factory.JellyfinHttp.Requests.Skip(_jellyfinRequestsBefore));
     }
 
@@ -462,7 +461,7 @@ public sealed class ReplacementLibraryNoticeTests : IClassFixture<MediaAcquisiti
             download.Id,
             _harness.Owner.User.Id,
             state,
-            reason,
+            reason is null ? null : PlantedMessage.Of(reason),
             quarantineCheckedUtc: now,
             quarantinedUtc: state == ReplacementJobState.Quarantined ? now : null,
             libraryNoticeDueUtc: libraryNoticeDueUtc);
@@ -482,7 +481,7 @@ public sealed class ReplacementLibraryNoticeTests : IClassFixture<MediaAcquisiti
                 allowedRoot,
                 TestMedia.File(inode: position + 1, sizeBytes: kind == ReplacementNameKind.Video ? 3_891_719_630 : 84_211),
                 nameState,
-                problem: nameState == ReplacementNameState.Stayed ? HeldReason : null,
+                problem: nameState == ReplacementNameState.Stayed ? PlantedMessage.Of(HeldReason) : null,
                 movedUtc: nameState is ReplacementNameState.Quarantined or ReplacementNameState.Restored ? now : null,
                 restoredUtc: nameState == ReplacementNameState.Restored ? now : null);
         }

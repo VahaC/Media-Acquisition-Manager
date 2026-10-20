@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -167,7 +168,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
                 ($"{PackFolder}/{BonusName}", NewSize, 0.739, null, null, UnfinishedReason),
             ],
             (await _harness.NewFilesAsync(cancellationToken))
-                .Select(file => (file.RelativePath, file.ClientSizeBytes, file.ClientProgress, file.AppPath, file.CheckedUtc, file.Problem)));
+                .Select(file => (file.RelativePath, file.ClientSizeBytes, file.ClientProgress, file.AppPath, file.CheckedUtc, TestTexts.En(file.Problem))));
         Assert.DoesNotContain(_factory.Files.ReadPaths, path => path.Contains(PackFolder, StringComparison.Ordinal));
     }
 
@@ -190,7 +191,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
 
         //Assert
         // An hour from the start of the check, every pass asking again; never a pass on an unread client.
-        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, beforeTheHour.Reason));
+        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, TestTexts.En(beforeTheHour.Reason)));
         await AssertStoppedAsync(job, ReplacementJobState.NeedsReview, UnreachableReason, cancellationToken);
         Assert.Empty(await _harness.NewFilesAsync(cancellationToken));
     }
@@ -217,7 +218,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, beforeTheHour.Reason));
+        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, TestTexts.En(beforeTheHour.Reason)));
         await AssertStoppedAsync(job, ReplacementJobState.NeedsReview, SwitchedOffReason, cancellationToken);
         // Nothing asked of a switched-off client, and no file read without its word.
         Assert.Empty(await _harness.NewFilesAsync(cancellationToken));
@@ -284,7 +285,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         //Assert
         await AssertStoppedAsync(job, ReplacementJobState.NeedsReview, UnknownPathReason, cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((string?)null, (string?)UnknownPathReason, (DateTime?)null), (newFile.AppPath, newFile.Problem, newFile.CheckedUtc));
+        Assert.Equal(((string?)null, (string?)UnknownPathReason, (DateTime?)null), (newFile.AppPath, TestTexts.En(newFile.Problem), newFile.CheckedUtc));
         // Nothing the app can't place is read.
         Assert.DoesNotContain(_factory.Files.ReadPaths, path => path.Contains("Directors", StringComparison.Ordinal));
     }
@@ -308,7 +309,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(
             ((string?)ElsewherePath, (Guid?)null, (string?)null, (long?)7, (string?)NoLibraryReason),
-            (newFile.AppPath, newFile.LibraryIntegrationId, newFile.LibraryPath, newFile.Inode, newFile.Problem));
+            (newFile.AppPath, newFile.LibraryIntegrationId, newFile.LibraryPath, newFile.Inode, TestTexts.En(newFile.Problem)));
     }
 
     [Fact]
@@ -331,7 +332,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(
             ((string?)NewPath, (Guid?)null, (string?)null, (long?)7, (string?)TwoLibrariesReason),
-            (newFile.AppPath, newFile.LibraryIntegrationId, newFile.LibraryPath, newFile.Inode, newFile.Problem));
+            (newFile.AppPath, newFile.LibraryIntegrationId, newFile.LibraryPath, newFile.Inode, TestTexts.En(newFile.Problem)));
     }
 
     // ── check 2: the media inspector's look ─────────────────────────────────────────────────────
@@ -354,7 +355,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(
             ((string?)NewPath, (Guid?)_harness.Jellyfin.Id, (string?)NewLibraryPath, (string?)UnreadableReason, (long?)null),
-            (newFile.AppPath, newFile.LibraryIntegrationId, newFile.LibraryPath, newFile.Problem, newFile.DurationMilliseconds));
+            (newFile.AppPath, newFile.LibraryIntegrationId, newFile.LibraryPath, TestTexts.En(newFile.Problem), newFile.DurationMilliseconds));
     }
 
     [Theory]
@@ -386,7 +387,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(
             ((long?)7, (long?)sizeBytes, (string?)reason),
-            (newFile.Inode, newFile.SizeBytes, newFile.Problem));
+            (newFile.Inode, newFile.SizeBytes, TestTexts.En(newFile.Problem)));
     }
 
     [Fact]
@@ -404,7 +405,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         //Assert
         await AssertStoppedAsync(job, ReplacementJobState.NeedsReview, OldCopyItselfReason, cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((long?)TestMedia.DeviceId, (long?)1, (string?)OldCopyItselfReason), (newFile.DeviceId, newFile.Inode, newFile.Problem));
+        Assert.Equal(((long?)TestMedia.DeviceId, (long?)1, (string?)OldCopyItselfReason), (newFile.DeviceId, newFile.Inode, TestTexts.En(newFile.Problem)));
     }
 
     // ── another download ────────────────────────────────────────────────────────────────────────
@@ -428,7 +429,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         //Assert
         await AssertStoppedAsync(job, ReplacementJobState.NeedsReview, OtherDownloadReason, cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((string?)OtherDownloadReason, (long?)7, (long?)TakenMilliseconds), (newFile.Problem, newFile.Inode, newFile.DurationMilliseconds));
+        Assert.Equal(((string?)OtherDownloadReason, (long?)7, (long?)TakenMilliseconds), (TestTexts.En(newFile.Problem), newFile.Inode, newFile.DurationMilliseconds));
     }
 
     [Fact]
@@ -449,7 +450,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         //Assert
         await AssertStoppedAsync(job, ReplacementJobState.NeedsReview, CrossSeedReason, cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((string?)CrossSeedReason, (long?)7), (newFile.Problem, newFile.Inode));
+        Assert.Equal(((string?)CrossSeedReason, (long?)7), (TestTexts.En(newFile.Problem), newFile.Inode));
         Assert.Contains(CrossSeedPath, _factory.Files.DescribedPaths);
     }
 
@@ -471,10 +472,10 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         // Looked at on the disk, told apart, and Jellyfin asked to look at the new file.
         Assert.Contains(CrossSeedPath, _factory.Files.DescribedPaths);
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.NotNull(replacement.LibraryAskedUtc);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((long?)7, (string?)null), (newFile.Inode, newFile.Problem));
+        Assert.Equal(((long?)7, (string?)null), (newFile.Inode, TestTexts.En(newFile.Problem)));
         Assert.Equal(
             [(AuditAction.ReplacementCheckStarted, (Guid?)null, (AuditTargetKind?)AuditTargetKind.ReplacementJob, (Guid?)replacement.Id, (string?)AlienRelease)],
             await _harness.CheckAuditsAsync(cancellationToken));
@@ -514,11 +515,11 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         // An hour from the start of the check, each pass reading the listing again; Jellyfin never asked meanwhile.
         Assert.Equal(
             (ReplacementJobState.Inspecting, (string?)null, (DateTime?)null),
-            (beforeTheHour.State, beforeTheHour.Reason, beforeTheHour.LibraryAskedUtc));
+            (beforeTheHour.State, TestTexts.En(beforeTheHour.Reason), beforeTheHour.LibraryAskedUtc));
         await AssertStoppedAsync(job, ReplacementJobState.NeedsReview, reason, cancellationToken);
         // The new file itself passed both checks; the reason is the other download's, not the file's.
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((long?)7, (string?)null), (newFile.Inode, newFile.Problem));
+        Assert.Equal(((long?)7, (string?)null), (newFile.Inode, TestTexts.En(newFile.Problem)));
     }
 
     [Fact]
@@ -539,7 +540,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
         await AssertStoppedAsync(job, ReplacementJobState.NeedsReview, TooOldReason, cancellationToken);
         // The file itself passed both checks.
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((long?)7, (string?)null), (newFile.Inode, newFile.Problem));
+        Assert.Equal(((long?)7, (string?)null), (newFile.Inode, TestTexts.En(newFile.Problem)));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -608,7 +609,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
             },
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((state, (string?)reason), (replacement.State, replacement.Reason));
+        Assert.Equal((state, (string?)reason), (replacement.State, TestTexts.En(replacement.Reason)));
         var stopped = state == ReplacementJobState.Failed ? AuditAction.ReplacementFailed : AuditAction.ReplacementNeedsReview;
         Assert.Equal(
             [
@@ -617,7 +618,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
             ],
             await _harness.CheckAuditsAsync(cancellationToken));
         var copy = Assert.Single(await _harness.CopiesAsync(cancellationToken));
-        Assert.Equal(((Guid?)null, (string?)null), (copy.PairedNewFileId, copy.Problem));
+        Assert.Equal(((Guid?)null, (string?)null), (copy.PairedNewFileId, TestTexts.En(copy.Problem)));
         Assert.Empty(_harness.Writes());
         Assert.Empty(_harness.JellyfinServer.ScanRequests);
         Assert.Empty(await _harness.ChangedOldCopiesAsync(cancellationToken));

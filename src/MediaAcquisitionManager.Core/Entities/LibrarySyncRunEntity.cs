@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -18,8 +19,7 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class LibrarySyncRunEntity : AuditableEntity
 {
-    /// <summary>The longest <see cref="Error"/> the column holds; a longer sentence is cut to it
-    /// (<c>LibrarySyncRunUpdates</c>).</summary>
+    /// <summary>The longest <see cref="Error"/> the column holds; a longer message is fitted into it (ADR 0042).</summary>
     public const int ErrorMaximumLength = 1000;
 
     /// <summary>The integration synced; <c>null</c> once it is removed.</summary>
@@ -67,8 +67,8 @@ public class LibrarySyncRunEntity : AuditableEntity
     /// <summary>How many file names the snapshot holds; <c>null</c> unless the sync succeeded.</summary>
     public int? FilesCount { get; set; }
 
-    /// <summary>A readable sentence saying why the sync failed, with every secret masked; <c>null</c>
-    /// unless it failed.</summary>
+    /// <summary>Why the sync failed, as a message the Api renders (ADR 0042), with every secret masked in its values;
+    /// <c>null</c> unless it failed.</summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? Error { get; set; }
+    public Message? Error { get; set; }
 }

@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -67,7 +68,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to qBittorrent v5.2.3.", result.Message);
+        Assert.Equal("Connected to qBittorrent v5.2.3.", TestTexts.En(result.Message));
         Assert.Collection(
             _harness.QBittorrentHttp.Requests,
             signIn =>
@@ -97,7 +98,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to qBittorrent v4.6.7.", result.Message);
+        Assert.Equal("Connected to qBittorrent v4.6.7.", TestTexts.En(result.Message));
         Assert.Equal([$"SID={SessionId}"], _harness.QBittorrentHttp.Requests[1].HeaderValues("Cookie"));
     }
 
@@ -163,7 +164,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("qBittorrent refused the user name or password.", result.Message);
+        Assert.Equal("qBittorrent refused the user name or password.", TestTexts.En(result.Message));
         // One attempt: a repeated failed sign-in counts towards qBittorrent's ban of the address.
         Assert.Single(_harness.QBittorrentHttp.Requests);
     }
@@ -183,7 +184,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
         Assert.Equal(
             "qBittorrent has banned this app's address after too many failed sign-ins. Wait for the ban to end (qBittorrent's Web UI options set how long), then try again.",
-            result.Message);
+            TestTexts.En(result.Message));
         Assert.Single(_harness.QBittorrentHttp.Requests);
     }
 
@@ -206,7 +207,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Message);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Message));
         Assert.Single(_harness.QBittorrentHttp.Requests);
     }
 
@@ -223,7 +224,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("qBittorrent accepted the sign-in but sent no session cookie.", result.Message);
+        Assert.Equal("qBittorrent accepted the sign-in but sent no session cookie.", TestTexts.En(result.Message));
         Assert.Single(_harness.QBittorrentHttp.Requests);
     }
 
@@ -241,7 +242,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(UnusableCookieError, result.Message);
+        Assert.Equal(UnusableCookieError, TestTexts.En(result.Message));
         // Never sent back: a line break in it would have added a header of the service's choosing.
         Assert.Single(_harness.QBittorrentHttp.Requests);
     }
@@ -261,7 +262,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
         Assert.Equal(
             "Connected to qBittorrent v5.2.3 without signing in: it lets this app's address skip authentication.",
-            result.Message);
+            TestTexts.En(result.Message));
         var request = Assert.Single(_harness.QBittorrentHttp.Requests);
         Assert.Equal(BaseUrl + VersionPath, request.Uri.AbsoluteUri);
         Assert.Empty(request.HeaderValues("Cookie"));
@@ -282,7 +283,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
         Assert.Equal(
             "qBittorrent asks for a user name and password. Enter them, or let this app's address skip authentication in qBittorrent's Web UI options.",
-            result.Message);
+            TestTexts.En(result.Message));
         Assert.Single(_harness.QBittorrentHttp.Requests);
     }
 
@@ -299,7 +300,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("qBittorrent refused the session it had just opened.", result.Message);
+        Assert.Equal("qBittorrent refused the session it had just opened.", TestTexts.En(result.Message));
         Assert.Equal(2, _harness.QBittorrentHttp.Requests.Count);
     }
 
@@ -317,7 +318,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("The service at this address answered, but not with a qBittorrent version.", result.Message);
+        Assert.Equal("The service at this address answered, but not with a qBittorrent version.", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -340,7 +341,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
-        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", result.Message);
+        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -362,7 +363,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal($"Connected to qBittorrent {version}.", result.Message);
+        Assert.Equal($"Connected to qBittorrent {version}.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -381,7 +382,7 @@ public sealed class QBittorrentAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
         Assert.Equal(
             "qBittorrent reported the version “v4.99999999999.0”, which the app can't compare with 4.4.1, the oldest version it works with.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -400,9 +401,9 @@ public sealed class QBittorrentAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to http://qbittorrent.test:8080/session/***/***/. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Message);
-        Assert.DoesNotContain(SessionId, result.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain(Password, result.Message, StringComparison.Ordinal);
+            TestTexts.En(result.Message));
+        Assert.DoesNotContain(SessionId, TestTexts.En(result.Message), StringComparison.Ordinal);
+        Assert.DoesNotContain(Password, TestTexts.En(result.Message), StringComparison.Ordinal);
     }
 
     /// <summary>Answers the sign-in and the version request each its own way; anything else is a 404.</summary>

@@ -1,0 +1,56 @@
+{
+  "search": {
+    "text-missing": "Enter the title to search for.",
+    "text-too-long_one": "The search text can be at most {{count, number}} character long.",
+    "text-too-long_other": "The search text can be at most {{count, number}} characters long.",
+    "text-control-characters": "The search text can't contain line breaks or other control characters.",
+    "year-invalid": "“{{value}}” is not a year.",
+    "season-invalid": "“{{value}}” is not a season. Use a season number, such as 1, or 0 for the specials.",
+    "imdb-id-invalid": "“{{value}}” is not an IMDb id, which looks like tt0816692.",
+    "tmdb-id-invalid": "“{{value}}” is not a TMDb id, which is a number such as 157336."
+  },
+  "list": {
+    "source-unknown": "“{{value}}” is not a release source.",
+    "kind-unknown": "“{{value}}” is not a kind filter. Use Movie or Tv.",
+    "language-invalid": "“{{value}}” is not a language code. Use a three-letter code such as ukr, or unknown.",
+    "resolution-invalid": "“{{value}}” is not a resolution. Use one such as 1080, or unknown.",
+    "size-invalid": "“{{value}}” is not a size in bytes.",
+    "size-range": "The smallest size can't be larger than the largest.",
+    "sort-unknown": "“{{value}}” is not a sort order. Use seeders, largest, smallest, newest or quality."
+  },
+  "source": {
+    "type-unavailable": "This version of the app can't search releases through “{{type}}”.",
+    "no-usable-search": "“{{source}}” offers no search this app can use: no search by text, and no movie or TV search by title or by an id that was asked for.",
+    "no-usable-season-search": "“{{source}}” offers no search this app can use for a season: no TV category, or neither a search by text nor a TV search by title or by an id that was asked for."
+  },
+  "mcp": {
+    "search": {
+      "found_one": "Found {{releases, message}} for “{{text}}” in {{sources, message}}; the first page lists {{shown, number}}; the library holds {{count, number}} matching work.",
+      "found_other": "Found {{releases, message}} for “{{text}}” in {{sources, message}}; the first page lists {{shown, number}}; the library holds {{count, number}} matching works.",
+      "found-none": "Found {{releases, message}} for “{{text}}” in {{sources, message}}; the first page lists {{shown, number}}; the library holds no matching work.",
+      "found-filtered_one": "Found {{releases, message}} for “{{text}}” in {{sources, message}}, {{passing, number}} of them passing the filters; the first page lists {{shown, number}}; the library holds {{count, number}} matching work.",
+      "found-filtered_other": "Found {{releases, message}} for “{{text}}” in {{sources, message}}, {{passing, number}} of them passing the filters; the first page lists {{shown, number}}; the library holds {{count, number}} matching works.",
+      "found-filtered-none": "Found {{releases, message}} for “{{text}}” in {{sources, message}}, {{passing, number}} of them passing the filters; the first page lists {{shown, number}}; the library holds no matching work.",
+      "found-unanswered_one": "Found {{releases, message}} for “{{text}}” in {{sources, message}}; the first page lists {{shown, number}}; {{unanswered, list:comma:message}}; the library holds {{count, number}} matching work.",
+      "found-unanswered_other": "Found {{releases, message}} for “{{text}}” in {{sources, message}}; the first page lists {{shown, number}}; {{unanswered, list:comma:message}}; the library holds {{count, number}} matching works.",
+      "found-unanswered-none": "Found {{releases, message}} for “{{text}}” in {{sources, message}}; the first page lists {{shown, number}}; {{unanswered, list:comma:message}}; the library holds no matching work.",
+      "found-filtered-unanswered_one": "Found {{releases, message}} for “{{text}}” in {{sources, message}}, {{passing, number}} of them passing the filters; the first page lists {{shown, number}}; {{unanswered, list:comma:message}}; the library holds {{count, number}} matching work.",
+      "found-filtered-unanswered_other": "Found {{releases, message}} for “{{text}}” in {{sources, message}}, {{passing, number}} of them passing the filters; the first page lists {{shown, number}}; {{unanswered, list:comma:message}}; the library holds {{count, number}} matching works.",
+      "found-filtered-unanswered-none": "Found {{releases, message}} for “{{text}}” in {{sources, message}}, {{passing, number}} of them passing the filters; the first page lists {{shown, number}}; {{unanswered, list:comma:message}}; the library holds no matching work.",
+      "not-searched-clause": "{{source}} was not searched ({{reason}})",
+      "failed-clause": "{{source}} failed ({{status}})"
+    },
+    "tally": {
+      "releases_one": "{{count, number}} release",
+      "releases_other": "{{count, number}} releases",
+      "sources_one": "{{count, number}} release source",
+      "sources_other": "{{count, number}} release sources"
+    },
+    "list": {
+      "filtered_one": "{{count, number}} release of this search pass the filters; page {{page, number}} lists {{shown, number}}.",
+      "filtered_other": "{{count, number}} releases of this search pass the filters; page {{page, number}} lists {{shown, number}}.",
+      "held_one": "This search holds {{count, number}} release; page {{page, number}} lists {{shown, number}}.",
+      "held_other": "This search holds {{count, number}} releases; page {{page, number}} lists {{shown, number}}."
+    }
+  }
+}

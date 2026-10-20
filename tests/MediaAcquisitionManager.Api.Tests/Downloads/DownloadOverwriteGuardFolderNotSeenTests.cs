@@ -10,6 +10,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -83,7 +84,7 @@ public sealed class DownloadOverwriteGuardFolderNotSeenTests : IClassFixture<Fol
         // Never "sent unchecked": no check value a sent job could carry, and the send's own sentence naming the
         // destination, never its folder (D13).
         Assert.Null(verdict.Check);
-        Assert.Equal(UnusableError, verdict.Refusal);
+        Assert.Equal(UnusableError, TestTexts.En(verdict.Refusal));
         // Nothing looked into, and nothing asked of the client beyond the listing that found the folder unseen.
         Assert.Empty(_factory.Files.DescribedPaths);
         Assert.Equal(["ListDestinations"], _factory.FolderClient.Calls);

@@ -5,6 +5,7 @@ using System.Text;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -45,7 +46,7 @@ public sealed class LocalFileInventoryHashLinuxTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.NotARegularFile, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal($"“{pipe}” is not a regular file but a device, a socket or a pipe.", result.Error);
+        Assert.Equal($"“{pipe}” is not a regular file but a device, a socket or a pipe.", TestTexts.En(result.Error));
         Assert.Empty(chunks);
     }
 

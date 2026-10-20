@@ -21,7 +21,7 @@ namespace MediaAcquisitionManager.Api.Tests.Recommendations;
 public sealed class RecommendationOverviewsHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/recommendations/overviews";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
     private const string English = "Thirty years after defeating the Galactic Empire, Han Solo and his allies face a new threat.";
     private const string Ukrainian = "Через тридцять років після перемоги над Галактичною імперією Хан Соло стикається з новою загрозою.";
 
@@ -340,7 +340,7 @@ public sealed class RecommendationOverviewsHttpTests : IClassFixture<MediaAcquis
         //Assert
         // TMDb's sentence names the address the owner saved: the rule of a run's error, a job's and a poster's.
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
-        Assert.Equal("The metadata catalog couldn't send this description.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(("The metadata catalog couldn't send this description.", "recommendations.overview.fetch-failed"), await response.ReadErrorBodyAsync(cancellationToken));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

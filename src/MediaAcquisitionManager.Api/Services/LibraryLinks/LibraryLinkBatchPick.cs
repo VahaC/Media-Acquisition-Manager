@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 
@@ -9,6 +10,6 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 /// <param name="WorkId">The library work.</param>
 /// <param name="CatalogKind">A film (<see cref="MediaWorkKind.Movie"/>) or a show (<see cref="MediaWorkKind.Series"/>).</param>
 /// <param name="CatalogId">TMDb's id of it.</param>
-/// <param name="SkipReason">The sentence saying why the work is skipped unlinked (the candidate is no longer the work's
-/// confident one, the owner marked that none fits…); <c>null</c> to link it.</param>
-public sealed record LibraryLinkBatchPick(Guid WorkId, MediaWorkKind CatalogKind, string CatalogId, string? SkipReason = null);
+/// <param name="SkipReason">Why the work is skipped unlinked (the candidate is no longer the work's confident one, the owner
+/// marked that none fits…), as a message the Api renders (ADR 0042); <c>null</c> to link it.</param>
+public sealed record LibraryLinkBatchPick(Guid WorkId, MediaWorkKind CatalogKind, string CatalogId, Message? SkipReason = null);

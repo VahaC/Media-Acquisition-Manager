@@ -10,6 +10,7 @@ public sealed class ExceptionHandlerHttpTests : IClassFixture<PipelineProbeApiFa
 {
     private const string BaseUrl = PipelineProbeController.BaseUrl + "/throw";
     private const string LimitedBodyUrl = PipelineProbeController.BaseUrl + "/limited-body";
+    private const string TruncatedBodyUrl = PipelineProbeController.BaseUrl + "/truncated-body";
 
     // A W3C traceparent, so the test knows which trace id the answer must quote.
     private const string TraceId = "4bf92f3577b34da6a3ce929d0e0e4736";
@@ -38,8 +39,8 @@ public sealed class ExceptionHandlerHttpTests : IClassFixture<PipelineProbeApiFa
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal(
-            $"The server failed to process this request. Quote trace id {TraceId} when you report it.",
-            await response.ReadErrorAsync(cancellationToken));
+            ($"The server failed to process this request. Quote trace id {TraceId} when you report it.", "common.server.failed"),
+            await response.ReadErrorBodyAsync(cancellationToken));
     }
 
     [Fact]
@@ -104,7 +105,25 @@ public sealed class ExceptionHandlerHttpTests : IClassFixture<PipelineProbeApiFa
         //Assert
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal("The request body is larger than this server accepts.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(
+            ("The request body is larger than this server accepts.", "common.request.too-large"),
+            await response.ReadErrorBodyAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task Body_cut_short_is_400_json_error_not_500()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var response = await _factory.PostHttpRequest(TruncatedBodyUrl, body: "x");
+
+        //Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(("The server could not read this request.", "common.request.unreadable"), await response.ReadErrorBodyAsync(cancellationToken));
+        Assert.DoesNotContain(_factory.Logs.Entries, logged => logged.Level >= LogLevel.Error);
     }
 
     [Fact]

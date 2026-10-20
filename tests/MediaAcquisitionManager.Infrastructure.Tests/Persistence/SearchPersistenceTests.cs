@@ -4,9 +4,11 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Options;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -35,7 +37,7 @@ public sealed class SearchPersistenceTests : DatabaseTestBase
 
         //Act
         var search = await searches.Create(user.Id, "Інтерстеллар", 2014, "tt0816692", "157336");
-        await searches.AddSource(search.Id, toloka.Id, toloka.Name, position: 1, IntegrationCallStatus.Refused, error: "The Torznab feed is refusing requests for now.");
+        await searches.AddSource(search.Id, toloka.Id, toloka.Name, position: 1, IntegrationCallStatus.Refused, error: Message.Of("torznab.too-many-requests"));
         await searches.AddSource(search.Id, null, "Orphan", position: 0, status: null, ReleaseSourceNotSearchedReason.TypeUnavailable);
 
         //Assert
@@ -45,8 +47,8 @@ public sealed class SearchPersistenceTests : DatabaseTestBase
             (stored.UserId, stored.Text, stored.Year, stored.ImdbId, stored.TmdbId));
         var sources = await db.SearchSources.AsNoTracking().Where(x => x.SearchId == search.Id).OrderBy(x => x.Position).ToListAsync(cancellationToken);
         Assert.Equal(
-            ["0 Orphan: TypeUnavailable", "1 Toloka: Refused The Torznab feed is refusing requests for now."],
-            sources.Select(x => $"{x.Position} {x.Name}: {x.Status}{x.NotSearchedReason} {x.Error}".TrimEnd()));
+            ["0 Orphan: TypeUnavailable", "1 Toloka: Refused The Torznab feed is refusing requests for now (429 Too Many Requests). Try again in a few minutes."],
+            sources.Select(x => $"{x.Position} {x.Name}: {x.Status}{x.NotSearchedReason} {TestTexts.En(x.Error)}".TrimEnd()));
     }
 
     [Fact]

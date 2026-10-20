@@ -4,10 +4,12 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -25,10 +27,13 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
     private const string BaseUrl = "/api/library/inspections";
     private const string ApiKey = "0123456789abcdef0123456789abcdef";
     private const string MediaRoot = "/media";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
     private const string QueueFullError = "Too many file inspections are waiting. Try again in a minute.";
     private const string RestartedError = "The app restarted before this inspection finished. What it had read is kept.";
+
+    /// <summary>MAM-47 — <see cref="RestartedError"/> as the reconciler stores it: key and values (ADR 0042).</summary>
+    private static readonly Message Restarted = Message.Of("files.inspection.restarted");
 
     private const string NoAllowedRootsError =
         "No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then inspect again.";
@@ -264,7 +269,7 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await _roots.Allow(MediaRoot);
-        var finished = await _runs.Create(status, requestedBy: _owner.User, createdUtc: _factory.Time.GetUtcNow().UtcDateTime.AddHours(-1), error: error);
+        var finished = await _runs.Create(status, requestedBy: _owner.User, createdUtc: _factory.Time.GetUtcNow().UtcDateTime.AddHours(-1), error: error is null ? null : Restarted);
 
         //Act
         var response = await _factory.PostHttpRequest(BaseUrl, _owner.AccessToken);
@@ -279,7 +284,7 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
         {
             var rows = await db.FileInspectionRuns.ToDictionaryAsync(row => row.Id, cancellationToken);
             Assert.Equal(2, rows.Count);
-            Assert.Equal((status, error), (rows[finished.Id].Status, rows[finished.Id].Error));
+            Assert.Equal((status, error), (rows[finished.Id].Status, TestTexts.En(rows[finished.Id].Error)));
             Assert.Equal(FileInspectionRunStatus.Queued, rows[run.Id].Status);
         });
     }
@@ -306,7 +311,7 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
             // Failed, not left queued: a queued run no worker will take would be joined by every later
             // request and never run.
             var row = await db.FileInspectionRuns.SingleAsync(cancellationToken);
-            Assert.Equal((FileInspectionRunStatus.Failed, QueueFullError, now), (row.Status, row.Error, row.FinishedUtc));
+            Assert.Equal((FileInspectionRunStatus.Failed, QueueFullError, now), (row.Status, TestTexts.En(row.Error), row.FinishedUtc));
             Assert.Equal((FileInspectionTrigger.Requested, "owner"), (row.Trigger, row.RequestedByUserName));
         });
         // Warning, so it ships off the box: a full queue means the worker is stuck.
@@ -356,7 +361,7 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
         var cancellationToken = TestContext.Current.CancellationToken;
         var at = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-10);
         var failed = await _runs.Create(
-            FileInspectionRunStatus.Failed, requestedBy: _owner.User, createdUtc: at, error: RestartedError, filesTotal: 870, filesChecked: 412, filesProbed: 37);
+            FileInspectionRunStatus.Failed, requestedBy: _owner.User, createdUtc: at, error: Restarted, filesTotal: 870, filesChecked: 412, filesProbed: 37);
 
         //Act
         var response = await _factory.GetHttpRequest($"{BaseUrl}/{failed.Id}", _owner.AccessToken);
@@ -375,7 +380,7 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
         var cancellationToken = TestContext.Current.CancellationToken;
         var at = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-10);
         var failed = await _runs.Create(
-            FileInspectionRunStatus.Failed, requestedBy: _owner.User, createdUtc: at, error: RestartedError, filesTotal: 870, filesChecked: 412, filesProbed: 37);
+            FileInspectionRunStatus.Failed, requestedBy: _owner.User, createdUtc: at, error: Restarted, filesTotal: 870, filesChecked: 412, filesProbed: 37);
 
         //Act
         var response = await _factory.GetHttpRequest($"{BaseUrl}/{failed.Id}", _member.AccessToken);

@@ -1,0 +1,3 @@
+# MAM-47 (ADR 0042) — keys no code produces any more but a column may still hold (design §2.5). A key a column may hold
+# is never renamed or removed: when its producer goes, its templates stay and the key is listed here, one per line,
+# so KeysInUseTests doesn't ask for a literal naming it. Empty in 0.5.0.

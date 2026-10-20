@@ -25,8 +25,9 @@ public sealed class AuthPasswordHttpTests : IClassFixture<MediaAcquisitionManage
     private const string NewPassword = "brand-new-password";
     private const string CurrentPasswordIncorrect = "The current password is incorrect.";
     private const string CurrentPasswordRequired = "Enter your current password.";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
-    private const string InvalidCredentialsBody = """{"error":"The user name or password is incorrect."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
+    private static readonly string InvalidCredentialsBody =
+        ErrorBody.Json("The user name or password is incorrect.", "account.sign-in.invalid-credentials");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IUserSeeder _users = null!;
@@ -218,7 +219,7 @@ public sealed class AuthPasswordHttpTests : IClassFixture<MediaAcquisitionManage
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(CurrentPasswordIncorrect, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal((CurrentPasswordIncorrect, "account.password.current-incorrect"), await response.ReadErrorBodyAsync(cancellationToken));
         // Guards the "runs no hash" tests below: a current password that could be right is checked,
         // once, against the member's own hash.
         Assert.Equal(_laptop.User.PasswordHash, Assert.Single(_factory.PasswordHasher.VerifiedHashes));
@@ -244,7 +245,7 @@ public sealed class AuthPasswordHttpTests : IClassFixture<MediaAcquisitionManage
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(CurrentPasswordRequired, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal((CurrentPasswordRequired, "account.password.current-required"), await response.ReadErrorBodyAsync(cancellationToken));
         Assert.Empty(_factory.PasswordHasher.VerifiedHashes);
         await AssertNothingChangedAsync(cancellationToken);
     }

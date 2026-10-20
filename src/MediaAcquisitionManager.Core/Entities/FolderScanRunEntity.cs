@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -23,7 +24,7 @@ namespace MediaAcquisitionManager.Core.Entities;
 public class FolderScanRunEntity : AuditableEntity
 {
     /// <summary>The longest <see cref="Error"/> and <see cref="Problem"/> the columns hold; a longer
-    /// sentence is cut to it.</summary>
+    /// message is fitted into it (ADR 0042).</summary>
     public const int ErrorMaximumLength = 1000;
 
     /// <summary>The owner who asked for it; <c>null</c> once that user is deleted.</summary>
@@ -52,11 +53,12 @@ public class FolderScanRunEntity : AuditableEntity
     /// <summary>How many folders, links and names the walk didn't go into or through.</summary>
     public int ProblemCount { get; set; }
 
-    /// <summary>The first of those problems' sentences, in walk order; <c>null</c> when there was none.</summary>
+    /// <summary>The first of those problems, in walk order, as a message the Api renders (ADR 0042); <c>null</c> when
+    /// there was none.</summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? Problem { get; set; }
+    public Message? Problem { get; set; }
 
-    /// <summary>A readable sentence saying why the scan failed; <c>null</c> unless it failed.</summary>
+    /// <summary>Why the scan failed, as a message the Api renders (ADR 0042); <c>null</c> unless it failed.</summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? Error { get; set; }
+    public Message? Error { get; set; }
 }

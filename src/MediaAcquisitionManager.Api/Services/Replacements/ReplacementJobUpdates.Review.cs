@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -38,7 +39,7 @@ public static partial class ReplacementJobUpdates
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.State, ReplacementJobState.Downloaded)
-                    .SetProperty(job => job.Reason, (string?)null)
+                    .SetProperty(job => job.Reason, (Message?)null)
                     .SetProperty(job => job.StateChangedUtc, changedUtc),
                 CancellationToken.None);
 
@@ -54,20 +55,17 @@ public static partial class ReplacementJobUpdates
         this IQueryable<ReplacementJobEntity> jobs,
         IQueryable<ReplacementJobNameEntity> names,
         Guid replacementJobId,
-        string reason,
-        DateTime changedUtc)
-    {
-        var storedReason = Stored(reason);
-        return jobs.Where(job => job.Id == replacementJobId
+        Message reason,
+        DateTime changedUtc) =>
+        jobs.Where(job => job.Id == replacementJobId
                 && EF.Constant(ReplacementJobStates.BeforeMove).Contains(job.State)
                 && !names.Any(name => name.ReplacementJobId == job.Id && EF.Constant(ReplacementNameStates.Taken).Contains(name.State)))
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.State, ReplacementJobState.Cancelled)
-                    .SetProperty(job => job.Reason, storedReason)
+                    .SetProperty(job => job.Reason, reason)
                     .SetProperty(job => job.StateChangedUtc, changedUtc),
                 CancellationToken.None);
-    }
 
     /// <summary>
     /// Claims the replacement <paramref name="replacementJobId"/> for the owner's Drop of one of its copies, while it still

@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -137,7 +138,7 @@ public sealed class ReplacementQuarantineRecoveryHttpTests : IClassFixture<Media
         var stopped = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)CutWhileMovingOneReason, (DateTime?)claimedUtc, (DateTime?)foundUtc),
-            (stopped.State, stopped.Reason, stopped.QuarantineCheckedUtc, stopped.LibraryNoticeDueUtc));
+            (stopped.State, TestTexts.En(stopped.Reason), stopped.QuarantineCheckedUtc, stopped.LibraryNoticeDueUtc));
         var names = await NamesAsync(cancellationToken);
         Assert.Equal(
             [
@@ -195,7 +196,7 @@ public sealed class ReplacementQuarantineRecoveryHttpTests : IClassFixture<Media
             [ReplacementNameState.Quarantined, ReplacementNameState.Planned, ReplacementNameState.Planned],
             cutNames.Select(name => name.State));
         var stopped = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)CutWhileMovingOneReason), (stopped.State, stopped.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)CutWhileMovingOneReason), (stopped.State, TestTexts.En(stopped.Reason)));
         Assert.NotNull(stopped.LibraryNoticeDueUtc);
         Assert.Equal(cutNames.Select(name => name.State), (await NamesAsync(cancellationToken)).Select(name => name.State));
         Assert.Single(_factory.Quarantine.Renames);
@@ -239,7 +240,7 @@ public sealed class ReplacementQuarantineRecoveryHttpTests : IClassFixture<Media
         //Assert
         Assert.Equal((ReplacementJobState.NeedsReview, HttpStatusCode.OK), (stopped.State, retried.StatusCode));
         var settled = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Quarantined, (string?)null), (settled.State, settled.Reason));
+        Assert.Equal((ReplacementJobState.Quarantined, (string?)null), (settled.State, TestTexts.En(settled.Reason)));
         var names = await NamesAsync(cancellationToken);
         Assert.All(names, name => Assert.Equal(ReplacementNameState.Quarantined, name.State));
         // Each name renamed once: the video at the cut pass, its companions after the Retry.
@@ -267,13 +268,13 @@ public sealed class ReplacementQuarantineRecoveryHttpTests : IClassFixture<Media
         // Nothing moved: no notice owed. The mover's mark is set, so the owner may retry.
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)CutWhileMovingNoneReason, (DateTime?)now, (DateTime?)null),
-            (stopped.State, stopped.Reason, stopped.QuarantineCheckedUtc, stopped.LibraryNoticeDueUtc));
+            (stopped.State, TestTexts.En(stopped.Reason), stopped.QuarantineCheckedUtc, stopped.LibraryNoticeDueUtc));
         Assert.Equal(
             [
                 (TheatricalPath, ReplacementNameState.Planned, (string?)null),
                 (TheatricalNfoPath, ReplacementNameState.Lost, LostWhileMovingProblem),
             ],
-            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.State, name.Problem)));
+            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.State, TestTexts.En(name.Problem))));
         var audits = await _harness.QuarantineAuditsAsync(cancellationToken);
         Assert.Equal(
             new HashSet<(AuditAction, Guid?, AuditTargetKind?, Guid?, string?)>
@@ -315,14 +316,14 @@ public sealed class ReplacementQuarantineRecoveryHttpTests : IClassFixture<Media
         // A name came back: the library is owed a notice. The mark the move set is kept.
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)CutWhileRestoringReason, (DateTime?)movedUtc, (DateTime?)now),
-            (stopped.State, stopped.Reason, stopped.QuarantineCheckedUtc, stopped.LibraryNoticeDueUtc));
+            (stopped.State, TestTexts.En(stopped.Reason), stopped.QuarantineCheckedUtc, stopped.LibraryNoticeDueUtc));
         Assert.Equal(
             [
                 (TheatricalPath, ReplacementNameState.Restored, (string?)null, (DateTime?)now),
                 (TheatricalNfoPath, ReplacementNameState.Quarantined, null, null),
                 (TheatricalSrtPath, ReplacementNameState.Lost, LostWhileRestoringProblem, null),
             ],
-            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.State, name.Problem, name.RestoredUtc)));
+            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.State, TestTexts.En(name.Problem), name.RestoredUtc)));
         var audits = await _harness.QuarantineAuditsAsync(cancellationToken);
         Assert.Equal(
             new HashSet<(AuditAction, Guid?, AuditTargetKind?, Guid?, string?)>
@@ -364,14 +365,14 @@ public sealed class ReplacementQuarantineRecoveryHttpTests : IClassFixture<Media
         // A deletion owes the library nothing: it was told when the names left.
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)CutWhileDeletingReason, (DateTime?)movedUtc, (DateTime?)null),
-            (stopped.State, stopped.Reason, stopped.QuarantineCheckedUtc, stopped.LibraryNoticeDueUtc));
+            (stopped.State, TestTexts.En(stopped.Reason), stopped.QuarantineCheckedUtc, stopped.LibraryNoticeDueUtc));
         Assert.Equal(
             [
                 (TheatricalPath, ReplacementNameState.Deleted, (string?)null, (DateTime?)now),
                 (TheatricalNfoPath, ReplacementNameState.Quarantined, null, null),
                 (TheatricalSrtPath, ReplacementNameState.Lost, LostWhileDeletingProblem, null),
             ],
-            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.State, name.Problem, name.DeletedUtc)));
+            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.State, TestTexts.En(name.Problem), name.DeletedUtc)));
         var audits = await _harness.QuarantineAuditsAsync(cancellationToken);
         Assert.Equal(
             new HashSet<(AuditAction, Guid?, AuditTargetKind?, Guid?, string?)>
@@ -412,7 +413,7 @@ public sealed class ReplacementQuarantineRecoveryHttpTests : IClassFixture<Media
         var completed = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
             (ReplacementJobState.Completed, (string?)null, now, (DateTime?)movedUtc, (DateTime?)null),
-            (completed.State, completed.Reason, completed.StateChangedUtc, completed.QuarantineCheckedUtc, completed.LibraryNoticeDueUtc));
+            (completed.State, TestTexts.En(completed.Reason), completed.StateChangedUtc, completed.QuarantineCheckedUtc, completed.LibraryNoticeDueUtc));
         Assert.Equal(
             [ReplacementNameState.Deleted, ReplacementNameState.Deleted, ReplacementNameState.Deleted],
             (await NamesAsync(cancellationToken)).Select(name => name.State));
@@ -448,7 +449,7 @@ public sealed class ReplacementQuarantineRecoveryHttpTests : IClassFixture<Media
         var restored = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
             (ReplacementJobState.Restored, (string?)null, now, (DateTime?)now),
-            (restored.State, restored.Reason, restored.StateChangedUtc, restored.LibraryNoticeDueUtc));
+            (restored.State, TestTexts.En(restored.Reason), restored.StateChangedUtc, restored.LibraryNoticeDueUtc));
         Assert.Equal(
             [(ReplacementNameState.Restored, (DateTime?)null), (ReplacementNameState.Restored, null), (ReplacementNameState.Restored, now)],
             (await NamesAsync(cancellationToken)).Select(name => (name.State, name.RestoredUtc)));
@@ -494,7 +495,7 @@ public sealed class ReplacementQuarantineRecoveryHttpTests : IClassFixture<Media
             _factory.Logs.Entries,
             entry => entry.Level == LogLevel.Warning && entry.Message.Contains(replacement.Id.ToString(), StringComparison.Ordinal));
         var stopped = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)CutWhileMovingTheVideoReason), (stopped.State, stopped.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)CutWhileMovingTheVideoReason), (stopped.State, TestTexts.En(stopped.Reason)));
         Assert.Equal(ReplacementNameState.Quarantined, Assert.Single(await NamesAsync(cancellationToken)).State);
         Assert.Empty(_factory.Quarantine.Renames);
     }

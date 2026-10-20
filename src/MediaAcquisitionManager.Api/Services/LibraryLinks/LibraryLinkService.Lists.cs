@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Paging;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
@@ -11,13 +12,15 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 // ordered by the server (house rule 7), however many links there are.
 public sealed partial class LibraryLinkService
 {
-    private const string FilterMissingError = "Choose which links to list: Unattached, Pending, Conflict, NotWritten or Lost.";
+    private static readonly Message FilterMissingError = Message.Of("library-links.list.filter-missing");
 
     /// <summary>The longest part of a filter echoed back: the longest filter is 10 characters.</summary>
     private const int FilterEchoLength = 32;
 
-    private static string FilterInvalidError(string filter) =>
-        $"“{(filter.Length <= FilterEchoLength ? filter : string.Concat(filter.AsSpan(0, FilterEchoLength - 1), "…"))}” is not a link filter. Use Unattached, Pending, Conflict, NotWritten or Lost.";
+    private static Message FilterInvalidError(string filter) =>
+        Message.Of(
+            "library-links.list.filter-invalid",
+            ("value", filter.Length <= FilterEchoLength ? filter : string.Concat(filter.AsSpan(0, FilterEchoLength - 1), "…")));
 
     public async Task<LibraryLinkListResult> ListAsync(string? filter, int page, int pageSize, CancellationToken cancellationToken = default)
     {

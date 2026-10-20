@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Options;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
@@ -25,7 +26,8 @@ public sealed class FolderScanPersistenceTests : DatabaseTestBase
 
     private const string AliensPath = "/media/movies/Alien. Collection/Aliens (1986).mkv";
     private const string InterstellarPath = "/media/downloads/Interstellar (2014)/Interstellar (2014) BDRip 1080p.mkv";
-    private const string RestartedError = "The app restarted before this scan finished, so nothing it found was stored. Scan the folders again.";
+    /// <summary>MAM-47 — the reconciler's reason as it stores it: key and values (ADR 0042).</summary>
+    private static readonly Message Restarted = Message.Of("files.scan.restarted");
 
     public FolderScanPersistenceTests() => TestDatabase.CopyMigratedTemplateTo(DatabasePath);
 
@@ -38,7 +40,7 @@ public sealed class FolderScanPersistenceTests : DatabaseTestBase
         await Runs(db).Create(FolderScanStatus.Queued);
         await Runs(db).Create(FolderScanStatus.Running);
         await Runs(db).Create(FolderScanStatus.Succeeded, filesFound: 3, filesUnreported: 1);
-        await Runs(db).Create(FolderScanStatus.Failed, error: RestartedError);
+        await Runs(db).Create(FolderScanStatus.Failed, error: Restarted);
         await new FileInspectionRunDataFactory(db, TimeProvider.System).Create(FileInspectionRunStatus.Queued, FileInspectionTrigger.FolderScanned);
 
         //Act
@@ -104,8 +106,8 @@ public sealed class FolderScanPersistenceTests : DatabaseTestBase
         var runs = Runs(db);
         await runs.Create(FolderScanStatus.Succeeded, filesFound: 3, filesUnreported: 1);
         await runs.Create(FolderScanStatus.Succeeded, filesFound: 4, filesUnreported: 0);
-        await runs.Create(FolderScanStatus.Failed, error: RestartedError);
-        await runs.Create(FolderScanStatus.Failed, error: "The scan stopped because of an error in the app. Its log says more.");
+        await runs.Create(FolderScanStatus.Failed, error: Restarted);
+        await runs.Create(FolderScanStatus.Failed, error: Message.Of("files.scan.app-error"));
 
         //Act
         var exception = await Record.ExceptionAsync(async () =>

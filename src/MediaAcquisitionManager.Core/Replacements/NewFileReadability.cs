@@ -1,7 +1,7 @@
-using System.Globalization;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Replacements;
 
@@ -20,6 +20,9 @@ namespace MediaAcquisitionManager.Core.Replacements;
 /// The new file must not be one of the old copies, by identity or by path: MAM-24's check before the send refused a
 /// download that would write over a file, but a torrent of another category may still write there (ADR 0034's gap), and
 /// a copy replaced by itself is no replacement.
+/// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — each reason is a message the Api renders; the inventory's own message is passed on as it is.
 /// </para>
 /// </remarks>
 public static class NewFileReadability
@@ -44,8 +47,8 @@ public static class NewFileReadability
         ArgumentNullException.ThrowIfNull(tickedCopies);
         ArgumentNullException.ThrowIfNull(clientName);
 
-        var path = ReplacementText.Quote(appPath);
-        var said = inspection.Error ?? $"The app couldn't read {path}.";
+        var path = MessageText.Clean(appPath);
+        var said = inspection.Error ?? Message.Of("replacements.readability.unread", ("path", path));
         if (inspection is not { Status: FileInventoryStatus.Found, Value: { } found })
         {
             return inspection.Status switch
@@ -64,28 +67,36 @@ public static class NewFileReadability
 
         var file = found.File;
         if (file.DeviceId is not { } deviceId || file.Inode is not { } inode)
-            return new(
-                NewFileReadabilityStatus.Review,
-                $"The app can't read the identity of {path} on this platform, so it can't tell the new file from the old copies.");
+            return new(NewFileReadabilityStatus.Review, Message.Of("replacements.readability.identity-unknown", ("path", path)));
         if (file.SizeBytes == 0)
-            return new(NewFileReadabilityStatus.Failed, $"{path} is empty.");
+            return new(NewFileReadabilityStatus.Failed, Message.Of("replacements.readability.empty", ("path", path)));
         if (!found.Media.Tracks.Any(track => track.Kind == MediaTrackKind.Video))
-            return new(NewFileReadabilityStatus.Failed, $"{path} has no video stream.");
+            return new(NewFileReadabilityStatus.Failed, Message.Of("replacements.readability.no-video", ("path", path)));
         if (found.Media.Duration is not { } duration || duration <= TimeSpan.Zero)
-            return new(NewFileReadabilityStatus.Failed, $"The media inspector found no running time in {path}.");
+            return new(NewFileReadabilityStatus.Failed, Message.Of("replacements.readability.no-running-time", ("path", path)));
         if (clientSizeBytes is { } downloaded && downloaded != file.SizeBytes)
         {
-            var client = ReplacementText.Quote(clientName);
+            // Exact byte counts, grouped as numbers (number:grouped), never sizes: 1,234,567 and 1,234,560 bytes would both
+            // read 1.18 MiB, and the reason would be lost.
             return new(
                 NewFileReadabilityStatus.Review,
-                string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"{path} is {file.SizeBytes:N0} bytes on the disk, not the {downloaded:N0} bytes {client} downloaded, so it may be another file."));
+                Message.Of(
+                    "replacements.readability.size-differs",
+                    ("path", path),
+                    ("size", Bytes(file.SizeBytes)),
+                    ("downloaded", Bytes(downloaded)),
+                    ("client", MessageText.Clean(clientName))));
         }
 
         var isOldCopy = tickedCopies.Any(copy => (copy.DeviceId == deviceId && copy.Inode == inode) || SamePath(copy.AppPath, appPath));
-        return isOldCopy ? new(NewFileReadabilityStatus.Review, $"The new file {path} is the old copy itself.") : NewFileReadabilityResult.Readable;
+        return isOldCopy
+            ? new(NewFileReadabilityStatus.Review, Message.Of("replacements.readability.old-copy-itself", ("path", path)))
+            : NewFileReadabilityResult.Readable;
     }
+
+    /// <summary>A count of bytes as the size reason gives it: its noun counted on its own, since a key has one plural
+    /// driver and the reason counts two.</summary>
+    private static Message Bytes(long count) => Message.Of("replacements.readability.tally.bytes", ("count", count));
 
     /// <summary>
     /// Whether two canonical app paths name one place, under their style's rules (a Windows path ignores letter case);

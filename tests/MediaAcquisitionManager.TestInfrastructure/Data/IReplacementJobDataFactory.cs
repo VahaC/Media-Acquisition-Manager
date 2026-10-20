@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -21,7 +22,7 @@ public interface IReplacementJobDataFactory
         Guid downloadJobId,
         Guid requestedByUserId,
         ReplacementJobState state = ReplacementJobState.Scheduled,
-        string? reason = null,
+        Message? reason = null,
         DateTime? quarantineCheckedUtc = null,
         DateTime? quarantinedUtc = null,
         DateTime? libraryNoticeDueUtc = null,
@@ -46,7 +47,7 @@ public interface IReplacementJobDataFactory
         Guid? mediaWorkId = null,
         string? servicePath = null,
         Guid? pairedNewFileId = null,
-        string? problem = null,
+        Message? problem = null,
         bool onlyDropSettles = false,
         DateTime? droppedUtc = null,
         int? seasonNumber = null,
@@ -65,7 +66,7 @@ public interface IReplacementJobDataFactory
         int? year,
         MatchEvidence evidence,
         bool confirmedByOwner,
-        string confirmationText,
+        Message confirmationText,
         IReadOnlyList<(MediaIdentifierScheme Scheme, string Value, bool SetByOwner)>? identifiers = null);
 
     /// <summary>
@@ -105,7 +106,7 @@ public interface IReplacementJobDataFactory
         string allowedRoot,
         FileFacts facts,
         ReplacementNameState state = ReplacementNameState.Planned,
-        string? problem = null,
+        Message? problem = null,
         DateTime? movedUtc = null,
         DateTime? restoredUtc = null,
         DateTime? deletedUtc = null);

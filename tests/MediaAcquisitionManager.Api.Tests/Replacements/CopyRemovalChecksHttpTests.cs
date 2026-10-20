@@ -264,7 +264,10 @@ public sealed class CopyRemovalChecksHttpTests : IClassFixture<MediaAcquisitionM
         //Assert
         // One file's names free nothing: the list offers no removal there, and the request refuses it.
         Assert.All(sameFile.Files, file => Assert.Null(file.Removal));
-        Assert.Equal((HttpStatusCode.Conflict, NotRemovableClassReason), (response.StatusCode, await response.ReadErrorAsync(cancellationToken)));
+        // MAM-47 (ADR 0042) — with its key as the code, the same in every language.
+        Assert.Equal(
+            (HttpStatusCode.Conflict, (NotRemovableClassReason, "duplicates.removal.rule.not-removable-class")),
+            (response.StatusCode, await response.ReadErrorBodyAsync(cancellationToken)));
         await AssertNothingWrittenAsync(cancellationToken);
     }
 

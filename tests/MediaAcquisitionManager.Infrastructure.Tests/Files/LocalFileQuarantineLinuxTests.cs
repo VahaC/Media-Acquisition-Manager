@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -129,11 +130,10 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.Changed,
-                null,
                 $"“{film}” changed since the app checked it: its size, modification time, device or inode isn't what was read then."),
-            moved);
+            InEnglish(moved));
         Assert.True(File.Exists(film));
         Assert.False(Directory.Exists(_folder.PathOf("media", QuarantineFolder.Name)));
     }
@@ -154,9 +154,9 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
-                FileQuarantineStatus.NameTaken, null, $"“{quarantinePath}” already holds a file, and the app never writes over one."),
-            moved);
+            Refusal<FileFacts>(
+                FileQuarantineStatus.NameTaken, $"“{quarantinePath}” already holds a file, and the app never writes over one."),
+            InEnglish(moved));
         Assert.Equal("the old copy", await File.ReadAllTextAsync(film, cancellationToken));
         Assert.Equal("already here", await File.ReadAllTextAsync(quarantinePath, cancellationToken));
     }
@@ -183,9 +183,9 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
-                FileQuarantineStatus.OtherMount, null, $"“{elsewhere}” and “/dev” are on different mounts, where a rename would be a copy."),
-            moved);
+            Refusal<FileFacts>(
+                FileQuarantineStatus.OtherMount, $"“{elsewhere}” and “/dev” are on different mounts, where a rename would be a copy."),
+            InEnglish(moved));
         Assert.True(File.Exists(film));
         Assert.False(Directory.Exists(Path.Combine("/dev", QuarantineFolder.Name)));
     }
@@ -212,11 +212,10 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.OutsideAllowedRoots,
-                null,
                 $"“{link}” leads through a link to “{_folder.PathOf("downloads", "Alien.1979")}”, outside the media folders the app may read."),
-            moved);
+            InEnglish(moved));
         Assert.Equal("the old copy", await File.ReadAllTextAsync(target, cancellationToken));
         Assert.False(Directory.Exists(_folder.PathOf("media", QuarantineFolder.Name)));
     }
@@ -239,8 +238,8 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(FileQuarantineStatus.OutsideAllowedRoots, null, $"“{film}” already lies in a quarantine."),
-            moved);
+            Refusal<FileFacts>(FileQuarantineStatus.OutsideAllowedRoots, $"“{film}” already lies in a quarantine."),
+            InEnglish(moved));
         Assert.Equal("another replacement's old copy", await File.ReadAllTextAsync(quarantined, cancellationToken));
         Assert.False(Directory.Exists(_folder.PathOf("media", QuarantineFolder.Name, JobId.ToString())));
     }
@@ -265,7 +264,7 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
         Assert.Equal(FileQuarantineStatus.Changed, moved.Status);
         Assert.Equal(
             $"“{planted}” changed while the app was checking it: a folder on the way or the file itself became a link or something else.",
-            moved.Error);
+            TestTexts.En(moved.Error));
         Assert.True(File.Exists(film));
         Assert.Empty(Directory.EnumerateFileSystemEntries(outside));
     }
@@ -297,11 +296,10 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.Changed,
-                null,
                 $"“{film}” changed while the app was checking it: a folder on the way or the file itself became a link or something else."),
-            moved);
+            InEnglish(moved));
         Assert.Equal("the old copy", await File.ReadAllTextAsync(Path.Combine(aside, "Alien.mkv"), cancellationToken));
         Assert.Equal("someone else's file", await File.ReadAllTextAsync(outsideFilm, cancellationToken));
         Assert.False(File.Exists(QuarantinePathOf(film)));
@@ -359,11 +357,10 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.Swapped,
-                null,
                 $"What the app renamed from “{film}” to “{quarantinePath}” isn't the file it checked: another file was put at that name just before the rename."),
-            moved);
+            InEnglish(moved));
         Assert.Equal("another file put at its name", await File.ReadAllTextAsync(quarantinePath, cancellationToken));
         Assert.Equal("the old copy", await File.ReadAllTextAsync(aside, cancellationToken));
         Assert.False(File.Exists(film));
@@ -386,7 +383,7 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
         var moved = await _quarantine.MoveIntoQuarantineAsync(film, expected, QuarantinePathOf(film), [_media], cancellationToken);
 
         //Assert
-        Assert.Equal(new FileQuarantineResult<FileFacts>(FileQuarantineStatus.Changed, null, $"“{film}” isn't a regular file."), moved);
+        Assert.Equal(Refusal<FileFacts>(FileQuarantineStatus.Changed, $"“{film}” isn't a regular file."), InEnglish(moved));
         Assert.True(File.Exists(target));
         Assert.NotNull(new FileInfo(film).LinkTarget);
     }
@@ -411,11 +408,10 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.NotAllowed,
-                null,
                 $"The app's user isn't allowed to change “{film}”: renaming or deleting a file needs write and search permission on its folder, and on the one it goes into."),
-            moved);
+            InEnglish(moved));
         Assert.True(File.Exists(film));
         Assert.False(File.Exists(QuarantinePathOf(film)));
     }
@@ -440,9 +436,9 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
-                FileQuarantineStatus.OutsideAllowedRoots, null, $"“{quarantinePath}” isn't inside the quarantine at the top of a media folder."),
-            moved);
+            Refusal<FileFacts>(
+                FileQuarantineStatus.OutsideAllowedRoots, $"“{quarantinePath}” isn't inside the quarantine at the top of a media folder."),
+            InEnglish(moved));
         Assert.True(File.Exists(film));
     }
 
@@ -485,8 +481,8 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(FileQuarantineStatus.NameTaken, null, $"“{film}” already holds a file, and the app never writes over one."),
-            restored);
+            Refusal<FileFacts>(FileQuarantineStatus.NameTaken, $"“{film}” already holds a file, and the app never writes over one."),
+            InEnglish(restored));
         Assert.Equal("the new copy", await File.ReadAllTextAsync(film, cancellationToken));
         Assert.Equal("the old copy", await File.ReadAllTextAsync(quarantinePath, cancellationToken));
     }
@@ -507,9 +503,9 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
-                FileQuarantineStatus.FolderGone, null, $"The folder “{folder}” is gone, and the app creates no folder to put a file back."),
-            restored);
+            Refusal<FileFacts>(
+                FileQuarantineStatus.FolderGone, $"The folder “{folder}” is gone, and the app creates no folder to put a file back."),
+            InEnglish(restored));
         Assert.False(Directory.Exists(folder));
         Assert.True(File.Exists(quarantinePath));
     }
@@ -564,13 +560,12 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
         //Assert
         Assert.Equal(
             change == "removed"
-                ? new FileQuarantineResult<FileFacts>(
-                    FileQuarantineStatus.FolderGone, null, $"The folder “{folder}” is gone, and the app creates no folder to put a file back.")
-                : new FileQuarantineResult<FileFacts>(
+                ? Refusal<FileFacts>(
+                    FileQuarantineStatus.FolderGone, $"The folder “{folder}” is gone, and the app creates no folder to put a file back.")
+                : Refusal<FileFacts>(
                     FileQuarantineStatus.Changed,
-                    null,
                     $"“{film}” changed while the app was checking it: a folder on the way or the file itself became a link or something else."),
-            restored);
+            InEnglish(restored));
         Assert.Equal("the old copy", await File.ReadAllTextAsync(quarantinePath, cancellationToken));
         Assert.Empty(Directory.EnumerateFileSystemEntries(outside));
         Assert.Empty(Directory.EnumerateFileSystemEntries(aside));
@@ -599,11 +594,10 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.Swapped,
-                null,
                 $"What the app renamed from “{quarantinePath}” to “{film}” isn't the file it checked: another file was put at that name just before the rename."),
-            restored);
+            InEnglish(restored));
         Assert.Equal("another file put at its name", await File.ReadAllTextAsync(film, cancellationToken));
         Assert.Equal("the old copy", await File.ReadAllTextAsync(aside, cancellationToken));
     }
@@ -630,11 +624,10 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.OtherMount,
-                null,
                 $"“{Path.GetDirectoryName(quarantinePath)}” and “{link}” are on different mounts, where a rename would be a copy."),
-            restored);
+            InEnglish(restored));
         Assert.Equal("the old copy", await File.ReadAllTextAsync(quarantinePath, cancellationToken));
         Assert.Empty(Directory.EnumerateFileSystemEntries(elsewhere));
     }
@@ -658,8 +651,8 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(FileQuarantineStatus.OutsideAllowedRoots, null, $"“{film}” already lies in a quarantine."),
-            restored);
+            Refusal<FileFacts>(FileQuarantineStatus.OutsideAllowedRoots, $"“{film}” already lies in a quarantine."),
+            InEnglish(restored));
         Assert.Equal("the old copy", await File.ReadAllTextAsync(quarantinePath, cancellationToken));
         Assert.Empty(Directory.EnumerateFileSystemEntries(otherJob));
     }
@@ -699,11 +692,10 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.Changed,
-                null,
                 $"“{quarantinePath}” changed since the app checked it: its size, modification time, device or inode isn't what was read then."),
-            deleted);
+            InEnglish(deleted));
         Assert.Equal("the old copy and more", await File.ReadAllTextAsync(quarantinePath, cancellationToken));
     }
 
@@ -725,11 +717,10 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.Changed,
-                null,
                 $"“{planted}” changed while the app was checking it: a folder on the way or the file itself became a link or something else."),
-            deleted);
+            InEnglish(deleted));
         Assert.Equal("the library's copy", await File.ReadAllTextAsync(film, cancellationToken));
     }
 
@@ -770,13 +761,12 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.Changed,
-                null,
                 swapped == "the file"
                     ? $"“{quarantinePath}” changed since the app checked it: its size, modification time, device or inode isn't what was read then."
                     : $"“{quarantinePath}” changed while the app was checking it: a folder on the way or the file itself became a link or something else."),
-            deleted);
+            InEnglish(deleted));
         Assert.Equal("the old copy", await File.ReadAllTextAsync(swapped == "the file" ? aside : Path.Combine(aside, "Alien.mkv"), cancellationToken));
         Assert.Equal("someone else's file", await File.ReadAllTextAsync(outsideFilm, cancellationToken));
         if (swapped == "the file")
@@ -802,9 +792,9 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
-                FileQuarantineStatus.OutsideAllowedRoots, null, $"“{path}” isn't inside the quarantine at the top of a media folder."),
-            deleted);
+            Refusal<FileFacts>(
+                FileQuarantineStatus.OutsideAllowedRoots, $"“{path}” isn't inside the quarantine at the top of a media folder."),
+            InEnglish(deleted));
         Assert.True(File.Exists(path));
     }
 
@@ -861,8 +851,8 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<IReadOnlyList<FolderFile>>(FileQuarantineStatus.OutsideAllowedRoots, null, $"“{film}” already lies in a quarantine."),
-            listed);
+            Refusal<IReadOnlyList<FolderFile>>(FileQuarantineStatus.OutsideAllowedRoots, $"“{film}” already lies in a quarantine."),
+            InEnglish(listed));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────────────────────
@@ -911,4 +901,12 @@ public sealed class LocalFileQuarantineLinuxTests : IDisposable
             return false;
         }
     }
+
+    /// <summary>MAM-47 — a result with its message in English: a refusal compares by the words a reader sees.</summary>
+    private static (FileQuarantineStatus Status, T? Value, string? Error) InEnglish<T>(FileQuarantineResult<T> result) where T : class =>
+        (result.Status, result.Value, TestTexts.En(result.Error));
+
+    /// <summary>MAM-47 — a refusal as <see cref="InEnglish{T}"/> gives it.</summary>
+    private static (FileQuarantineStatus Status, T? Value, string? Error) Refusal<T>(FileQuarantineStatus status, string error) where T : class =>
+        (status, null, error);
 }

@@ -28,7 +28,7 @@ public class UsersController(IUserAccountService accounts) : ControllerBase
         return result.Status switch
         {
             UserListStatus.Listed => Ok(result.List),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -44,8 +44,8 @@ public class UsersController(IUserAccountService accounts) : ControllerBase
         return result.Status switch
         {
             UserAccountStatus.Succeeded => CreatedAtAction(nameof(Get), new { id = result.User!.Id }, result.User),
-            UserAccountStatus.Invalid => this.BadRequestError(result.Error),
-            _ => this.ConflictError(result.Error),
+            UserAccountStatus.Invalid => this.BadRequestError(result.Error!),
+            _ => this.ConflictError(result.Error!),
         };
     }
 
@@ -59,7 +59,7 @@ public class UsersController(IUserAccountService accounts) : ControllerBase
         {
             UserAccountStatus.Succeeded => Ok(result.User),
             UserAccountStatus.NotFound => NotFound(),
-            _ => this.ConflictError(result.Error),
+            _ => this.ConflictError(result.Error!),
         };
     }
 
@@ -86,7 +86,7 @@ public class UsersController(IUserAccountService accounts) : ControllerBase
         {
             UserAccountStatus.Succeeded => NoContent(),
             UserAccountStatus.NotFound => NotFound(),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -98,7 +98,7 @@ public class UsersController(IUserAccountService accounts) : ControllerBase
         {
             UserAccountStatus.Succeeded => NoContent(),
             UserAccountStatus.NotFound => NotFound(),
-            _ => this.ConflictError(result.Error),
+            _ => this.ConflictError(result.Error!),
         };
     }
 

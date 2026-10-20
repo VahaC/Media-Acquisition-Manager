@@ -1,11 +1,12 @@
 using System.Text.RegularExpressions;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Recommendations;
 
 /// <summary>
 /// Which language a recommended work's description may be asked in: a two-letter language code, with a region when
-/// wanted (<c>en</c>, <c>uk-UA</c>) — the shape TMDb takes — and English when none is given. One readable sentence for a
-/// value refused, <c>null</c> for one accepted — the MAM-4 rules-class pattern.
+/// wanted (<c>en</c>, <c>uk-UA</c>) — the shape TMDb takes — and English when none is given. A message the Api renders
+/// (ADR 0042) for a value refused, <c>null</c> for one accepted — the MAM-4 rules-class pattern.
 /// </summary>
 public static partial class RecommendationOverviewRules
 {
@@ -16,10 +17,10 @@ public static partial class RecommendationOverviewRules
     private const int EchoLength = 32;
 
     /// <summary>
-    /// The sentence saying what is wrong with <paramref name="language"/>, or <c>null</c> with it, trimmed — English when
+    /// Why <paramref name="language"/> is refused, or <c>null</c> with it, trimmed — English when
     /// empty — in <paramref name="validLanguage"/>.
     /// </summary>
-    public static string? ValidateLanguage(string? language, out string? validLanguage)
+    public static Message? ValidateLanguage(string? language, out string? validLanguage)
     {
         var trimmed = language?.Trim() ?? "";
         if (trimmed.Length == 0)
@@ -32,7 +33,7 @@ public static partial class RecommendationOverviewRules
         {
             validLanguage = null;
             var echo = trimmed.Length <= EchoLength ? trimmed : string.Concat(trimmed.AsSpan(0, EchoLength), "…");
-            return $"“{echo}” is not a language code, which is two letters with a region when wanted, such as en or uk-UA.";
+            return Message.Of("recommendations.overview.language-invalid", ("value", echo));
         }
 
         validLanguage = trimmed;

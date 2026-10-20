@@ -140,7 +140,7 @@ public sealed class PersonalAccessTokenConventionHttpTests : IClassFixture<Pipel
         //Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(ReadOnlyError, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal((ReadOnlyError, "account.token.read-only"), await response.ReadErrorBodyAsync(cancellationToken));
         await AssertOneRefusalOfAsync(_readOnly, cancellationToken);
     }
 

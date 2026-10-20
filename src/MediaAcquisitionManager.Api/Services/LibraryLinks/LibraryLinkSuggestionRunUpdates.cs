@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
@@ -17,17 +18,16 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 public static class LibraryLinkSuggestionRunUpdates
 {
     /// <summary>
-    /// Marks every run of <paramref name="runs"/> failed at <paramref name="finishedUtc"/> with <paramref name="error"/>,
-    /// cut to fit its column; how many runs it marked.
+    /// Marks every run of <paramref name="runs"/> failed at <paramref name="finishedUtc"/> with <paramref name="error"/>;
+    /// how many runs it marked.
     /// </summary>
-    public static Task<int> MarkFailedAsync(this IQueryable<LibraryLinkSuggestionRunEntity> runs, string error, DateTime finishedUtc)
-    {
-        var storedError = FileInspectionRunUpdates.Cut(error, LibraryLinkSuggestionRunEntity.ErrorMaximumLength);
-        return runs.ExecuteUpdateAsync(
+    /// <remarks>MAM-47 (ADR 0042) — stored as key and values, fitted into the column by its converter, so no sentence
+    /// is cut here.</remarks>
+    public static Task<int> MarkFailedAsync(this IQueryable<LibraryLinkSuggestionRunEntity> runs, Message error, DateTime finishedUtc) =>
+        runs.ExecuteUpdateAsync(
             setters => setters
                 .SetProperty(run => run.Status, LibraryLinkSuggestionRunStatus.Failed)
                 .SetProperty(run => run.FinishedUtc, finishedUtc)
-                .SetProperty(run => run.Error, storedError),
+                .SetProperty(run => run.Error, error),
             CancellationToken.None);
-    }
 }

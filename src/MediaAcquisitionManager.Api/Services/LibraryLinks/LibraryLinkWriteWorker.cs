@@ -1,9 +1,8 @@
 using System.Collections.Concurrent;
 using MediaAcquisitionManager.Api.Services.Audit;
-using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Abstractions.Library;
-using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -60,9 +59,9 @@ public sealed class LibraryLinkWriteWorker(
     /// </summary>
     internal const int BatchStopAfterNotConfirmed = 2;
 
-    /// <summary>What a link a stopped batch never sent gets as its error.</summary>
-    internal const string BatchStoppedError =
-        "The app stopped this batch after Jellyfin failed to confirm two identifications in a row, and sent nothing for this item. Check Jellyfin, then Retry, or press Update Jellyfin again.";
+    /// <summary>What a link a stopped batch never sent gets as its error. Its "two" is <see cref="BatchStopAfterNotConfirmed"/>,
+    /// a word of the template (a constant, never a value), as a translation spells it in its own words.</summary>
+    internal static readonly Message BatchStoppedError = Message.Of("library-links.write.batch-stopped");
 
     private readonly object _gate = new();
 
@@ -422,7 +421,7 @@ public sealed class LibraryLinkWriteWorker(
                 .ExecuteUpdateAsync(
                     setters => setters
                         .SetProperty(link => link.WriteState, LibraryLinkWriteState.NotWritten)
-                        .SetProperty(link => link.WriteError, FileInspectionRunUpdates.Cut(LibraryLinkWriter.AppErrorMessage, LibraryItemLinkEntity.ErrorMaximumLength))
+                        .SetProperty(link => link.WriteError, LibraryLinkWriter.AppErrorMessage)
                         .SetProperty(link => link.WriteStateUtc, time.GetUtcNow().UtcDateTime),
                     CancellationToken.None);
         }

@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Downloads;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Downloads;
 
@@ -42,7 +43,7 @@ public sealed class DownloadRulesTests
         var error = DownloadRules.Validate(requestId, releaseId, clientId, destinationId);
 
         //Assert
-        Assert.True(expected == error, $"{label}: {error}");
+        Assert.True(expected == TestTexts.En(error), $"{label}: {TestTexts.En(error)}");
     }
 
     [Theory]
@@ -58,7 +59,7 @@ public sealed class DownloadRulesTests
         var error = DownloadRules.ValidateReleaseId(id);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     // MAM-38 — the destination the Download dialog asks about before Send.
@@ -75,6 +76,6 @@ public sealed class DownloadRulesTests
         var error = DownloadRules.ValidateDestinationId(id);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 }

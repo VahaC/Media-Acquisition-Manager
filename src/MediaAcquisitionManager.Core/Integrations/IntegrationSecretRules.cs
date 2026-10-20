@@ -1,8 +1,11 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Core.Integrations;
 
 /// <summary>
 /// What a new integration secret may be — a value being set, never one already stored (MAM-7). Each
-/// rule answers one readable sentence, or <c>null</c> when the value is acceptable.
+/// rule answers why a value is refused, as a message the Api renders (ADR 0042), or <c>null</c> when the value is
+/// acceptable.
 /// </summary>
 public static class IntegrationSecretRules
 {
@@ -16,20 +19,23 @@ public static class IntegrationSecretRules
     /// </summary>
     public const int ApiKeyMinimumLength = 8;
 
-    private const string ApiKeyBlankError = "A new API key can't be blank.";
-    private const string ApiKeyTooShortError = "An API key must be at least 8 characters long.";
-    private const string ApiKeyTooLongError = "An API key can be at most 256 characters long.";
-    private const string ApiKeyCharactersError = "An API key can contain only visible characters, without spaces, quotes or backslashes.";
-    private const string PasswordBlankError = "A new password can't be blank.";
-    private const string PasswordTooLongError = "A password can be at most 256 characters long.";
-    private const string PasswordControlCharacterError = "A password can't contain line breaks or other control characters.";
+    private static readonly Message ApiKeyBlankError = Message.Of("integrations.secret.api-key-blank");
+    private static readonly Message ApiKeyTooShortError =
+        Message.Of("integrations.secret.api-key-too-short", ("count", ApiKeyMinimumLength));
+    private static readonly Message ApiKeyTooLongError = Message.Of("integrations.secret.api-key-too-long", ("count", MaximumLength));
+    private static readonly Message ApiKeyCharactersError = Message.Of("integrations.secret.api-key-characters");
+    private static readonly Message PasswordBlankError = Message.Of("integrations.secret.password-blank");
+
+    // MAM-47 — the account password's words with this rule's bound: one wording is one key (the converter's round trip).
+    private static readonly Message PasswordTooLongError = Message.Of("account.password.too-long", ("count", MaximumLength));
+    private static readonly Message PasswordControlCharacterError = Message.Of("integrations.secret.password-control-characters");
 
     /// <summary>
-    /// The sentence saying what is wrong with <paramref name="apiKey"/>, or <c>null</c>. Surrounding
+    /// Why <paramref name="apiKey"/> is refused, or <c>null</c>. Surrounding
     /// whitespace is ignored — a key is pasted, and a pasted line break is never part of it — and
     /// whoever stores the key stores it trimmed.
     /// </summary>
-    public static string? ValidateNewApiKey(string? apiKey)
+    public static Message? ValidateNewApiKey(string? apiKey)
     {
         var trimmed = apiKey?.Trim() ?? "";
         if (trimmed.Length == 0)
@@ -46,11 +52,11 @@ public static class IntegrationSecretRules
     }
 
     /// <summary>
-    /// The sentence saying what is wrong with <paramref name="password"/>, or <c>null</c>. Never
+    /// Why <paramref name="password"/> is refused, or <c>null</c>. Never
     /// trimmed: every character of a password counts, spaces included (the
     /// <see cref="Accounts.PasswordRules"/> stance).
     /// </summary>
-    public static string? ValidateNewPassword(string? password)
+    public static Message? ValidateNewPassword(string? password)
     {
         if (string.IsNullOrEmpty(password))
             return PasswordBlankError;

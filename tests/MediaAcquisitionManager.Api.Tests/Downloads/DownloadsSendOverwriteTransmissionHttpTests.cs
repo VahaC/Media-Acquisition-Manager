@@ -12,6 +12,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Downloads;
@@ -302,7 +303,7 @@ public sealed class DownloadsSendOverwriteTransmissionHttpTests : IClassFixture<
         Assert.Equal((DownloadJobStatus.Failed, (string?)error), (job.Status, job.Error));
         DownloadJobEntity? row = null;
         await _factory.WithDbAsync(async db => row = await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken));
-        Assert.Equal((DownloadJobStatus.Failed, (string?)error, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App), (row!.Status, row.Error, row.ErrorOrigin));
+        Assert.Equal((DownloadJobStatus.Failed, (string?)error, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App), (row!.Status, TestTexts.En(row.Error), row.ErrorOrigin));
         Assert.Empty(_transmission.AddRequests);
         Assert.Empty(_transmission.Writes);
     }

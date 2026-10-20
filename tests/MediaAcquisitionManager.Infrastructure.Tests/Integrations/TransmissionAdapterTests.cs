@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -84,7 +85,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to Transmission 4.1.3.", result.Message);
+        Assert.Equal("Connected to Transmission 4.1.3.", TestTexts.En(result.Message));
         Assert.Collection(
             _harness.TransmissionHttp.Requests,
             handshake =>
@@ -122,7 +123,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to Transmission 4.0.6.", result.Message);
+        Assert.Equal("Connected to Transmission 4.0.6.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -136,7 +137,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
-        Assert.Equal("This is Transmission 3.00; the app needs Transmission 4.0 or newer. Update Transmission, then test again.", result.Message);
+        Assert.Equal("This is Transmission 3.00; the app needs Transmission 4.0 or newer. Update Transmission, then test again.", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -168,7 +169,7 @@ public sealed class TransmissionAdapterTests : IDisposable
             connects
                 ? "Connected to Transmission 4.9.9."
                 : "This is Transmission 4.9.9; the app needs Transmission 4.0 or newer. Update Transmission, then test again.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -187,7 +188,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         var result = await Adapter.TestConnectionAsync(SignedIn, TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal($"Connected to Transmission {shown}.", result.Message);
+        Assert.Equal($"Connected to Transmission {shown}.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -201,7 +202,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to Transmission 4.1.3.", result.Message);
+        Assert.Equal("Connected to Transmission 4.1.3.", TestTexts.En(result.Message));
         Assert.All(_harness.TransmissionHttp.Requests, request => Assert.Empty(request.HeaderValues("Authorization")));
     }
 
@@ -233,7 +234,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         //Assert
         // Transmission checks the credentials before the session id: the 401 comes first, and nothing was read.
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("Transmission refused the user name or password.", result.Message);
+        Assert.Equal("Transmission refused the user name or password.", TestTexts.En(result.Message));
         Assert.Single(_harness.TransmissionHttp.Requests);
         Assert.Empty(_transmission.Calls);
     }
@@ -249,7 +250,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("Transmission refused the user name or password.", result.Message);
+        Assert.Equal("Transmission refused the user name or password.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -262,7 +263,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("Transmission asks for a user name and password. Enter them under Integrations.", result.Message);
+        Assert.Equal("Transmission asks for a user name and password. Enter them under Integrations.", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -284,7 +285,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
         Assert.Equal(
             "Transmission refused this app (403 Forbidden): this app's address isn't on its RPC whitelist (WHITELIST in the linuxserver image, rpc-whitelist in its settings), or it locked its RPC after too many wrong passwords, which only a restart of Transmission ends.",
-            result.Message);
+            TestTexts.En(result.Message));
         Assert.Single(_harness.TransmissionHttp.Requests);
     }
 
@@ -302,7 +303,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
         Assert.Equal(
             "Transmission doesn't accept the host name in this address (421 Misdirected Request); it checks host names only while it has no password. Give Transmission a user name and password (USER and PASS in the linuxserver image), add the host name to its rpc-host-whitelist (HOST_WHITELIST), or use its IP address, then test again.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -318,7 +319,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "Transmission's RPC wasn't found at this address (404 Not Found). Use the address of Transmission's web interface, such as http://192.168.1.10:9091.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -335,7 +336,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to http://transmission.test:9091/transmission/web/. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Message);
+            TestTexts.En(result.Message));
         Assert.Single(_harness.TransmissionHttp.Requests);
     }
 
@@ -385,7 +386,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
         Assert.Equal(
             "Transmission keeps unfinished downloads in its temporary folder “/downloads/incomplete”, where the app can't follow them. In Transmission's web interface open Edit preferences, Torrents, untick “Use temporary folder”, then test again.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -400,7 +401,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTransmissionError, result.Message);
+        Assert.Equal(NotTransmissionError, TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -442,7 +443,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTransmissionError, result.Message);
+        Assert.Equal(NotTransmissionError, TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -456,7 +457,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal("Transmission refused the request: no method name.", result.Message);
+        Assert.Equal("Transmission refused the request: no method name.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -474,7 +475,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(SessionIdRefusedError, result.Message);
+        Assert.Equal(SessionIdRefusedError, TestTexts.En(result.Message));
         Assert.Equal(2, _harness.TransmissionHttp.Requests.Count);
     }
 
@@ -500,7 +501,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(SessionIdRefusedError, result.Message);
+        Assert.Equal(SessionIdRefusedError, TestTexts.En(result.Message));
         Assert.Single(_harness.TransmissionHttp.Requests);
     }
 
@@ -519,7 +520,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         var result = await Adapter.TestConnectionAsync(SignedIn, TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal(SessionIdRefusedError, result.Message);
+        Assert.Equal(SessionIdRefusedError, TestTexts.En(result.Message));
         Assert.Single(_harness.TransmissionHttp.Requests);
     }
 
@@ -537,7 +538,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to Transmission 4.1.3.", result.Message);
+        Assert.Equal("Connected to Transmission 4.1.3.", TestTexts.En(result.Message));
         Assert.Equal([TransmissionSamples.RedactedSessionId], _harness.TransmissionHttp.Requests[1].HeaderValues(FakeTransmissionServer.SessionIdHeader));
     }
 
@@ -554,7 +555,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to Transmission 4.0.6.", result.Message);
+        Assert.Equal("Connected to Transmission 4.0.6.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -570,7 +571,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Unreachable, result.Status);
         Assert.Equal(
             "Couldn't reach Transmission at http://transmission.test:9091: nothing accepted the connection. Check the address and port, and that Transmission is running.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -584,7 +585,7 @@ public sealed class TransmissionAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
-        Assert.Equal("Transmission answered 503 Service Unavailable. Its own log says why.", result.Message);
+        Assert.Equal("Transmission answered 503 Service Unavailable. Its own log says why.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -604,7 +605,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to http://transmission.test:9091/x/***/***/***/. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -617,7 +618,7 @@ public sealed class TransmissionAdapterTests : IDisposable
         var result = await Adapter.TestConnectionAsync(SignedIn, TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal("Transmission refused the request: bad password ***.", result.Message);
+        Assert.Equal("Transmission refused the request: bad password ***.", TestTexts.En(result.Message));
     }
 
     /// <summary>Has the server answer <c>session-get</c> with <paramref name="arguments"/> and <c>success</c>.</summary>

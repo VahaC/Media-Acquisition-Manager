@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -22,7 +23,7 @@ public sealed class LibrarySyncStartHttpTests : IClassFixture<MediaAcquisitionMa
 {
     private const string BaseUrl = "/api/library";
     private const string ApiKey = "0123456789abcdef0123456789abcdef";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
     private const string QueueFullError = "Too many library syncs are waiting. Try again in a minute.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
@@ -314,7 +315,7 @@ public sealed class LibrarySyncStartHttpTests : IClassFixture<MediaAcquisitionMa
         {
             // Failed, not left queued: a queued run no worker will take would block every later start.
             var row = await db.LibrarySyncRuns.SingleAsync(cancellationToken);
-            Assert.Equal((LibrarySyncStatus.Failed, QueueFullError, now), (row.Status, row.Error, row.FinishedUtc));
+            Assert.Equal((LibrarySyncStatus.Failed, QueueFullError, now), (row.Status, TestTexts.En(row.Error), row.FinishedUtc));
         });
         var warning = Assert.Single(_factory.Logs.Entries, entry => entry.Category == typeof(LibrarySyncQueue).FullName);
         Assert.Equal(LogLevel.Warning, warning.Level);

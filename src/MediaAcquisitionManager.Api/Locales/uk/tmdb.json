@@ -1,0 +1,18 @@
+{
+  "connected": "Підключено до сервісу TMDb.",
+  "key-refused": "Сервіс TMDb відхилив ключ (401 Unauthorized). Введіть токен «API Read Access Token» із themoviedb.org → Settings → API, а не коротший ключ «API Key».",
+  "not-tmdb": "Сервіс за цією адресою відповів, але не так, як відповідає API TMDb. Перевірте адресу: адреса API TMDb — https://api.themoviedb.org.",
+  "api-not-found": "API TMDb за цією адресою не знайдено (404 Not Found). Введіть адресу https://api.themoviedb.org.",
+  "too-many-requests": "Сервіс TMDb просить застосунок надсилати запити рідше (429 Too Many Requests) і просив про це навіть після трьох повторних спроб. Спробуйте ще раз за хвилину.",
+  "not-found": {
+    "movie": "У TMDb немає фільму з ID {{id}}.",
+    "show": "У TMDb немає серіалу з ID {{id}}.",
+    "episode": "У TMDb немає серії {{episode}} сезону {{season}} серіалу з ID {{show}}.",
+    "collection": "У TMDb немає колекції з ID {{id}}.",
+    "person": "У TMDb немає особи з ID {{id}}."
+  },
+  "poster": {
+    "not-an-image": "На запит постера сервер зображень TMDb надіслав щось інше, ніж зображення JPEG або PNG.",
+    "none": "На сервері зображень TMDb немає постера за шляхом {{path}}."
+  }
+}

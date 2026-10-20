@@ -1,0 +1,14 @@
+{
+  "summary": {
+    "owner-read-and-download": "You act as {{user}} (the installation owner) with the Read and download token “{{token}}”, on MAM {{version}}; {{sources, message}}, {{failing, message}}.",
+    "owner-read-only": "You act as {{user}} (the installation owner) with the Read only token “{{token}}”, on MAM {{version}}; {{sources, message}}, {{failing, message}}.",
+    "member-read-and-download": "You act as {{user}} (a member) with the Read and download token “{{token}}”, on MAM {{version}}; {{sources, message}}, {{failing, message}}.",
+    "member-read-only": "You act as {{user}} (a member) with the Read only token “{{token}}”, on MAM {{version}}; {{sources, message}}, {{failing, message}}."
+  },
+  "tally": {
+    "library-sources_one": "{{count, number}} library source",
+    "library-sources_other": "{{count, number}} library sources",
+    "release-sources-failing_one": "{{count, number}} release source failing",
+    "release-sources-failing_other": "{{count, number}} release sources failing"
+  }
+}

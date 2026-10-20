@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,12 +36,13 @@ public sealed partial class FolderScanRunner(
     /// </summary>
     internal const int ProgressInterval = 50;
 
-    internal const string NoAllowedRootsError =
-        "No media folders are allowed any more, so there was nothing to scan. Add one under Media folders in the user menu.";
+    internal static readonly Message NoAllowedRootsError = Message.Of("files.scan.no-allowed-roots-any-more");
 
-    internal const string LimitReachedError = "The scan reached its limit before it had walked every media folder, so it stopped.";
+    // The two below stand in where the file inventory gave no reason of its own; the inventory's, when it gives one,
+    // says more (the limits, or the place and why).
+    internal static readonly Message LimitReachedError = Message.Of("files.scan.limit-reached");
 
-    internal const string UnscannedPlaceError = "The app didn't scan a place in the media folders.";
+    internal static readonly Message UnscannedPlaceError = Message.Of("files.scan.unscanned-place");
 
     public async Task RunAsync(Guid runId, CancellationToken cancellationToken = default)
     {

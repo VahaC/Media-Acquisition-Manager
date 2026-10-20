@@ -1,0 +1,63 @@
+{
+  "quoted": "«{{text}}»",
+  "list": {
+    "separator": ", ",
+    "and": " і ",
+    "or": " або "
+  },
+  "size": {
+    "mib_one": "{{count, number}} МіБ",
+    "mib_few": "{{count, number}} МіБ",
+    "mib_many": "{{count, number}} МіБ",
+    "mib_other": "{{count, number}} МіБ",
+    "kib_one": "{{count, number}} КіБ",
+    "kib_few": "{{count, number}} КіБ",
+    "kib_many": "{{count, number}} КіБ",
+    "kib_other": "{{count, number}} КіБ",
+    "bytes_one": "{{count, number}} Б",
+    "bytes_few": "{{count, number}} Б",
+    "bytes_many": "{{count, number}} Б",
+    "bytes_other": "{{count, number}} Б"
+  },
+  "legacy-text": "{{text}}",
+  "message-unavailable": "Це повідомлення записала інша версія застосунку, тож тут його не можна показати ({{key}}).",
+  "request": {
+    "unknown-endpoint": "Жодна кінцева точка API не відповідає запиту {{method}} {{path}}.",
+    "too-large": "Тіло запиту більше, ніж може прийняти цей сервер.",
+    "unreadable": "Серверу не вдалося прочитати цей запит."
+  },
+  "server": {
+    "failed": "Серверу не вдалося обробити цей запит. Повідомляючи про це, вкажіть ID трасування {{traceId}}."
+  },
+  "health": {
+    "database-ready": "База даних доступна, і всі міграції застосовано.",
+    "database-cannot-open": "Не вдається відкрити базу даних.",
+    "pending-migrations_one": "У базі даних не застосовано {{count, number}} міграцію.",
+    "pending-migrations_few": "У базі даних не застосовано {{count, number}} міграції.",
+    "pending-migrations_many": "У базі даних не застосовано {{count, number}} міграцій.",
+    "pending-migrations_other": "У базі даних не застосовано {{count, number}} міграції.",
+    "check-threw": "Перевірку «{{name}}» не пройдено; подробиці — в журналі сервера."
+  },
+  "paging": {
+    "page-invalid": "Номер сторінки має бути 1 або більше.",
+    "page-size-invalid": "Розмір сторінки має бути від 1 до 100."
+  },
+  "edition": {
+    "theatrical": "Кінотеатральна версія",
+    "directors-cut": "Режисерська версія",
+    "extended": "Розширена версія",
+    "unrated": "Без цензури",
+    "uncut": "Без купюр",
+    "remastered": "Ремастер",
+    "special-edition": "Спеціальне видання",
+    "imax": "IMAX",
+    "open-matte": "Open Matte",
+    "final-cut": "Остаточна версія",
+    "redux": "Redux",
+    "international": "Міжнародна версія",
+    "alternate": "Альтернативна версія",
+    "assembly": "Робоча версія",
+    "widescreen": "Широкоекранна",
+    "full-screen": "Повноекранна"
+  }
+}

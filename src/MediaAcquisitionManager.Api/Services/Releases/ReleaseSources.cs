@@ -6,6 +6,8 @@ using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Search;
+using MediaAcquisitionManager.Core.Texts;
+using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,7 +53,9 @@ public sealed class ReleaseSources(
             searchable => kind == ReleaseKind.Tv
                 ? [ReleaseSearchPlanning.ForTv(text, null, [], searchable)]
                 : [ReleaseSearchPlanning.For(text, year, [], searchable)],
-            name => NoUsableKindSearchError(name, kind),
+            // MAM-47 — no sentence: the recommendations keep only the sources they asked (RecommendationSourceFailures), so a
+            // source this search couldn't use reads to nobody, and its sentence was dead (design §10.1).
+            _ => null,
             cancellationToken);
     }
 
@@ -59,31 +63,21 @@ public sealed class ReleaseSources(
         AskEachSourceAsync(
             // One query, one tier: the newest releases are a listing, not a search a later tier could widen.
             searchable => ReleaseSearchPlanning.ForLatest(movies, tv, searchable) is { } latest ? [[latest]] : [],
-            NoLatestError,
+            // MAM-47 — no sentence, as for a search of one kind: the feed logs why, and nobody reads it.
+            _ => null,
             cancellationToken);
 
     /// <summary>The sentence for a source whose type this build can't search through (ADR 0005).</summary>
-    internal static string TypeUnavailableError(string adapterType) =>
-        $"This version of the app can't search releases through “{adapterType}”.";
+    internal static Message TypeUnavailableError(string adapterType) => Message.Of("releases.source.type-unavailable", ("type", adapterType));
 
     /// <summary>
     /// The sentence for a source <c>ReleaseSearchPlanning</c> makes no query for. MAM-32 — the movie and the
     /// TV searches both; a season is searched for in TV alone, so for one it says why TV can't be.
     /// </summary>
-    internal static string NoUsableSearchError(string name, int? season) =>
+    internal static Message NoUsableSearchError(string name, int? season) =>
         season is null
-            ? $"“{name}” offers no search this app can use: no search by text, and no movie or TV search by title or by an id that was asked for."
-            : $"“{name}” offers no search this app can use for a season: no TV category, or neither a search by text nor a TV search by title or by an id that was asked for.";
-
-    /// <summary>MAM-33 — the sentence for a source that has no search of one kind of work.</summary>
-    internal static string NoUsableKindSearchError(string name, ReleaseKind kind) =>
-        kind == ReleaseKind.Tv
-            ? $"“{name}” offers no TV search this app can use: no TV category, or neither a search by text nor a TV search by title."
-            : $"“{name}” offers no movie search this app can use: no search by text, and no movie search by title.";
-
-    /// <summary>MAM-33 — the sentence for a source that can't list its newest releases.</summary>
-    internal static string NoLatestError(string name) =>
-        $"“{name}” can't list its newest releases for this app: no search by text, or none of the categories asked for.";
+            ? Message.Of("releases.source.no-usable-search", ("source", name))
+            : Message.Of("releases.source.no-usable-season-search", ("source", name));
 
     /// <summary>
     /// Asks every enabled source, concurrently, the query families <paramref name="plan"/> makes from what each can
@@ -92,11 +86,12 @@ public sealed class ReleaseSources(
     /// </summary>
     /// <param name="plan">The families of tiers to send a source, from its capabilities; none at all, or only empty
     /// ones, means the source offers nothing this search can use.</param>
-    /// <param name="noUsableSearchError">The sentence for such a source, from its name.</param>
+    /// <param name="noUsableSearchError">The sentence for such a source, from its name; <c>null</c> when no reader is shown
+    /// one.</param>
     /// <param name="cancellationToken">The caller's cancellation.</param>
     private async Task<IReadOnlyList<ReleaseSourceOutcome>> AskEachSourceAsync(
         Func<ReleaseSearchCapabilities, IReadOnlyList<IReadOnlyList<ReleaseSearchQuery>>> plan,
-        Func<string, string> noUsableSearchError,
+        Func<string, Message?> noUsableSearchError,
         CancellationToken cancellationToken)
     {
         // Every database read happens before the sources are asked: the context is not safe to share
@@ -122,7 +117,7 @@ public sealed class ReleaseSources(
     private async Task<ReleaseSourceOutcome> SearchSourceAsync(
         IntegrationConnectionEntity integration,
         Func<ReleaseSearchCapabilities, IReadOnlyList<IReadOnlyList<ReleaseSearchQuery>>> plan,
-        Func<string, string> noUsableSearchError,
+        Func<string, Message?> noUsableSearchError,
         CancellationToken cancellationToken)
     {
         // Every source starts on its own: one whose call runs synchronously up to its first wait (a fake, an
@@ -196,11 +191,11 @@ public sealed class ReleaseSources(
                 exception.GetType().FullName,
                 exception.StackTrace);
             return Failed(
-                integration, IntegrationCallStatus.UnexpectedResponse, $"The app couldn't read what “{integration.Name}” answered.", settings);
+                integration, IntegrationCallStatus.UnexpectedResponse, IntegrationAdapterMessages.UnreadableAnswer(integration.Name), settings);
         }
     }
 
-    private ReleaseSourceOutcome NotSearched(IntegrationConnectionEntity integration, ReleaseSourceNotSearchedReason reason, string error)
+    private ReleaseSourceOutcome NotSearched(IntegrationConnectionEntity integration, ReleaseSourceNotSearchedReason reason, Message? error)
     {
         logger.LogInformation(
             "Release search of integration {IntegrationId} ({AdapterType}) did not ask it: {Reason}.",
@@ -211,7 +206,7 @@ public sealed class ReleaseSources(
     }
 
     private ReleaseSourceOutcome Failed(
-        IntegrationConnectionEntity integration, IntegrationCallStatus status, string error, IntegrationConnectionSettings settings)
+        IntegrationConnectionEntity integration, IntegrationCallStatus status, Message error, IntegrationConnectionSettings settings)
     {
         // Information: the status only — never the address or the sentence (the connection test's rule).
         logger.LogInformation(
@@ -222,6 +217,6 @@ public sealed class ReleaseSources(
         // Masked again after the adapter (ADR 0007's second pass), which also covers an adapter that
         // isn't HTTP.
         return new ReleaseSourceOutcome(
-            integration.Id, integration.Name, status, null, SecretRedaction.Redact(error, settings.Secrets), [], []);
+            integration.Id, integration.Name, status, null, error.Redacted(settings.Secrets), [], []);
     }
 }

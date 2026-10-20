@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Downloads;
 
@@ -31,12 +32,11 @@ namespace MediaAcquisitionManager.Core.Downloads;
 /// </remarks>
 public static class DestinationPathCheck
 {
-    private const string Consequence = "so automatic replacement stays off for this destination";
+    // MAM-47 — "…, so automatic replacement stays off for this destination." is part of each whole-sentence key; the
+    // mapper's own message joins it as a clause (destinations.path.path-unknown-consequence), not by cutting its full stop.
+    private static readonly Message ServicePathUnknownError = Message.Of("destinations.path.save-folder-unknown");
 
-    private const string ServicePathUnknownError = "The client doesn't say which folder this category saves to, " + Consequence + ".";
-
-    private const string LibrariesUnknownError =
-        "The app doesn't know the media library folders yet. Sync a library from the Library page, then look again.";
+    private static readonly Message LibrariesUnknownError = Message.Of("destinations.path.libraries-unknown");
 
     /// <summary>
     /// Checks the destination the client knows as <paramref name="clientDestinationKey"/> among
@@ -52,7 +52,7 @@ public static class DestinationPathCheck
     /// <param name="libraryFolders">The media library folders, already inside the app.</param>
     /// <param name="kind">MAM-30 — what the client's destinations are: a category is found by its exact name, a folder
     /// by <see cref="NormalizedPath.IsSameAs"/>.</param>
-    /// <param name="clientName">MAM-30 — the client's name, for the sentence of a folder it didn't list; "the client"
+    /// <param name="clientName">MAM-30 — the client's name, for the message of a folder it didn't list; "the client"
     /// when not given.</param>
     public static DestinationPathCheckResult Check(
         string clientDestinationKey,
@@ -70,14 +70,14 @@ public static class DestinationPathCheck
         var destination = clientDestinations.FirstOrDefault(candidate => string.Equals(candidate.Key, clientDestinationKey, StringComparison.Ordinal));
         return destination is null
             ? new DestinationPathCheckResult(
-                DestinationPathStatus.CategoryMissing, null, null, [], $"The client has no category “{clientDestinationKey}” any more.")
+                DestinationPathStatus.CategoryMissing, null, null, [], Message.Of("destinations.path.category-missing", ("category", clientDestinationKey)))
             : Check(destination, clientPathMappings, libraryFolders);
     }
 
     /// <summary>
     /// Checks one of the client's destinations, as a picker lists them: where it saves, through the
     /// client's path mappings, against the media library folders. MAM-30 — one the client says it can't use
-    /// (<see cref="ClientDestination.Problem"/>) is <see cref="DestinationPathStatus.FolderNotSeen"/> with that sentence.
+    /// (<see cref="ClientDestination.Problem"/>) is <see cref="DestinationPathStatus.FolderNotSeen"/> with that message.
     /// </summary>
     /// <param name="destination">One destination the client listed.</param>
     /// <param name="clientPathMappings">The client integration's path mappings.</param>
@@ -97,7 +97,14 @@ public static class DestinationPathCheck
 
         var mapped = PathMapper.Map(destination.ServicePath, clientPathMappings);
         if (mapped.AppPath is null)
-            return new DestinationPathCheckResult(DestinationPathStatus.PathUnknown, destination.ServicePath, null, [], WithConsequence(mapped.Reason!));
+        {
+            return new DestinationPathCheckResult(
+                DestinationPathStatus.PathUnknown,
+                destination.ServicePath,
+                null,
+                [],
+                Message.Of("destinations.path.path-unknown-consequence", ("reason", mapped.Reason!)));
+        }
 
         // Before the folders are compared: with none stored yet, "outside every library" would be a
         // claim about libraries the app has never read.
@@ -112,7 +119,7 @@ public static class DestinationPathCheck
                 destination.ServicePath,
                 mapped.AppPath,
                 [],
-                $"“{mapped.AppPath}” is outside every media library folder, {Consequence}.");
+                Message.Of("destinations.path.outside-libraries", ("path", mapped.AppPath)));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -130,7 +137,8 @@ public static class DestinationPathCheck
         IReadOnlyList<LibraryFolder> libraryFolders,
         string? clientName)
     {
-        var client = clientName is null ? "the client" : $"“{clientName}”";
+        // MAM-47 — a key per shape rather than "the client" filled into the frame: the words around a name and around
+        // "the client" differ in Ukrainian.
         if (!NormalizedPath.TryParse(clientDestinationKey, out var folder, out _))
         {
             return new DestinationPathCheckResult(
@@ -138,7 +146,9 @@ public static class DestinationPathCheck
                 null,
                 null,
                 [],
-                $"The app can't use the folder “{clientDestinationKey}” of this destination: it isn't a full path in {client}.");
+                clientName is null
+                    ? Message.Of("destinations.path.folder-not-full-path", ("folder", clientDestinationKey))
+                    : Message.Of("destinations.path.folder-not-full-path-named", ("folder", clientDestinationKey), ("client", clientName)));
         }
 
         // A listed key that doesn't parse names no folder, so it never matches one.
@@ -149,7 +159,9 @@ public static class DestinationPathCheck
                 folder.ToString(),
                 clientPathMappings,
                 libraryFolders,
-                $"The app can't use the folder “{clientDestinationKey}” of this destination: {client} didn't list it.")
+                clientName is null
+                    ? Message.Of("destinations.path.folder-not-listed", ("folder", clientDestinationKey))
+                    : Message.Of("destinations.path.folder-not-listed-named", ("folder", clientDestinationKey), ("client", clientName)))
             : Check(destination, clientPathMappings, libraryFolders);
     }
 
@@ -158,7 +170,7 @@ public static class DestinationPathCheck
     /// the owner to tell which one it is, but never an app path (D5).
     /// </summary>
     private static DestinationPathCheckResult NotSeen(
-        string? servicePath, IReadOnlyList<PathMappingPair> clientPathMappings, IReadOnlyList<LibraryFolder> libraryFolders, string problem)
+        string? servicePath, IReadOnlyList<PathMappingPair> clientPathMappings, IReadOnlyList<LibraryFolder> libraryFolders, Message problem)
     {
         var libraryNames = !string.IsNullOrWhiteSpace(servicePath) && PathMapper.Map(servicePath, clientPathMappings) is { AppPath: { } appPath }
             ? LibrariesHolding(appPath, libraryFolders)
@@ -185,7 +197,4 @@ public static class DestinationPathCheck
 
         return libraryNames.AsReadOnly();
     }
-
-    // The mapper's sentence and what follows from it, as one sentence.
-    private static string WithConsequence(string reason) => $"{(reason.EndsWith('.') ? reason[..^1] : reason)}, {Consequence}.";
 }

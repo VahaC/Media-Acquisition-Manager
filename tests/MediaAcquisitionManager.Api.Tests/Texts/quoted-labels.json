@@ -1,0 +1,87 @@
+[
+  {
+    "text": "Панель керування",
+    "kind": "vendor",
+    "vendor": "Jellyfin",
+    "version": "v12.2",
+    "source": "jellyfin/jellyfin-web src/strings/uk.json, key TabDashboard (\"Dashboard\")"
+  },
+  {
+    "text": "API-ключі",
+    "kind": "vendor",
+    "vendor": "Jellyfin",
+    "version": "v12.2",
+    "source": "jellyfin/jellyfin-web src/strings/uk.json, key HeaderApiKeys (\"API Keys\")"
+  },
+  {
+    "text": "WebUI",
+    "kind": "vendor",
+    "vendor": "qBittorrent",
+    "version": "release-5.2.4",
+    "source": "qbittorrent/qBittorrent src/webui/www/translations/webui_uk.ts, context OptionsDialog, source \"WebUI\" (the translation keeps it)"
+  },
+  {
+    "text": "Edit preferences",
+    "kind": "vendor",
+    "vendor": "Transmission",
+    "version": "4.1.3",
+    "source": "transmission/transmission web/src/action-manager.js, text: 'Edit preferences' (line 70)"
+  },
+  {
+    "text": "Torrents",
+    "kind": "vendor",
+    "vendor": "Transmission",
+    "version": "4.1.3",
+    "source": "transmission/transmission web/src/prefs-dialog.js, ['prefs-tab-torrent', …, 'Torrents'] (line 773)"
+  },
+  {
+    "text": "Use temporary folder",
+    "kind": "vendor",
+    "vendor": "Transmission",
+    "version": "4.1.3",
+    "source": "transmission/transmission web/src/prefs-dialog.js, 'Use temporary folder:' (line 279)"
+  },
+  {
+    "text": "Download to",
+    "kind": "vendor",
+    "vendor": "Transmission",
+    "version": "4.1.3",
+    "source": "transmission/transmission web/src/prefs-dialog.js, label.textContent = 'Download to:' (line 266)"
+  },
+  {
+    "text": "Copy Torznab Feed",
+    "kind": "vendor",
+    "vendor": "Jackett",
+    "version": "v0.24.2875",
+    "source": "Jackett/Jackett src/Jackett.Common/Content/index.html, indexer-button-copy button text (line 352)"
+  },
+  {
+    "text": "API Read Access Token",
+    "kind": "vendor",
+    "vendor": "TMDb",
+    "version": "website (read 2026-10-19)",
+    "source": "https://developer.themoviedb.org/docs/authentication-application"
+  },
+  {
+    "text": "API Key",
+    "kind": "vendor",
+    "vendor": "TMDb",
+    "version": "website (read 2026-10-19)",
+    "source": "https://developer.themoviedb.org/docs/authentication-application"
+  },
+  {
+    "text": "Scripts and the API",
+    "kind": "readme",
+    "source": "README.md, heading \"## Scripts and the API\""
+  },
+  {
+    "text": "Connect an AI assistant (MCP)",
+    "kind": "readme",
+    "source": "README.md, heading \"## Connect an AI assistant (MCP)\""
+  },
+  {
+    "text": "Claude на ноутбуці",
+    "kind": "example",
+    "source": "frontend/src/locales/uk/profile.json accessTokens.dialog.nameHint (the web app quotes the same example name inside its hint)"
+  }
+]

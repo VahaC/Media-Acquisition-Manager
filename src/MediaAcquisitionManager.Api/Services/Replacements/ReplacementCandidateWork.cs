@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Matching;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -15,7 +16,8 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// <param name="NeedsConfirmation">Matched by title and year without a conflict: a copy of it is replaced only with
 /// the owner's tick.</param>
 /// <param name="ConfirmationText">The tick's own words — "This release is Alien (1979)", "This release is Doctor Who
-/// (2005), season 2" —, the one source of them for the dialog, the refusal and the audit row (R3).</param>
+/// (2005), season 2" —, the one source of them for the dialog, the refusal, the job's row and the audit row (R3); MAM-47 —
+/// as the claim they say (<see cref="ReplacementConfirmation"/>), rendered in the reader's language.</param>
 /// <param name="LibraryNames">The libraries holding the copies listed, each once, in title order.</param>
 /// <param name="Unavailable">Why none of its copies can be replaced; <c>null</c> when they may be.</param>
 /// <param name="Copies">A film's copies; none for a series.</param>
@@ -27,7 +29,7 @@ public sealed record ReplacementCandidateWork(
     int? Year,
     WorkMatch Match,
     bool NeedsConfirmation,
-    string ConfirmationText,
+    Message ConfirmationText,
     IReadOnlyList<string> LibraryNames,
     ReplacementWorkUnavailableReason? Unavailable,
     IReadOnlyList<ReplacementCandidateCopy> Copies,

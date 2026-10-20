@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
@@ -15,7 +16,7 @@ public interface IReplacementMapper
     /// </summary>
     ReplacementOptionsResponse ToResponse(
         ReplacementUnavailableReason? unavailable,
-        string? destinationProblem,
+        Message? destinationProblem,
         IReadOnlyList<MediaEdition> releaseEditions,
         IReadOnlyList<ReplacementCandidateWork> works,
         ReplacementHoldings holdings);

@@ -38,8 +38,8 @@ public class FileInspectionController(IFileInspectionService inspections) : Cont
         {
             FileInspectionStartStatus.Queued => AcceptedAtAction(nameof(GetRun), new { runId = result.Run!.Id }, result.Run),
             // Nothing the app may read: a state the owner changes in the settings, not a bad request.
-            FileInspectionStartStatus.NoAllowedRoots => this.ConflictError(result.Error),
-            _ => this.UnavailableError(result.Error),
+            FileInspectionStartStatus.NoAllowedRoots => this.ConflictError(result.Error!),
+            _ => this.UnavailableError(result.Error!),
         };
     }
 

@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Integrations;
 
@@ -32,5 +33,5 @@ public interface IIntegrationSettingsFactory
         IntegrationConnectionEntity integration,
         IntegrationSecretField field,
         out string? secret,
-        [NotNullWhen(false)] out string? error);
+        [NotNullWhen(false)] out Message? error);
 }

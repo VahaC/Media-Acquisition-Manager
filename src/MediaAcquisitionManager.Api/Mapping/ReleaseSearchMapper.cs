@@ -1,12 +1,14 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Releases;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Search;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
 /// <inheritdoc cref="IReleaseSearchMapper"/>
-public sealed class ReleaseSearchMapper : IReleaseSearchMapper
+/// <remarks>MAM-47 (ADR 0042) — renders a source's sentence in the request's language (<see cref="IRequestTexts"/>).</remarks>
+public sealed class ReleaseSearchMapper(IRequestTexts texts) : IReleaseSearchMapper
 {
     public ReleaseSourceResultDto ToDto(ReleaseSourceOutcome outcome, IReadOnlyList<Guid> releaseIds, bool forOwner)
     {
@@ -23,7 +25,7 @@ public sealed class ReleaseSearchMapper : IReleaseSearchMapper
             outcome.Name,
             outcome.Status,
             outcome.NotSearchedReason,
-            forOwner ? outcome.Error : null,
+            forOwner ? texts.Render(outcome.Error) : null,
             [.. outcome.Hits.Select((hit, index) => ToDto(releaseIds[index], hit, categoryNames))]);
     }
 

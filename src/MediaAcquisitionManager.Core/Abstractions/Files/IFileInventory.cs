@@ -16,7 +16,7 @@ namespace MediaAcquisitionManager.Core.Abstractions.Files;
 /// <para>
 /// All methods return result types and never throw on expected failures (not found, outside the
 /// allowed roots, unreadable); only a cancellation by the caller propagates, as
-/// <see cref="OperationCanceledException"/>. Every message is one readable English sentence.
+/// <see cref="OperationCanceledException"/>. Every message is a <c>Message</c> the Api renders (ADR 0042).
 /// </para>
 /// </remarks>
 public interface IFileInventory

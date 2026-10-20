@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
@@ -48,7 +49,7 @@ public sealed class ReplacementOptionsHttpTests : IClassFixture<MediaAcquisition
     private const string ReleaseIdMissingError = "Pick the release to send.";
     private const string DestinationIdMissingError = "Pick the destination to send it to.";
     private const string HoldingsInvalidError = "Say true or false for whether the download clients' torrents are read.";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
     private const string FolderUncheckedProblem =
         "The destination's folder lies outside the Media folders or has no path in the app, so the app can't check it for files already there, and a replacement is sent only after that check.";
 
@@ -491,7 +492,7 @@ public sealed class ReplacementOptionsHttpTests : IClassFixture<MediaAcquisition
         {
             var file = await db.PhysicalFiles.AsNoTracking().SingleAsync(row => row.ServicePath == TheatricalPath, cancellationToken);
             var reading = await new MediaInspectionDataFactory(db, _factory.Time)
-                .Create(TestMedia.DeviceId, 99, 1, TestMedia.ModifiedUtc, error: "ffprobe couldn't read it.");
+                .Create(TestMedia.DeviceId, 99, 1, TestMedia.ModifiedUtc, error: Message.Legacy("ffprobe couldn't read it."));
             await new PhysicalFileDataFactory(db, _factory.Time).Link(file.Id, reading.Id);
         });
 
@@ -803,6 +804,37 @@ public sealed class ReplacementOptionsHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal(
             ["This release is Halloween (2018) in “Фільми” (1 of 2)", "This release is Halloween (2018) in “Фільми” (2 of 2)"],
             (await ReadAsync(response, cancellationToken)).Works.Select(work => work.ConfirmationText));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("uk")]
+    public async Task Options_tells_twins_apart_by_a_tail_measured_in_english_whatever_language_the_page_asks_for(string? language)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-47 (ADR 0042, design §5.4) — names that make the English words exactly as long as a name may make them: the
+        // tail is part of the claim the job keeps, so it can't change with the language of whoever opened the dialog. A
+        // length measured in the request's own words would flip it — the pseudo pass's brackets alone add four characters.
+        var (first, second) = ($"Halloween.2018.{new string('a', 117)}.1080p.mkv", $"Halloween.2018.{new string('a', 117)}.2160p.mkv");
+        await PlantTwoHalloweensAsync($"/media/movies/Halloween (2018)/{first}", $"/media/movies/Halloween/{second}", cancellationToken);
+        var release = await _releases.CreateFoundBySearch(_owner.User, _toloka, "Halloween", 2018, "Halloween (2018) BDRip 1080p");
+
+        //Act
+        var response = await _factory.GetHttpRequest(
+            $"{BaseUrl}?releaseId={release.Id}&destinationId={_movies.Id}", _owner.AccessToken, language: language);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var options = await response.Content.ReadFromJsonAsync<ReplacementOptionsResponse>(
+            language is null ? MediaAcquisitionManagerApiFactory.JsonOptions : MediaAcquisitionManagerApiFactory.PlainJsonOptions, cancellationToken);
+        Assert.Equal(200, $"This release is Halloween (2018) in “Фільми” (the copy “{first}”)".Length);
+        // Each confirmation names its own copy, never their place.
+        Assert.Equal(
+            [first, second],
+            options!.Works
+                .SelectMany(work => new[] { first, second }.Where(name => work.ConfirmationText.Contains(name, StringComparison.Ordinal)))
+                .Order(StringComparer.Ordinal));
     }
 
     [Fact]

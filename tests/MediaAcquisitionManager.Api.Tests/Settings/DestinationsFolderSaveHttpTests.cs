@@ -109,7 +109,7 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
         // The owner can't type a folder: the client is never asked about it, so it can't be confirmed.
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(
-            $$"""{"error":"“Transmission” doesn't offer the folder “{{folder}}”. Pick one of the folders it lists."}""",
+            ErrorBody.Json($"“Transmission” doesn't offer the folder “{folder}”. Pick one of the folders it lists.", "destinations.client.folder-not-offered"),
             await response.Content.ReadAsStringAsync(cancellationToken));
         Assert.DoesNotContain(_factory.FolderClient.Proposals.SelectMany(proposed => proposed), proposed => proposed == folder);
         Assert.Null(await StoredKeyAsync(cancellationToken));
@@ -128,8 +128,7 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
         //Assert
         // D5 — it would create the folder in its own filesystem.
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<ErrorBody>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
-        Assert.Equal(FakeFolderDownloadClient.CantSeeProblem("/downloads/tv-shows"), body!.Error);
+        Assert.Equal(FakeFolderDownloadClient.CantSeeProblem("/downloads/tv-shows"), await response.ReadErrorAsync(cancellationToken));
         Assert.Null(await StoredKeyAsync(cancellationToken));
     }
 
@@ -151,7 +150,7 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal($$"""{"error":"{{FolderMissingError}}"}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(ErrorBody.Json(FolderMissingError, "destinations.key.missing-folder"), await response.Content.ReadAsStringAsync(cancellationToken));
         Assert.Empty(_factory.FolderClient.Calls);
         Assert.Null(await StoredKeyAsync(cancellationToken));
     }
@@ -168,7 +167,7 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
         //Assert
         // The destination's own fields before what the client makes of its name, as before MAM-31.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal($$"""{"error":"{{FolderMissingError}}"}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(ErrorBody.Json(FolderMissingError, "destinations.key.missing-folder"), await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
     [Theory]
@@ -184,7 +183,7 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal($$"""{"error":"{{CommaError}}"}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(ErrorBody.Json(CommaError, "destinations.label.comma-in-name"), await response.Content.ReadAsStringAsync(cancellationToken));
         Assert.Empty(_factory.FolderClient.Calls);
         Assert.Null(await StoredKeyAsync(cancellationToken));
     }
@@ -280,7 +279,7 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(
-            """{"error":"“Transmission” doesn't offer the folder “/downloads/typed”. Pick one of the folders it lists."}""",
+            ErrorBody.Json("“Transmission” doesn't offer the folder “/downloads/typed”. Pick one of the folders it lists.", "destinations.client.folder-not-offered"),
             await response.Content.ReadAsStringAsync(cancellationToken));
         Assert.Equal("/downloads/movies", await StoredKeyAsync(cancellationToken));
     }
@@ -298,7 +297,7 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal($$"""{"error":"{{FolderMissingError}}"}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(ErrorBody.Json(FolderMissingError, "destinations.key.missing-folder"), await response.Content.ReadAsStringAsync(cancellationToken));
         Assert.Empty(_factory.FolderClient.Calls);
         Assert.Equal("/downloads/movies", await StoredKeyAsync(cancellationToken));
     }
@@ -316,7 +315,7 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal($$"""{"error":"{{CommaError}}"}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(ErrorBody.Json(CommaError, "destinations.label.comma-in-name"), await response.Content.ReadAsStringAsync(cancellationToken));
         Assert.Empty(_factory.FolderClient.Calls);
         await _factory.WithDbAsync(async db =>
             Assert.Equal("Фільми", (await db.DestinationMappings.AsNoTracking().SingleAsync(cancellationToken)).Name));
@@ -336,7 +335,7 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal($$"""{"error":"{{CommaError}}"}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(ErrorBody.Json(CommaError, "destinations.label.comma-in-name"), await response.Content.ReadAsStringAsync(cancellationToken));
         Assert.Equal("Movies", await StoredKeyAsync(cancellationToken));
     }
 
@@ -420,7 +419,4 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
             key = await db.DestinationMappings.AsNoTracking().Select(destination => destination.ClientDestinationKey).SingleOrDefaultAsync(cancellationToken));
         return key;
     }
-
-    /// <summary>The <c>{ error }</c> body.</summary>
-    private sealed record ErrorBody(string Error);
 }

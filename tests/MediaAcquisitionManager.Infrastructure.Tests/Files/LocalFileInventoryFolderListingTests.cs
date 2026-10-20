@@ -2,6 +2,8 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
+using Listed = (MediaAcquisitionManager.Core.Abstractions.Files.FileListingStatus Status, string AppPath, string? ResolvedPath, string? Error);
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -148,27 +150,31 @@ public sealed class LocalFileInventoryFolderListingTests : IDisposable
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
-    private async Task<List<FileListingEntry>> ListUnderAsync(string folder, params string[] roots)
+    private async Task<List<Listed>> ListUnderAsync(string folder, params string[] roots)
     {
-        var entries = new List<FileListingEntry>();
+        var entries = new List<Listed>();
         await foreach (var entry in _inventory.ListMediaFilesUnderAsync(folder, roots, TestContext.Current.CancellationToken))
-            entries.Add(entry);
+            entries.Add(InEnglish(entry));
         return entries;
     }
 
     /// <summary>A media file name reached by its own path: where it is, is where its name says.</summary>
-    private static FileListingEntry Media(string folder, params string[] names)
+    private static Listed Media(string folder, params string[] names)
     {
         var path = Canonical(Path.Combine([folder, .. names]));
-        return new FileListingEntry(FileListingStatus.MediaFile, path, path, null);
+        return (FileListingStatus.MediaFile, path, path, null);
     }
 
-    private static FileListingEntry Problem(FileListingStatus status, string appPath, string error) =>
-        new(status, Canonical(appPath), null, error);
+    private static Listed Problem(FileListingStatus status, string appPath, string error) =>
+        (status, Canonical(appPath), null, error);
 
     /// <summary>The path in the form the walk gives it (the drive letter in capitals on Windows).</summary>
     private static string Canonical(string path) =>
         NormalizedPath.TryParse(path, out var parsed, out _)
             ? parsed.ToString()
             : throw new ArgumentException($"“{path}” is not a full path.", nameof(path));
+
+    /// <summary>MAM-47 — an entry with its message in English: a refusal of the walk compares by the words a reader
+    /// sees.</summary>
+    private static Listed InEnglish(FileListingEntry entry) => (entry.Status, entry.AppPath, entry.ResolvedPath, TestTexts.En(entry.Error));
 }

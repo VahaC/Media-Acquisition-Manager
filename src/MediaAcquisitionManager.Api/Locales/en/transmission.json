@@ -1,0 +1,32 @@
+{
+  "not-transmission": "The service at this address answered, but not the way Transmission does.",
+  "too-old": "This is Transmission {{version, vendor}}; the app needs Transmission 4.0 or newer. Update Transmission, then test again.",
+  "temporary-folder": "Transmission keeps unfinished downloads in its temporary folder “{{folder, vendor}}”, where the app can't follow them. In Transmission's web interface open Edit preferences, Torrents, untick “Use temporary folder”, then test again.",
+  "sign-in-needed": "Transmission asks for a user name and password. Enter them under Integrations.",
+  "forbidden": "Transmission refused this app (403 Forbidden): this app's address isn't on its RPC whitelist (WHITELIST in the linuxserver image, rpc-whitelist in its settings), or it locked its RPC after too many wrong passwords, which only a restart of Transmission ends.",
+  "host-not-allowed": "Transmission doesn't accept the host name in this address (421 Misdirected Request); it checks host names only while it has no password. Give Transmission a user name and password (USER and PASS in the linuxserver image), add the host name to its rpc-host-whitelist (HOST_WHITELIST), or use its IP address, then test again.",
+  "rpc-not-found": "Transmission's RPC wasn't found at this address (404 Not Found). Use the address of Transmission's web interface, such as http://192.168.1.10:9091.",
+  "session-id-refused": "Transmission refused the session id it had just sent.",
+  "request-refused": "Transmission refused the request: {{result, vendor}}.",
+  "remembered": {
+    "credentials-refused": "Transmission refused the user name or password the last time the app used them, so the app won't send them again: with its anti-brute-force setting on, every refusal counts towards locking its RPC. Correct them under Integrations, or test the connection there once Transmission accepts them.",
+    "sign-in-needed": "Transmission asked for a user name and password the last time the app asked it, so the app won't ask again until they are entered under Integrations or the connection is tested there.",
+    "forbidden": "Transmission refused this app the last time it asked (403 Forbidden), so the app won't ask it again until the connection is tested under Integrations."
+  },
+  "folder": {
+    "download-folder-unusable": "Transmission's download folder “{{folder, vendor}}” isn't a full path the app can use. In Transmission's web interface open Edit preferences, Torrents, give “Download to” a full path such as /downloads, then look again.",
+    "download-folder-too-long_one": "Transmission's download folder “{{folder}}” is longer than the {{count, number}} character a destination can hold.",
+    "download-folder-too-long_other": "Transmission's download folder “{{folder}}” is longer than the {{count, number}} characters a destination can hold.",
+    "too-long_one": "The folder “{{folder}}” is longer than the {{count, number}} character a destination can hold.",
+    "too-long_other": "The folder “{{folder}}” is longer than the {{count, number}} characters a destination can hold.",
+    "not-seen": "{{service}} can't see “{{folder}}” ({{reason, vendor}}). Mount that folder into {{service}}, or add a path mapping on this integration that leads there, then look again.",
+    "not-seen-no-free-space": "{{service}} can't see “{{folder}}” (no free space reported). Mount that folder into {{service}}, or add a path mapping on this integration that leads there, then look again."
+  },
+  "add": {
+    "refused": "Transmission refused the torrent: {{result, vendor}}.",
+    "duplicate": "Transmission already has this torrent, so it added nothing.",
+    "duplicate-no-label": "Transmission already has this torrent, in “{{folder, vendor}}” with no label, so it added nothing.",
+    "duplicate-labelled": "Transmission already has this torrent, in “{{folder, vendor}}” with the label “{{labels, vendor}}”, so it added nothing.",
+    "v2-only": "Transmission can't take a torrent that is BitTorrent v2 only, which this release is, so nothing was sent."
+  }
+}

@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -94,7 +95,7 @@ public sealed class TmdbAdapterRateLimitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(TooManyRequestsError, result.Error);
+        Assert.Equal(TooManyRequestsError, TestTexts.En(result.Error));
         Assert.Equal(4, _harness.TmdbHttp.Requests.Count);
         Assert.Single(_harness.TmdbHttp.Requests.Select(request => request.Uri).Distinct());
     }
@@ -165,7 +166,7 @@ public sealed class TmdbAdapterRateLimitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(TooManyRequestsError, result.Error);
+        Assert.Equal(TooManyRequestsError, TestTexts.En(result.Error));
         Assert.Equal(4, _harness.TmdbHttp.Requests.Count);
     }
 

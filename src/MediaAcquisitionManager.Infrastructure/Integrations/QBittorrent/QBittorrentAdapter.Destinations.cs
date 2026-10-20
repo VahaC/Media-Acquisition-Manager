@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Downloads;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 
@@ -9,7 +10,7 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 // it saves to (QBittorrentCategoryPaths). Every request is the sign-in or a GET.
 internal sealed partial class QBittorrentAdapter
 {
-    private const string NotCategoriesError = "The service at this address answered, but not with qBittorrent's categories.";
+    private static readonly Message NotCategoriesError = Message.Of("qbittorrent.not-categories");
 
     /// <inheritdoc/>
     /// <remarks>

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Search;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Search;
@@ -9,9 +10,10 @@ namespace MediaAcquisitionManager.Api.Mapping;
 /// <inheritdoc cref="ISearchMapper"/>
 /// <remarks>
 /// A work's ids and a release's claimed quality are mapped by the Library's and the release search's own
-/// mappers, so each reads the same on every page.
+/// mappers, so each reads the same on every page. MAM-47 (ADR 0042) — a source's stored sentence is rendered in the
+/// request's language (<see cref="IRequestTexts"/>).
 /// </remarks>
-public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMapper releaseMapper) : ISearchMapper
+public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMapper releaseMapper, IRequestTexts texts) : ISearchMapper
 {
     public SearchResponse ToResponse(
         SearchEntity search,
@@ -41,7 +43,7 @@ public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMap
                 source.Status,
                 source.NotSearchedReason,
                 // MAM-10's rule for a source's sentence: it can name the service's address.
-                forOwner ? source.Error : null,
+                forOwner ? texts.Render(source.Error) : null,
                 releaseCounts.GetValueOrDefault(source.Id)))],
             new SearchFacetsDto(
                 [.. claims.SelectMany(claim => claim.AudioLanguages).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)],

@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Options;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
@@ -170,7 +171,8 @@ public sealed class DownloadJobPersistenceTests : DatabaseTestBase
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var db = CreateContext();
         var release = await Releases(db).Create(sourceConnectionId: null);
-        var reason = new string('r', DownloadJobEntity.ErrorMaximumLength);
+        // MAM-47 — a reason whose JSON runs past the column: a client's name of the column's whole length.
+        var reason = Message.Of("downloads.follow.missing", ("client", new string('r', DownloadJobEntity.ErrorMaximumLength)));
 
         //Act
         var job = await Jobs(db).Create(
@@ -183,16 +185,22 @@ public sealed class DownloadJobPersistenceTests : DatabaseTestBase
             blockReasonOrigin: DownloadJobErrorOrigin.DownloadClient);
 
         //Assert
-        // The reason at its column's full length, and its origin by name: a value added later needs no migration.
+        // The reason fitted into its column (MAM-47: its key and values, the longest value cut — the poller compares a new
+        // reason with it so), and its origin by name: a value added later needs no migration.
         await using var check = CreateContext();
         var stored = await check.DownloadJobs.AsNoTracking().SingleAsync(x => x.Id == job.Id, cancellationToken);
         Assert.Equal(
-            (DownloadJobStatus.Paused, (double?)0.4375, reason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.DownloadClient),
+            (DownloadJobStatus.Paused, (double?)0.4375, MessageFit.Fit(reason, MessageJson.ColumnLength), (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.DownloadClient),
             (stored.Status, stored.Progress, stored.BlockReason, stored.BlockReasonOrigin));
+        Assert.Equal("downloads.follow.missing", stored.BlockReason!.Key);
         var raw = await check.Database
             .SqlQuery<string>($"SELECT \"BlockReasonOrigin\" AS \"Value\" FROM \"DownloadJobs\"")
             .SingleAsync(cancellationToken);
         Assert.Equal("DownloadClient", raw);
+        var rawReason = await check.Database
+            .SqlQuery<string>($"SELECT \"BlockReason\" AS \"Value\" FROM \"DownloadJobs\"")
+            .SingleAsync(cancellationToken);
+        Assert.InRange(rawReason.Length, 1, DownloadJobEntity.ErrorMaximumLength);
     }
 
     [Fact]

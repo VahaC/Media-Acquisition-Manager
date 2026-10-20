@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
@@ -227,6 +228,73 @@ public sealed class LibrarySyncFailureHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal(before, await ReadRowsAsync(cancellationToken));
     }
 
+    [Theory]
+    [InlineData("Series", "Jellyfin listed 60 series when the sync began and 61 by its end, ")]
+    [InlineData("Episode", "Jellyfin listed 60 episodes when the sync began and 61 by its end, ")]
+    public async Task Sync_whose_tv_list_total_changes_on_a_middle_page_fails_naming_that_list(string type, string expectedStart)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateSyncedJellyfinAsync(cancellationToken);
+        var before = await ReadRowsAsync(cancellationToken);
+        // MAM-47 — one key per list (ADR 0042): the noun is the template's, as it agrees with the count. 60 items, so
+        // a second page is read, whose total says one more.
+        ListOf(type).AddRange(TvItems(type, 60));
+        _jellyfin.TotalRecordCountOf = (listType, startIndex) => listType == type && startIndex == 49 ? 61 : null;
+
+        //Act
+        var run = await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+
+        //Assert
+        AssertFailed(run, expectedStart + LibraryChangedEnding);
+        Assert.Equal(before, await ReadRowsAsync(cancellationToken));
+    }
+
+    [Theory]
+    [InlineData("Movie", "The sync read 1 different movie of the 2 Jellyfin listed, ")]
+    [InlineData("Series", "The sync read 1 different series of the 2 Jellyfin listed, ")]
+    [InlineData("Episode", "The sync read 1 different episode of the 2 Jellyfin listed, ")]
+    public async Task Sync_that_reads_one_different_item_of_two_listed_fails_naming_one_of_that_list(string type, string expectedStart)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateSyncedJellyfinAsync(cancellationToken);
+        var before = await ReadRowsAsync(cancellationToken);
+        // One item listed twice: the total says two, one different item comes back. MAM-47 — the noun counts the items
+        // read, so it is singular here (was "1 different movies").
+        var item = type == "Movie" ? JellyfinSamples.Library(1)[0] : TvItems(type, 1).Single();
+        var list = ListOf(type);
+        list.Clear();
+        list.AddRange([item, item.DeepClone().AsObject()]);
+
+        //Act
+        var run = await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+
+        //Assert
+        AssertFailed(run, expectedStart + LibraryChangedEnding);
+        Assert.Equal(before, await ReadRowsAsync(cancellationToken));
+    }
+
+    [Theory]
+    [InlineData("Series", "The sync read 2 different series of the 3 Jellyfin listed, ")]
+    [InlineData("Episode", "The sync read 2 different episodes of the 3 Jellyfin listed, ")]
+    public async Task Sync_that_reads_fewer_different_tv_items_than_listed_fails_naming_that_list(string type, string expectedStart)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateSyncedJellyfinAsync(cancellationToken);
+        var before = await ReadRowsAsync(cancellationToken);
+        var items = TvItems(type, 2).ToList();
+        ListOf(type).AddRange([.. items, items[0].DeepClone().AsObject()]);
+
+        //Act
+        var run = await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+
+        //Assert
+        AssertFailed(run, expectedStart + LibraryChangedEnding);
+        Assert.Equal(before, await ReadRowsAsync(cancellationToken));
+    }
+
     [Fact]
     public async Task Sync_during_which_the_integration_is_removed_fails_and_stores_nothing()
     {
@@ -391,6 +459,24 @@ public sealed class LibrarySyncFailureHttpTests : IClassFixture<MediaAcquisition
         _jellyfin.Movies.AddRange(JellyfinSamples.Library(count));
     }
 
+    // The fake's list of a type, as the sync asks for it (Movie, Series, Episode).
+    private List<JsonObject> ListOf(string type) => type switch
+    {
+        "Movie" => _jellyfin.Movies,
+        "Series" => _jellyfin.Series,
+        _ => _jellyfin.Episodes,
+    };
+
+    // Series or episodes of their own, each with its own 32-hex-digit id, as Jellyfin's ids are.
+    private static IEnumerable<JsonObject> TvItems(string type, int count) =>
+        Enumerable.Range(1, count).Select(number =>
+        {
+            var id = number.ToString("x32", CultureInfo.InvariantCulture);
+            return type == "Series"
+                ? JellyfinSamples.SeriesWith(id, $"Series {number}", 2000, $"/media/tv-shows/Series {number}")
+                : JellyfinSamples.EpisodeWith(id, $"Episode {number}", null, 1, number, $"/media/tv-shows/Episode {number}.mkv");
+        });
+
     private async Task<IReadOnlyList<string>> ReadRowsAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<string> rows = [];
@@ -424,10 +510,11 @@ public sealed class LibrarySyncFailureHttpTests : IClassFixture<MediaAcquisition
     // Neither the stored run nor anything logged holds the key.
     private async Task AssertKeyNowhereAsync(CancellationToken cancellationToken)
     {
+        // MAM-47 (ADR 0042) — the stored text itself, key and values: a secret could only have reached it through a value.
         await _factory.WithDbAsync(async db =>
             Assert.DoesNotContain(
-                await db.LibrarySyncRuns.Select(run => run.Error).ToListAsync(cancellationToken),
-                error => error is not null && error.Contains(ApiKey, StringComparison.Ordinal)));
+                await db.Database.SqlQueryRaw<string>("SELECT \"Error\" AS \"Value\" FROM \"LibrarySyncRuns\" WHERE \"Error\" IS NOT NULL").ToListAsync(cancellationToken),
+                error => error.Contains(ApiKey, StringComparison.Ordinal)));
         Assert.DoesNotContain(_factory.Logs.Entries, entry => entry.Message.Contains(ApiKey, StringComparison.Ordinal));
     }
 }

@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Downloads;
@@ -229,6 +230,6 @@ public sealed class DownloadsErrorVisibilityHttpTests : IClassFixture<MediaAcqui
         _factory.WithDbAsync(async db =>
         {
             var row = await db.DownloadJobs.AsNoTracking().SingleAsync(job => job.Id == jobId, cancellationToken);
-            Assert.Equal((DownloadJobStatus.Failed, error, (DownloadJobErrorOrigin?)origin), (row.Status, row.Error, row.ErrorOrigin));
+            Assert.Equal((DownloadJobStatus.Failed, error, (DownloadJobErrorOrigin?)origin), (row.Status, TestTexts.En(row.Error), row.ErrorOrigin));
         });
 }

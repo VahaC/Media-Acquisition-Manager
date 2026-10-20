@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Api.Services.Files;
 
 /// <summary>
@@ -9,5 +11,5 @@ namespace MediaAcquisitionManager.Api.Services.Files;
 /// <param name="LibraryName">The library's name ("Фільми").</param>
 /// <param name="ServicePath">The folder as the library reported it (<c>/data/movies</c>).</param>
 /// <param name="IntegrationName">The media library integration that reported it, whose mappings are what to fix.</param>
-/// <param name="Reason">The mapper's sentence saying why it has no app path.</param>
-public sealed record UnmappedLibraryFolder(string LibraryName, string ServicePath, string IntegrationName, string Reason);
+/// <param name="Reason">Why it has no app path, as the mapper's message (ADR 0042).</param>
+public sealed record UnmappedLibraryFolder(string LibraryName, string ServicePath, string IntegrationName, Message Reason);

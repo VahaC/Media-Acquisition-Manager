@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
@@ -12,11 +13,12 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 // by itself (house rule 8). Never inside the request: an Apply takes minutes for a series.
 public sealed partial class LibraryLinkService
 {
-    private const string NothingLinkedError = "There is nothing to write: no item of this work is linked.";
-    private const string NothingToWriteUnattachedError = "There is nothing to write: the library no longer reports this item.";
+    private static readonly Message NothingLinkedError = Message.Of("library-links.write.nothing-linked");
+    private static readonly Message NothingToWriteUnattachedError = Message.Of("library-links.write.nothing-unattached");
 
-    // {reason} is why the link stays in the app (LibraryLinkWritability), the library's own sentence among them.
-    private static string NothingToWriteError(string reason) => $"There is nothing to write: {reason}";
+    // {reason} is why the link stays in the app (LibraryLinkWritability), the library's own message among them: a whole
+    // sentence nested in this one.
+    private static Message NothingToWriteError(Message reason) => Message.Of("library-links.write.nothing-to-write", ("reason", reason));
 
     public async Task<LibraryLinkResult> WriteAgainAsync(Guid workId, Guid ownerUserId, CancellationToken cancellationToken = default)
     {
@@ -34,7 +36,7 @@ public sealed partial class LibraryLinkService
 
         var connections = await ConnectionsAsync([.. links.Select(link => link.IntegrationConnectionId).Distinct()], cancellationToken);
         var queued = false;
-        string? refusal = null;
+        Message? refusal = null;
         foreach (var link in links)
         {
             if (IdentifyRefusal(connections.GetValueOrDefault(link.IntegrationConnectionId), link) is { } error)
@@ -92,7 +94,7 @@ public sealed partial class LibraryLinkService
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(row => row.WriteState, LibraryLinkWriteState.Queued)
-                    .SetProperty(row => row.WriteError, (string?)null)
+                    .SetProperty(row => row.WriteError, (Message?)null)
                     .SetProperty(row => row.WriteStateUtc, time.GetUtcNow().UtcDateTime)
                     .SetProperty(row => row.BatchId, (Guid?)null),
                 CancellationToken.None) == 1;
@@ -101,7 +103,7 @@ public sealed partial class LibraryLinkService
     /// doesn't identify that kind of item (Jellyfin: an episode item), or it is an episode's link with no id of its own to
     /// identify by (<see cref="LibraryLinkWritability"/>) —, so there is nothing to do; or, R12, the integration is
     /// switched off; <c>null</c> when it can.</summary>
-    private string? IdentifyRefusal(IntegrationConnectionEntity? connection, LibraryItemLinkEntity link)
+    private Message? IdentifyRefusal(IntegrationConnectionEntity? connection, LibraryItemLinkEntity link)
     {
         // Removed with its links (decision 12); a link read a moment before is gone with it.
         if (connection is null)

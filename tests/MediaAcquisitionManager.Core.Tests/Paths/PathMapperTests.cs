@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.TestInfrastructure;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Paths;
 
@@ -99,7 +100,7 @@ public sealed class PathMapperTests
         //Assert
         Assert.Equal(PathMapStatus.NotCovered, result.Status);
         Assert.Null(result.AppPath);
-        Assert.Equal("No path mapping of this integration covers “/media/movies/x.mkv”.", result.Reason);
+        Assert.Equal("No path mapping of this integration covers “/media/movies/x.mkv”.", TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -133,7 +134,7 @@ public sealed class PathMapperTests
         Assert.False(result.HasAppPath);
         Assert.Equal(
             "The path mappings of this integration send “/downloads/movies/x.mkv” to different places: “/media/movies/x.mkv” and “/films/x.mkv”.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Theory]
@@ -153,7 +154,7 @@ public sealed class PathMapperTests
         //Assert
         Assert.Equal(PathMapStatus.Invalid, result.Status);
         Assert.Null(result.AppPath);
-        Assert.Equal($"“{servicePath}” is not a full path the app can map.", result.Reason);
+        Assert.Equal($"“{servicePath}” is not a full path the app can map.", TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -186,7 +187,7 @@ public sealed class PathMapperTests
         Assert.Null(result.AppPath);
         Assert.Equal(
             @"The path mappings of this integration send “D:\Torrents\Movies\Taken (2008).mkv” to different places: “/media/Movies/Taken (2008).mkv” and “/media/movies/Taken (2008).mkv”.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -214,7 +215,7 @@ public sealed class PathMapperTests
         //Assert
         Assert.Equal(PathMapStatus.Invalid, result.Status);
         Assert.Null(result.AppPath);
-        Assert.Contains(@"“a\b”", result.Reason);
+        Assert.Contains(@"“a\b”", TestTexts.En(result.Reason));
     }
 
     [Fact]

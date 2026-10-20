@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using static MediaAcquisitionManager.TestInfrastructure.Integrations.JellyfinIdentifyHarness;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
@@ -65,7 +66,7 @@ public sealed class JellyfinAdapterIdentifyLibraryTests : IDisposable
         Assert.False(identification.Sent);
         Assert.Equal(
             $"Jellyfin's library “{CartoonsLibrary}” saves {expectedSaves} next to the media, so identifying this item could change files in your media folders; the app left it alone. Switch that off in the library's settings in Jellyfin, then retry.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
         // The users, the item and the libraries, and nothing after: no search, no Apply.
         Assert.Equal(3, _jellyfin.Http.Requests.Count);
         Assert.Equal("/Library/VirtualFolders", _jellyfin.Http.Requests[^1].Uri.AbsolutePath);
@@ -89,7 +90,27 @@ public sealed class JellyfinAdapterIdentifyLibraryTests : IDisposable
         Assert.Equal(LibraryIdentifyRefusal.LibraryWritesFiles, identification.Refusal);
         Assert.Equal(
             "Jellyfin's library “Колекції” saves artwork and metadata next to the media, so identifying this item could change files in your media folders; the app left it alone. Switch that off in the library's settings in Jellyfin, then retry.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
+        Assert.Empty(_jellyfin.Server.RemoteSearches);
+    }
+
+    [Fact]
+    public async Task Identify_in_a_library_without_a_name_that_saves_beside_the_media_calls_it_unnamed()
+    {
+        //Arrange
+        // MAM-47 — "(unnamed)" is the app's word, so the sentence has a key of its own (library.writes-files-unnamed).
+        _jellyfin.Server.LibraryOptionsOf(JellyfinSamples.CartoonsRoot)["SaveLocalMetadata"] = true;
+        _jellyfin.Server.VirtualFolders.OfType<JsonObject>().Single(folder => (string?)folder["Name"] == CartoonsLibrary).Remove("Name");
+
+        //Act
+        var result = await _jellyfin.IdentifyAsync(FilmRequest(), TestContext.Current.CancellationToken);
+
+        //Assert
+        var identification = result.Value!;
+        Assert.Equal(LibraryIdentifyRefusal.LibraryWritesFiles, identification.Refusal);
+        Assert.Equal(
+            "Jellyfin's library “(unnamed)” saves artwork and metadata next to the media, so identifying this item could change files in your media folders; the app left it alone. Switch that off in the library's settings in Jellyfin, then retry.",
+            TestTexts.En(identification.Sentence));
         Assert.Empty(_jellyfin.Server.RemoteSearches);
     }
 
@@ -108,7 +129,7 @@ public sealed class JellyfinAdapterIdentifyLibraryTests : IDisposable
         //Assert
         Assert.Equal(
             $"Jellyfin's library “{CartoonsLibrary}” saves artwork and metadata, NFO files and trickplay images next to the media, so identifying this item could change files in your media folders; the app left it alone. Switch that off in the library's settings in Jellyfin, then retry.",
-            result.Value!.Sentence);
+            TestTexts.En(result.Value!.Sentence));
     }
 
     [Theory]
@@ -163,7 +184,7 @@ public sealed class JellyfinAdapterIdentifyLibraryTests : IDisposable
         Assert.Equal(LibraryIdentifyRefusal.LibraryUnknown, identification.Refusal);
         Assert.Equal(
             $"The app couldn't tell what this item's Jellyfin library saves next to the media ({expectedReason}), so it left the item alone.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
         Assert.Equal(3, _jellyfin.Http.Requests.Count);
         Assert.Empty(_jellyfin.Server.RemoteSearches);
         Assert.Empty(_jellyfin.Server.Applied);
@@ -227,7 +248,7 @@ public sealed class JellyfinAdapterIdentifyLibraryTests : IDisposable
         Assert.Equal(LibraryIdentifyRefusal.LibraryWritesFiles, identification.Refusal);
         Assert.Equal(
             "Jellyfin's library “Nested” saves artwork and metadata next to the media, so identifying this item could change files in your media folders; the app left it alone. Switch that off in the library's settings in Jellyfin, then retry.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
         Assert.Empty(_jellyfin.Server.Applied);
     }
 
@@ -291,7 +312,7 @@ public sealed class JellyfinAdapterIdentifyLibraryTests : IDisposable
         var result = await _jellyfin.IdentifyAsync(FilmRequest(), TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.StartsWith("Jellyfin's library “Cartoons ***” saves", result.Value!.Sentence, StringComparison.Ordinal);
+        Assert.StartsWith("Jellyfin's library “Cartoons ***” saves", TestTexts.En(result.Value!.Sentence), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -307,7 +328,7 @@ public sealed class JellyfinAdapterIdentifyLibraryTests : IDisposable
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
         Assert.Equal(
             "Jellyfin accepted the key but won't let it read the library (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Empty(_jellyfin.Server.RemoteSearches);
     }

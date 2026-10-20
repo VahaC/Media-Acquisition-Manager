@@ -320,7 +320,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal($"“{echoed}” {KindsSentence}", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(($"“{echoed}” {KindsSentence}", "integrations.list.kind-unknown"), await response.ReadErrorBodyAsync(cancellationToken));
     }
 
     [Theory]

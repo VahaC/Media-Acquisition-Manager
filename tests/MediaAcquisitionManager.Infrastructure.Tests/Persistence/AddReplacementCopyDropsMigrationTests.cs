@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -101,7 +102,7 @@ public sealed class AddReplacementCopyDropsMigrationTests : DatabaseTestBase
         var job = await check.ReplacementJobs.AsNoTracking().SingleAsync(cancellationToken);
         Assert.Equal(
             (jobId, ReplacementJobState.NeedsReview, (string?)HeldReason, checkedUtc, (DateTime?)checkedUtc),
-            (job.Id, job.State, job.Reason, job.StateChangedUtc, job.QuarantineCheckedUtc));
+            (job.Id, job.State, TestTexts.En(job.Reason), job.StateChangedUtc, job.QuarantineCheckedUtc));
         var copies = await check.ReplacementJobFiles.AsNoTracking().OrderBy(copy => copy.Position).ToListAsync(cancellationToken);
         // Each copy as it was — its identity, its pair, its problem — and in the job: none dropped, and a Retry may settle
         // the stop as before.
@@ -110,7 +111,7 @@ public sealed class AddReplacementCopyDropsMigrationTests : DatabaseTestBase
                 (heldId, 42L, 5_000_000_000L, TestMedia.ModifiedUtc.Ticks, (Guid?)newFileId, (string?)HeldReason, (DateTime?)null, false),
                 (pairedId, 43L, 7_000_000_000L, TestMedia.ModifiedUtc.Ticks, (Guid?)newFileId, (string?)null, (DateTime?)null, false),
             ],
-            copies.Select(copy => (copy.Id, copy.Inode, copy.SizeBytes, copy.ModifiedUtc.Ticks, copy.PairedNewFileId, copy.Problem, copy.DroppedUtc,
+            copies.Select(copy => (copy.Id, copy.Inode, copy.SizeBytes, copy.ModifiedUtc.Ticks, copy.PairedNewFileId, TestTexts.En(copy.Problem), copy.DroppedUtc,
                 copy.OnlyDropSettles)));
         Assert.Equal(newFileId, (await check.ReplacementJobNewFiles.AsNoTracking().SingleAsync(cancellationToken)).Id);
         var name = await check.ReplacementJobNames.AsNoTracking().SingleAsync(cancellationToken);

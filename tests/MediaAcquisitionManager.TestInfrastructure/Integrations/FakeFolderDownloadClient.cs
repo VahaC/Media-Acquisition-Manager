@@ -2,6 +2,9 @@ using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
+using MediaAcquisitionManager.Infrastructure.Integrations;
+using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 
@@ -23,6 +26,13 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// Thread safe: the Destinations page asks several clients at once. Every call is recorded (<see cref="Calls"/>), with what
 /// the app proposed (<see cref="Proposals"/>) and what it sent (<see cref="Submissions"/>).
 /// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — where it answers as Transmission's adapter would, it says so in the adapters' own sentences: a
+/// folder it can't see (<see cref="TransmissionAdapter.FolderNotSeen"/>) and a torrent it no longer has
+/// (<see cref="IntegrationAdapterMessages.TorrentGone"/>), each naming the fake, so a test reads the very keys a
+/// reader of Transmission's sees and the English of <see cref="CantSeeProblem"/>. Its own words (its connection test's,
+/// <see cref="UnarmedMessage"/>) are no sentence of the app's and travel as <see cref="Message.Legacy"/>.
+/// </para>
 /// </remarks>
 public sealed class FakeFolderDownloadClient : IIntegrationAdapter, IDownloadClient
 {
@@ -37,6 +47,9 @@ public sealed class FakeFolderDownloadClient : IIntegrationAdapter, IDownloadCli
 
     /// <summary>Its own download folder unless a test arms another: the linuxserver image's.</summary>
     public const string DefaultDownloadFolder = "/downloads/complete";
+
+    /// <summary>Why it can't see a folder, in the words Transmission's <c>free-space</c> answers a missing one with.</summary>
+    private const string CantSeeReason = "No such file or directory";
 
     private readonly object _gate = new();
     private readonly List<string> _calls = [];
@@ -108,9 +121,9 @@ public sealed class FakeFolderDownloadClient : IIntegrationAdapter, IDownloadCli
         }
     }
 
-    /// <summary>The sentence it lists a folder it can't see with — Transmission's, naming the fake.</summary>
+    /// <summary>The sentence it lists a folder it can't see with — Transmission's, naming the fake — in English.</summary>
     public static string CantSeeProblem(string folder) =>
-        $"{DisplayName} can't see “{folder}” (No such file or directory). Mount that folder into {DisplayName}, or add a path mapping on this integration that leads there, then look again.";
+        $"{DisplayName} can't see “{folder}” ({CantSeeReason}). Mount that folder into {DisplayName}, or add a path mapping on this integration that leads there, then look again.";
 
     /// <summary>Makes it answer, with <paramref name="downloadFolder"/> as its own download folder — none listed when
     /// <c>null</c>.</summary>
@@ -161,8 +174,8 @@ public sealed class FakeFolderDownloadClient : IIntegrationAdapter, IDownloadCli
         {
             _calls.Add("TestConnection");
             return Task.FromResult(_armed
-                ? ConnectionTestResult.Succeeded($"Connected to {DisplayName}.")
-                : ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, UnarmedMessage));
+                ? ConnectionTestResult.Succeeded(Message.Legacy($"Connected to {DisplayName}."))
+                : ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, Message.Legacy(UnarmedMessage)));
         }
     }
 
@@ -243,7 +256,7 @@ public sealed class FakeFolderDownloadClient : IIntegrationAdapter, IDownloadCli
                 return Task.FromResult(Unarmed<IReadOnlyList<ClientJobFile>>());
             return Task.FromResult(_torrents.FirstOrDefault(torrent => string.Equals(torrent.Hash, clientJobId, StringComparison.OrdinalIgnoreCase)) is { } found
                 ? IntegrationCallResult<IReadOnlyList<ClientJobFile>>.Succeeded(found.Files ?? [])
-                : IntegrationCallResult<IReadOnlyList<ClientJobFile>>.Failed(IntegrationCallStatus.NotFound, $"{DisplayName} doesn't have this torrent any more."));
+                : IntegrationCallResult<IReadOnlyList<ClientJobFile>>.Failed(IntegrationCallStatus.NotFound, IntegrationAdapterMessages.TorrentGone(DisplayName)));
         }
     }
 
@@ -287,7 +300,9 @@ public sealed class FakeFolderDownloadClient : IIntegrationAdapter, IDownloadCli
     private ClientDestination Entry(NormalizedPath folder, bool isDownloadFolder)
     {
         var key = folder.ToString();
-        var problem = _unseen.Any(unseen => unseen.IsSameAs(folder)) ? CantSeeProblem(key) : null;
+        var problem = _unseen.Any(unseen => unseen.IsSameAs(folder))
+            ? TransmissionAdapter.FolderNotSeen(DisplayName, key, VendorText.Clean(CantSeeReason, CantSeeReason.Length))
+            : null;
         return new ClientDestination(key, key, key, isDownloadFolder, problem);
     }
 
@@ -297,5 +312,5 @@ public sealed class FakeFolderDownloadClient : IIntegrationAdapter, IDownloadCli
             : throw new ArgumentException($"“{folder}” isn't a full path, which the client would refuse.", nameof(folder));
 
     private static IntegrationCallResult<T> Unarmed<T>() where T : class =>
-        IntegrationCallResult<T>.Failed(IntegrationCallStatus.Unreachable, UnarmedMessage);
+        IntegrationCallResult<T>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy(UnarmedMessage));
 }

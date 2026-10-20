@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -208,7 +209,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
         //Assert
         // Refused, never a status the sender reads as "may have been taken": Transmission read neither add.
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(SessionIdRefusedError, result.Error);
+        Assert.Equal(SessionIdRefusedError, TestTexts.En(result.Error));
         Assert.Equal(2, _harness.TransmissionHttp.Requests.Count(request => FakeTransmissionServer.Describe(request) == "torrent-add"));
         Assert.Empty(_transmission.AddRequests);
         Assert.Empty(_transmission.Torrents);
@@ -227,7 +228,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(SessionIdRefusedError, result.Error);
+        Assert.Equal(SessionIdRefusedError, TestTexts.En(result.Error));
         Assert.Equal(1, _harness.TransmissionHttp.Requests.Count(request => FakeTransmissionServer.Describe(request) == "torrent-add"));
     }
 
@@ -244,7 +245,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal("Transmission already has this torrent, in “/downloads/tv-shows” with the label “Серіали, 4K”, so it added nothing.", result.Error);
+        Assert.Equal("Transmission already has this torrent, in “/downloads/tv-shows” with the label “Серіали, 4K”, so it added nothing.", TestTexts.En(result.Error));
         Assert.Equal(held, Assert.Single(_transmission.Torrents));
         var read = _transmission.Calls[^1];
         Assert.Equal("torrent-get", read.Method);
@@ -263,7 +264,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
         var result = await Client.SubmitAsync(Saved, Submission(TorrentFile()), TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal("Transmission already has this torrent, in “/downloads” with no label, so it added nothing.", result.Error);
+        Assert.Equal("Transmission already has this torrent, in “/downloads” with no label, so it added nothing.", TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -301,7 +302,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(DuplicateUnreadError, result.Error);
+        Assert.Equal(DuplicateUnreadError, TestTexts.En(result.Error));
         Assert.Single(_transmission.AddRequests);
     }
 
@@ -323,7 +324,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
         //Assert
         // Never TimedOut, which the sender reads as "may have been taken" and would adopt the torrent Transmission already had.
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(DuplicateUnreadError, result.Error);
+        Assert.Equal(DuplicateUnreadError, TestTexts.En(result.Error));
         Assert.Single(transmission.AddRequests);
     }
 
@@ -341,7 +342,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal($"Transmission refused the torrent: {refusal}.", result.Error);
+        Assert.Equal($"Transmission refused the torrent: {refusal}.", TestTexts.En(result.Error));
         Assert.Single(_transmission.AddRequests);
     }
 
@@ -357,7 +358,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal("Transmission refused the torrent: unrecognized info.", result.Error);
+        Assert.Equal("Transmission refused the torrent: unrecognized info.", TestTexts.En(result.Error));
         Assert.Empty(_transmission.Torrents);
     }
 
@@ -374,7 +375,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(V2OnlyError, result.Error);
+        Assert.Equal(V2OnlyError, TestTexts.En(result.Error));
         Assert.Empty(_harness.TransmissionHttp.Requests);
     }
 
@@ -388,7 +389,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
         var result = await Client.SubmitAsync(Saved, Submission(new ReleasePayload(ReleasePayloadKind.Magnet, null, magnet)), TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal(V2OnlyError, result.Error);
+        Assert.Equal(V2OnlyError, TestTexts.En(result.Error));
         Assert.Empty(_harness.TransmissionHttp.Requests);
     }
 
@@ -445,8 +446,8 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
         var result = await Client.SubmitAsync(Saved, Submission(new ReleasePayload(ReleasePayloadKind.Magnet, null, Magnet)), TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal("Transmission refused the torrent: couldn't fetch *** from ***.", result.Error);
-        Assert.DoesNotContain(Passkey, result.Error, StringComparison.Ordinal);
+        Assert.Equal("Transmission refused the torrent: couldn't fetch *** from ***.", TestTexts.En(result.Error));
+        Assert.DoesNotContain(Passkey, TestTexts.En(result.Error), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -465,7 +466,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
         //Assert
         // Transmission may have added it all the same: the sender looks the hash up rather than sending it twice.
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("Transmission at http://transmission.test:9091 didn't answer within 0.1 seconds.", result.Error);
+        Assert.Equal("Transmission at http://transmission.test:9091 didn't answer within 0.1 seconds.", TestTexts.En(result.Error));
         Assert.Equal(1, harness.TransmissionHttp.Requests.Count(request => FakeTransmissionServer.Describe(request) == "torrent-add"));
     }
 
@@ -504,7 +505,7 @@ public sealed class TransmissionAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("The service at this address answered, but not the way Transmission answers a new torrent.", result.Error);
+        Assert.Equal("The service at this address answered, but not the way Transmission answers a new torrent.", TestTexts.En(result.Error));
     }
 
     [Theory]

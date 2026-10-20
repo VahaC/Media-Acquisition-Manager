@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
@@ -18,8 +19,8 @@ namespace MediaAcquisitionManager.Api.Tests.Settings;
 public sealed class IntegrationsAccessHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/integrations";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IUserSeeder _users = null!;
@@ -77,7 +78,7 @@ public sealed class IntegrationsAccessHttpTests : IClassFixture<MediaAcquisition
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         // Armed to succeed, so a test that got through would show as a call.
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded("Connected to the fake service.");
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy("Connected to the fake service."));
         var target = await _integrations.Create(
             name: "Living room",
             userName: "admin",

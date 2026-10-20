@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -57,7 +58,7 @@ public sealed class JellyfinAdapterFilesReadFailureTests : IDisposable
         var result = await Lookup.ReadFilesAsync(Settings, [FilmPath], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal((expectedStatus, expectedMessage), (result.Status, result.Error));
+        Assert.Equal((expectedStatus, expectedMessage), (result.Status, TestTexts.En(result.Error)));
         Assert.Null(result.Value);
         Assert.Single(_harness.JellyfinHttp.Requests);
     }
@@ -74,7 +75,7 @@ public sealed class JellyfinAdapterFilesReadFailureTests : IDisposable
         var result = await Lookup.ReadFilesAsync(Settings, [FilmPath], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal((IntegrationCallStatus.Refused, NoAdministratorError), (result.Status, result.Error));
+        Assert.Equal((IntegrationCallStatus.Refused, NoAdministratorError), (result.Status, TestTexts.En(result.Error)));
         Assert.Null(result.Value);
         Assert.Single(_harness.JellyfinHttp.Requests);
     }
@@ -100,7 +101,7 @@ public sealed class JellyfinAdapterFilesReadFailureTests : IDisposable
         var result = await Lookup.ReadFilesAsync(Settings, [listedPath, FilmPath], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal((expectedStatus, expectedMessage), (result.Status, result.Error));
+        Assert.Equal((expectedStatus, expectedMessage), (result.Status, TestTexts.En(result.Error)));
         Assert.Null(result.Value);
         // The failed read is the last: no other type is tried after it, and nothing is sent again.
         Assert.Equal($"/Items/{failing}", _harness.JellyfinHttp.Requests[^1].Uri.AbsolutePath);
@@ -126,7 +127,7 @@ public sealed class JellyfinAdapterFilesReadFailureTests : IDisposable
         var result = await Lookup.ReadFilesAsync(Settings, [FilmPath], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal((IntegrationCallStatus.UnexpectedResponse, NotJellyfinError), (result.Status, result.Error));
+        Assert.Equal((IntegrationCallStatus.UnexpectedResponse, NotJellyfinError), (result.Status, TestTexts.En(result.Error)));
         Assert.Null(result.Value);
     }
 
@@ -151,7 +152,7 @@ public sealed class JellyfinAdapterFilesReadFailureTests : IDisposable
         var result = await Lookup.ReadFilesAsync(Settings, [(string)episode["Path"]!], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal((expectedStatus, expectedMessage), (result.Status, result.Error));
+        Assert.Equal((expectedStatus, expectedMessage), (result.Status, TestTexts.En(result.Error)));
         Assert.Null(result.Value);
     }
 
@@ -173,7 +174,7 @@ public sealed class JellyfinAdapterFilesReadFailureTests : IDisposable
         var result = await Lookup.ReadFilesAsync(Settings, [(string)episode["Path"]!], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal((IntegrationCallStatus.UnexpectedResponse, NotJellyfinError), (result.Status, result.Error));
+        Assert.Equal((IntegrationCallStatus.UnexpectedResponse, NotJellyfinError), (result.Status, TestTexts.En(result.Error)));
         Assert.Null(result.Value);
     }
 
@@ -192,7 +193,7 @@ public sealed class JellyfinAdapterFilesReadFailureTests : IDisposable
         var result = await Lookup.ReadFilesAsync(Settings, [FilmPath], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal((expectedStatus, expectedMessage), (result.Status, result.Error));
+        Assert.Equal((expectedStatus, expectedMessage), (result.Status, TestTexts.En(result.Error)));
         Assert.Null(result.Value);
     }
 

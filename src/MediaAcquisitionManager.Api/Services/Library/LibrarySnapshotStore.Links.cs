@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -305,7 +306,7 @@ public sealed partial class LibrarySnapshotStore
         private bool MaySeeWriteOf(LibraryItemLinkEntity link) =>
             readStartedUtc is { } started && (link.WriteStateUtc is not { } changed || changed < started);
 
-        private void SetState(LibraryItemLinkEntity link, LibraryLinkWriteState state, string? error)
+        private void SetState(LibraryItemLinkEntity link, LibraryLinkWriteState state, Message? error)
         {
             link.WriteState = state;
             link.WriteError = error;

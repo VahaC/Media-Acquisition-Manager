@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -147,7 +148,7 @@ public sealed class TransmissionAdapterFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal("Transmission doesn't have this torrent any more.", result.Error);
+        Assert.Equal("Transmission doesn't have this torrent any more.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -250,7 +251,7 @@ public sealed class TransmissionAdapterFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotFilesError, result.Error);
+        Assert.Equal(NotFilesError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -307,7 +308,7 @@ public sealed class TransmissionAdapterFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal("Transmission refused the request: no fields specified.", result.Error);
+        Assert.Equal("Transmission refused the request: no fields specified.", TestTexts.En(result.Error));
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
@@ -30,7 +31,7 @@ public sealed class CopyRemovalPlanter(MediaAcquisitionManagerApiFactory factory
     public async Task<PlantedRemoval> PlantAsync(
         CopyRemovalState state,
         IReadOnlyList<PlantedName> names,
-        string? reason = null,
+        Message? reason = null,
         DateTime? createdUtc = null,
         string title = "Alien (1979)",
         DateTime? libraryNoticeDueUtc = null)

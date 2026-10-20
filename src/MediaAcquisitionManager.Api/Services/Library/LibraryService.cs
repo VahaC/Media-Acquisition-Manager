@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Paging;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -65,7 +66,7 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
             // By name, never by number: Enum.TryParse would take "5" for Largest.
             var name = Enum.GetNames<LibrarySort>().FirstOrDefault(candidate => candidate.Equals(sort.Trim(), StringComparison.OrdinalIgnoreCase));
             if (name is null)
-                return LibraryWorkListResult.Invalid($"“{Echo(sort.Trim(), FilterEchoLength)}” is not a sort. Use Title, TitleDescending, Newest, Oldest, Largest or Added.");
+                return LibraryWorkListResult.Invalid(Message.Of("library.list.sort-unknown", ("value", Echo(sort.Trim(), FilterEchoLength))));
             order = Enum.Parse<LibrarySort>(name);
         }
 
@@ -79,7 +80,7 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
                 _ => null,
             };
             if (kindFilter is null)
-                return LibraryWorkListResult.Invalid($"“{Echo(kind.Trim(), FilterEchoLength)}” is not a kind filter. Use Movie or Series.");
+                return LibraryWorkListResult.Invalid(Message.Of("library.list.kind-unknown", ("value", Echo(kind.Trim(), FilterEchoLength))));
         }
 
         // A movie, or an episode no position puts in a series (the Tom & Jerry Kids item): listed itself.
@@ -154,7 +155,8 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
             }
             else
             {
-                return LibraryWorkListResult.Invalid($"“{Echo(trimmed, FilterEchoLength)}” is not a season. Use a season number, or {NoSeason} for the episodes without one.");
+                // The template names NoSeason ("None") itself: an API token, the same in every language.
+                return LibraryWorkListResult.Invalid(Message.Of("library.list.season-unknown", ("value", Echo(trimmed, FilterEchoLength))));
             }
         }
 
@@ -221,14 +223,15 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
             string.IsNullOrWhiteSpace(identifiers) ? null : MissingHits());
     }
 
-    /// <summary>The sentence saying which filter the list doesn't take; <c>null</c> when it takes them
-    /// all.</summary>
-    private static string? FilterError(string? locationId, string? identifiers)
+    /// <summary>Which filter the list doesn't take, as a message the Api renders (ADR 0042); <c>null</c> when it takes
+    /// them all.</summary>
+    private static Message? FilterError(string? locationId, string? identifiers)
     {
         if (!string.IsNullOrWhiteSpace(locationId) && !Guid.TryParse(locationId.Trim(), out _))
-            return $"“{Echo(locationId.Trim(), LocationEchoLength)}” is not a library.";
+            return Message.Of("library.list.location-unknown", ("value", Echo(locationId.Trim(), LocationEchoLength)));
+        // The template names MissingIdentifiersFilter ("Missing") itself: an API token, the same in every language.
         if (!string.IsNullOrWhiteSpace(identifiers) && !string.Equals(identifiers.Trim(), MissingIdentifiersFilter, StringComparison.OrdinalIgnoreCase))
-            return $"“{Echo(identifiers.Trim(), FilterEchoLength)}” is not an identifier filter. Use {MissingIdentifiersFilter}.";
+            return Message.Of("library.list.identifiers-unknown", ("value", Echo(identifiers.Trim(), FilterEchoLength)));
         return null;
     }
 

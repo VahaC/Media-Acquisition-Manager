@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
@@ -15,7 +16,7 @@ public sealed class RecommendationRunDataFactory(ApplicationDbContext db, TimePr
         DateTime? createdUtc = null,
         int? seedCount = null,
         int? candidateCount = null,
-        string? error = null)
+        Message? error = null)
     {
         var queued = createdUtc ?? time.GetUtcNow().UtcDateTime;
         var run = new RecommendationRunEntity

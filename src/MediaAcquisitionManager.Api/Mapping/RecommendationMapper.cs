@@ -1,5 +1,6 @@
 using System.Globalization;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Recommendations;
@@ -7,7 +8,9 @@ using MediaAcquisitionManager.Core.Recommendations;
 namespace MediaAcquisitionManager.Api.Mapping;
 
 /// <inheritdoc cref="IRecommendationMapper"/>
-public sealed class RecommendationMapper : IRecommendationMapper
+/// <remarks>MAM-47 (ADR 0042) — a singleton still: a run's error is rendered in the language of the request being
+/// answered, which <see cref="IRequestTexts"/> reads per call.</remarks>
+public sealed class RecommendationMapper(IRequestTexts texts) : IRecommendationMapper
 {
     public RecommendationRunDto ToDto(RecommendationRunEntity run, bool forOwner) =>
         new(
@@ -26,7 +29,7 @@ public sealed class RecommendationMapper : IRecommendationMapper
             run.SeedCount,
             run.CandidateCount,
             // The catalog's sentence can quote its address or what it said back about the key.
-            forOwner ? run.Error : null);
+            forOwner ? texts.Render(run.Error) : null);
 
     public RecommendationDto ToDto(
         CatalogWorkEntity work,

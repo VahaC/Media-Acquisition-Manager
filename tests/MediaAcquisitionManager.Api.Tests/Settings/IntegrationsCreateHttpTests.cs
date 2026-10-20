@@ -280,7 +280,7 @@ public sealed class IntegrationsCreateHttpTests : IClassFixture<MediaAcquisition
 
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal($"An integration named “{name.Trim()}” already exists.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(($"An integration named “{name.Trim()}” already exists.", "integrations.service.name-taken"), await response.ReadErrorBodyAsync(cancellationToken));
         await AssertIntegrationCountAsync(1, cancellationToken);
     }
 
@@ -646,7 +646,7 @@ public sealed class IntegrationsCreateHttpTests : IClassFixture<MediaAcquisition
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("A secret change must be Keep, Set or Clear.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(("A secret change must be Keep, Set or Clear.", "integrations.service.secret-mode-invalid"), await response.ReadErrorBodyAsync(cancellationToken));
         await AssertIntegrationCountAsync(0, cancellationToken);
     }
 

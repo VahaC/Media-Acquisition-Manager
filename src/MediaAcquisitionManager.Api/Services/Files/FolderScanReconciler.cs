@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,7 +26,7 @@ public sealed class FolderScanReconciler(
     TimeProvider time,
     ILogger<FolderScanReconciler> logger) : IHostedService
 {
-    private const string RestartedError = "The app restarted before this scan finished, so nothing it found was stored. Scan the folders again.";
+    private static readonly Message RestartedError = Message.Of("files.scan.restarted");
 
     public Task StartAsync(CancellationToken cancellationToken) => ReconcileAsync(cancellationToken);
 

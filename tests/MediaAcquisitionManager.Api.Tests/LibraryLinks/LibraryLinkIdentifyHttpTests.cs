@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Api.Contracts;
@@ -6,10 +7,12 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
@@ -82,7 +85,7 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
             (LibraryLinkWriteState.NotWritten,
                 "Jellyfin's library “Мульфільми” saves artwork and metadata next to the media, so identifying this item could change files in your media folders; the app left it alone. Switch that off in the library's settings in Jellyfin, then retry.",
                 (DateTime?)null),
-            (link.WriteState, link.WriteError, link.IdentifiedUtc));
+            (link.WriteState, TestTexts.En(link.WriteError), link.IdentifiedUtc));
         // The library's options are read first, before any search: the calls end there, and nothing changed.
         Assert.Equal(
             ["/System/Info", "/Users", $"/Items/{ShortId}", "/Library/VirtualFolders"],
@@ -109,7 +112,7 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal(
             (LibraryLinkWriteState.NotWritten,
                 "The app couldn't tell what this item's Jellyfin library saves next to the media (none of Jellyfin's libraries holds the item's path), so it left the item alone."),
-            (link.WriteState, link.WriteError));
+            (link.WriteState, TestTexts.En(link.WriteError)));
         Assert.Empty(_jellyfin.RemoteSearches);
         Assert.Empty(_jellyfin.Applied);
     }
@@ -137,7 +140,7 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal(
             (LibraryLinkWriteState.NotWritten,
                 "This item is locked in Jellyfin (the whole item, its name or its overview), so Jellyfin wouldn't take the match. Unlock it there, then retry."),
-            (link.WriteState, link.WriteError));
+            (link.WriteState, TestTexts.En(link.WriteError)));
         Assert.Empty(_jellyfin.RemoteSearches);
         Assert.Empty(_jellyfin.Applied);
     }
@@ -160,7 +163,7 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
             (LibraryLinkWriteState.NotWritten,
                 $"Jellyfin found no film with TMDb id {UnknownFilmId}. Check the id, and that TheMovieDb is among this library's metadata sources in Jellyfin.",
                 (DateTime?)null),
-            (link.WriteState, link.WriteError, link.IdentifiedUtc));
+            (link.WriteState, TestTexts.En(link.WriteError), link.IdentifiedUtc));
         Assert.Single(_jellyfin.RemoteSearches);
         Assert.Empty(_jellyfin.Applied);
         Assert.Equal([AuditAction.LibraryLinkSet], await _factory.AuditActionsAsync(cancellationToken));
@@ -185,7 +188,7 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal(
             (LibraryLinkWriteState.NotWritten,
                 "Jellyfin holds an item of type “Series” under this id, not a movie, so the app didn't identify it. Sync the library and link it again."),
-            (link.WriteState, link.WriteError));
+            (link.WriteState, TestTexts.En(link.WriteError)));
         Assert.Empty(_jellyfin.RemoteSearches);
     }
 
@@ -205,7 +208,7 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
         var link = await _factory.SingleLinkAsync(cancellationToken);
         Assert.Equal(
             (LibraryLinkWriteState.NotWritten, "Jellyfin no longer has this item; sync the library and link it again."),
-            (link.WriteState, link.WriteError));
+            (link.WriteState, TestTexts.En(link.WriteError)));
         Assert.Empty(_jellyfin.Applied);
     }
 
@@ -290,7 +293,7 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
 
         //Assert
         var link = await _factory.SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, link.WriteError));
+        Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, TestTexts.En(link.WriteError)));
         Assert.Equal(_factory.Time.GetUtcNow().UtcDateTime, link.IdentifiedUtc);
         Assert.Single(_jellyfin.Applied);
         Assert.Equal(1, recorded);
@@ -321,7 +324,7 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
         //Assert
         var stored = await _factory.SingleLinkAsync(cancellationToken);
         Assert.Equal((LibraryLinkWriteState.NotWritten, (DateTime?)null), (stored.WriteState, stored.IdentifiedUtc));
-        Assert.Contains("took the match, but the item read again doesn't show it", stored.WriteError, StringComparison.Ordinal);
+        Assert.Contains("took the match, but the item read again doesn't show it", TestTexts.En(stored.WriteError), StringComparison.Ordinal);
         var audit = Assert.Single(await _factory.AuditAsync(cancellationToken));
         Assert.Equal((AuditAction.LibraryItemIdentified, (Guid?)link.Id, "owner"), (audit.Action, audit.TargetId, audit.ActorUserName));
     }
@@ -373,9 +376,9 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
 
         //Assert
         Assert.Equal(LibraryLinkWriteState.NotWritten, lost.WriteState);
-        Assert.Contains("answer never came", lost.WriteError, StringComparison.Ordinal);
+        Assert.Contains("answer never came", TestTexts.En(lost.WriteError), StringComparison.Ordinal);
         var link = await _factory.SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, link.WriteError));
+        Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, TestTexts.En(link.WriteError)));
         // Retry read the item first: it showed the match, so the one Apply of the first attempt is the only one the app ever sent.
         Assert.Single(_factory.JellyfinHttp.Requests, request => request.Uri.AbsolutePath.StartsWith("/Items/RemoteSearch/Apply/", StringComparison.Ordinal));
     }
@@ -414,7 +417,10 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal(
             (LibraryLinkWriteState.NotWritten, LibraryLinkWriter.SeriesStillWorkingError(sentAt.AddMinutes(10)), (DateTime?)null),
             (waiting[series.Id].WriteState, waiting[series.Id].WriteError, waiting[series.Id].IdentifiedUtc));
-        Assert.EndsWith(" UTC.", waiting[series.Id].WriteError, StringComparison.Ordinal);
+        // MAM-47 — the time stays the text HH:mm it always was, in UTC, inside the sentence.
+        Assert.Equal(
+            $"Jellyfin may still be working on this series after the last attempt; try again after {sentAt.AddMinutes(10).ToString("HH:mm", CultureInfo.InvariantCulture)} UTC.",
+            TestTexts.En(waiting[series.Id].WriteError));
         Assert.Equal(0, seriesRequests);
         Assert.DoesNotContain(_jellyfin.Applied, applied => applied.ItemId == PenguinsId);
         // A film's Apply takes seconds: it is never made to wait.
@@ -445,7 +451,7 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
 
         //Assert
         var link = await _factory.SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, link.WriteError));
+        Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, TestTexts.En(link.WriteError)));
         Assert.NotNull(link.IdentifiedUtc);
         Assert.Contains("\"MetadataLanguage\":\"uk\",\"MetadataCountryCode\":\"UA\"", Assert.Single(_jellyfin.RemoteSearches).Body, StringComparison.Ordinal);
         Assert.Equal("Посадка салаги", (string?)Movie(ShortId)["Name"]);
@@ -463,7 +469,7 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
         var refused = await _links.Create(library, "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2", work.Id, MediaIdentifierScheme.Tmdb, FilmId, writeState: LibraryLinkWriteState.Queued);
         // The library echoes the key in its failure's message, and in the sentence of a refusal.
         _factory.FakeLibraryIdentifier.Answer = request => request.SourceItemId == "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
-            ? IntegrationCallResult<LibraryIdentification>.Failed(IntegrationCallStatus.Unreachable, $"The library at https://x/?api_key={Key} didn't answer.")
+            ? IntegrationCallResult<LibraryIdentification>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy($"The library at https://x/?api_key={Key} didn't answer."))
             : IntegrationCallResult<LibraryIdentification>.Succeeded(
                 FakeLibraryItemIdentifier.Refused(LibraryIdentifyRefusal.LibraryUnknown, $"Refused for {Key}."));
 
@@ -475,10 +481,10 @@ public sealed class LibraryLinkIdentifyHttpTests : IClassFixture<MediaAcquisitio
         Assert.All(new[] { failed.Id, refused.Id }, id =>
         {
             Assert.Equal(LibraryLinkWriteState.NotWritten, links[id].WriteState);
-            Assert.DoesNotContain(Key, links[id].WriteError, StringComparison.Ordinal);
+            Assert.DoesNotContain(Key, TestTexts.En(links[id].WriteError), StringComparison.Ordinal);
         });
-        Assert.StartsWith("The library at https://x/?api_key=", links[failed.Id].WriteError, StringComparison.Ordinal);
-        Assert.StartsWith("Refused for ", links[refused.Id].WriteError, StringComparison.Ordinal);
+        Assert.StartsWith("The library at https://x/?api_key=", TestTexts.En(links[failed.Id].WriteError), StringComparison.Ordinal);
+        Assert.StartsWith("Refused for ", TestTexts.En(links[refused.Id].WriteError), StringComparison.Ordinal);
     }
 
     [Fact]

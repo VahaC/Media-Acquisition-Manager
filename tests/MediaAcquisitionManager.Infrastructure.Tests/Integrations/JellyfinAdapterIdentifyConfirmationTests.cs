@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using static MediaAcquisitionManager.TestInfrastructure.Integrations.JellyfinIdentifyHarness;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
@@ -61,7 +62,7 @@ public sealed class JellyfinAdapterIdentifyConfirmationTests : IDisposable
         var identification = result.Value!;
         Assert.Equal(LibraryIdentifyOutcome.NotConfirmed, identification.Outcome);
         Assert.True(identification.Sent);
-        Assert.Equal(NotConfirmedProblem, identification.Sentence);
+        Assert.Equal(NotConfirmedProblem, TestTexts.En(identification.Sentence));
         Assert.Empty(identification.IdsBefore);
         Assert.Equal(expectedIdsAfter.Split('|'), Describe(identification.IdsAfter));
         // Sent once, never again: Retry reads first.
@@ -85,7 +86,7 @@ public sealed class JellyfinAdapterIdentifyConfirmationTests : IDisposable
         var identification = result.Value!;
         Assert.Equal(LibraryIdentifyOutcome.NotConfirmed, identification.Outcome);
         Assert.True(identification.Sent);
-        Assert.Equal(NotConfirmedProblem, identification.Sentence);
+        Assert.Equal(NotConfirmedProblem, TestTexts.En(identification.Sentence));
         Assert.Single(_jellyfin.Server.Applied);
     }
 
@@ -143,7 +144,7 @@ public sealed class JellyfinAdapterIdentifyConfirmationTests : IDisposable
         //Assert
         var identification = result.Value!;
         Assert.Equal(LibraryIdentifyOutcome.NotConfirmed, identification.Outcome);
-        Assert.Equal(NotConfirmedProblem, identification.Sentence);
+        Assert.Equal(NotConfirmedProblem, TestTexts.En(identification.Sentence));
         Assert.Equal(["Imdb tt0056164", "Tmdb 223021"], Describe(identification.IdsAfter));
         Assert.Equal("120. Landing Stripling", (string?)_jellyfin.Film["Name"]);
     }

@@ -1,15 +1,21 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
 /// <inheritdoc cref="ILibraryMapper"/>
-public sealed class LibraryMapper : ILibraryMapper
+/// <remarks>
+/// MAM-47 (ADR 0042) — the runs' and the files' reasons are stored as key and values; they are written here, in the
+/// request's language (<see cref="IRequestTexts"/>, a singleton like this mapper).
+/// </remarks>
+public sealed class LibraryMapper(IRequestTexts texts) : ILibraryMapper
 {
     /// <summary>
     /// MAM-34 — the order in which a work's items' write states make its link's one state: the worst first, so a link one
@@ -69,7 +75,7 @@ public sealed class LibraryMapper : ILibraryMapper
                     [.. filesOf(version).OrderBy(file => file.ServicePath, StringComparer.Ordinal)]))],
             work.Kind == MediaWorkKind.Episode ? ToEpisodeDto(positions) : null,
             work.Kind == MediaWorkKind.Series ? seasons ?? [] : null,
-            ToLinkDto(linked, forOwner),
+            ToLinkDto(linked, forOwner, texts),
             PosterUrlOf(titles, posters));
     }
 
@@ -101,7 +107,7 @@ public sealed class LibraryMapper : ILibraryMapper
     // the first conflicting library id. Who set it and why the library didn't identify it are the owner's (the sync run's
     // rule: the owner's sign-in name, and a sentence that can name the library's address). Identified and UnderWay carry no
     // secret and are for everyone: see the two below.
-    private static LibraryWorkLinkDto? ToLinkDto(LinkedWork linked, bool forOwner)
+    private static LibraryWorkLinkDto? ToLinkDto(LinkedWork linked, bool forOwner, IRequestTexts texts)
     {
         if (linked.Links.Count == 0)
             return null;
@@ -119,7 +125,7 @@ public sealed class LibraryMapper : ILibraryMapper
             forOwner ? latest.SetByUserName : null,
             latest.SetUtc,
             worst.WriteState,
-            forOwner ? worst.WriteError : null,
+            texts.Render(forOwner ? worst.WriteError : null),
             linked.ConflictingValue,
             IsIdentified(linked.Links),
             linked.Links.Any(link => link.WriteState is LibraryLinkWriteState.Queued or LibraryLinkWriteState.Writing));
@@ -184,7 +190,7 @@ public sealed class LibraryMapper : ILibraryMapper
             path.Status,
             // MAM-8 — the reason quotes the owner's mappings (an ambiguous path names both targets), the
             // same sentence the sources list keeps to the owner; everyone else still gets the status.
-            forOwner ? path.Reason : null,
+            texts.Render(forOwner ? path.Reason : null),
             file.SizeBytes,
             locationName,
             ToInspectionDto(file, path.HasAppPath, reading, tracks, forOwner));
@@ -228,7 +234,7 @@ public sealed class LibraryMapper : ILibraryMapper
             run.FilesCount,
             // MAM-8 — the sentence can name the address or a redirect target; integrations are the
             // owner's.
-            forOwner ? run.Error : null);
+            texts.Render(forOwner ? run.Error : null));
 
     public FileInspectionRunDto ToDto(FileInspectionRunEntity run, bool forOwner) =>
         new(
@@ -251,8 +257,8 @@ public sealed class LibraryMapper : ILibraryMapper
                 run.HashProblemCount,
                 // MAM-19 — the sentence may quote a path in the owner's media folders, as a file's inspection
                 // problem does.
-                forOwner ? run.HashProblem : null),
-            forOwner ? run.Error : null);
+                texts.Render(forOwner ? run.HashProblem : null)),
+            texts.Render(forOwner ? run.Error : null));
 
     public FolderScanRunDto ToDto(FolderScanRunEntity run, bool forOwner) =>
         new(
@@ -267,8 +273,8 @@ public sealed class LibraryMapper : ILibraryMapper
             run.FilesUnreported,
             run.ProblemCount,
             // The sentence quotes a path in the owner's media folders, as a file's inspection problem does.
-            forOwner ? run.Problem : null,
-            forOwner ? run.Error : null);
+            texts.Render(forOwner ? run.Problem : null),
+            texts.Render(forOwner ? run.Error : null));
 
     public LibrarySourceDto ToDto(
         IntegrationConnectionEntity integration,
@@ -277,7 +283,7 @@ public sealed class LibraryMapper : ILibraryMapper
         LibrarySyncRunDto? latestRun,
         LibrarySyncRunDto? lastSucceededRun,
         int filesWithoutAppPathCount,
-        string? pathProblem,
+        Message? pathProblem,
         LibrarySourceInspectionDto inspection,
         LibrarySpaceDto space) =>
         new(
@@ -289,7 +295,10 @@ public sealed class LibraryMapper : ILibraryMapper
             latestRun,
             lastSucceededRun,
             filesWithoutAppPathCount,
-            pathProblem,
+            texts.Render(pathProblem),
+            // MAM-47 — the reason's key, so the page can tell the first file's inspection problem is the same kind of
+            // mapping problem without comparing words (LibrarySyncPanel).
+            pathProblem?.Key,
             inspection,
             space);
 
@@ -297,7 +306,7 @@ public sealed class LibraryMapper : ILibraryMapper
     // failure or a file that has since gone never shows the facts of other bytes. A file the last run
     // found no app path for, which the mappings give one now, is waiting for the next run rather than
     // still a problem: the owner fixed the mapping, and the page shows it at once (ADR 0003, MAM-8).
-    private static LibraryFileInspectionDto? ToInspectionDto(
+    private LibraryFileInspectionDto? ToInspectionDto(
         PhysicalFileEntity file, bool hasAppPath, MediaInspectionEntity? reading, IReadOnlyList<MediaInspectionTrackEntity> tracks, bool forOwner)
     {
         if (file is not { InspectionStatus: { } status, InspectedUtc: { } inspectedUtc })
@@ -325,7 +334,7 @@ public sealed class LibraryMapper : ILibraryMapper
             : null;
         // MAM-9 — the sentence quotes paths inside the app and what the inspector said about the file:
         // the owner's diagnostics, like the path problem; everyone else reads the status.
-        return new LibraryFileInspectionDto(status, forOwner ? file.InspectionError : null, inspectedUtc, media);
+        return new LibraryFileInspectionDto(status, texts.Render(forOwner ? file.InspectionError : null), inspectedUtc, media);
     }
 
     /// <summary>

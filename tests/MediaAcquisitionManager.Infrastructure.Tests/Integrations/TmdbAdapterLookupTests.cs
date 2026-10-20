@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -259,7 +260,7 @@ public sealed class TmdbAdapterLookupTests : IDisposable
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
         Assert.Null(result.Value);
-        Assert.DoesNotContain(Token, result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(Token, TestTexts.En(result.Error), StringComparison.Ordinal);
     }
 
     [Theory]

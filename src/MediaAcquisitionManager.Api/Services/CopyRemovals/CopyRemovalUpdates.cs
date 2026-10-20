@@ -1,6 +1,6 @@
-using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
@@ -16,35 +16,32 @@ public static class CopyRemovalUpdates
 {
     /// <summary>
     /// Moves the removal <paramref name="copyRemovalId"/>, read as <paramref name="observedState"/>, to
-    /// <paramref name="state"/> at <paramref name="changedUtc"/> with <paramref name="reason"/> or none — cut to its column —;
-    /// reaching <see cref="CopyRemovalState.Quarantined"/> stamps <see cref="CopyRemovalEntity.QuarantinedUtc"/>, and a
-    /// library notice is owed from <paramref name="libraryNoticeDueUtc"/> when given, the one owed before kept otherwise.
-    /// How many it wrote (0 or 1).
+    /// <paramref name="state"/> at <paramref name="changedUtc"/> with <paramref name="reason"/> or none — fitted to its
+    /// column by the column's converter (MAM-47) —; reaching <see cref="CopyRemovalState.Quarantined"/> stamps
+    /// <see cref="CopyRemovalEntity.QuarantinedUtc"/>, and a library notice is owed from <paramref name="libraryNoticeDueUtc"/>
+    /// when given, the one owed before kept otherwise. How many it wrote (0 or 1).
     /// </summary>
     public static Task<int> MoveAsync(
         this IQueryable<CopyRemovalEntity> removals,
         Guid copyRemovalId,
         CopyRemovalState observedState,
         CopyRemovalState state,
-        string? reason,
+        Message? reason,
         DateTime changedUtc,
-        DateTime? libraryNoticeDueUtc = null)
-    {
-        var storedReason = reason is null ? null : FileInspectionRunUpdates.Cut(reason, CopyRemovalEntity.ReasonMaximumLength);
-        return removals.Where(removal => removal.Id == copyRemovalId && removal.State == observedState)
+        DateTime? libraryNoticeDueUtc = null) =>
+        removals.Where(removal => removal.Id == copyRemovalId && removal.State == observedState)
             .ExecuteUpdateAsync(
                 setters =>
                 {
                     setters
                         .SetProperty(removal => removal.State, state)
-                        .SetProperty(removal => removal.Reason, storedReason)
+                        .SetProperty(removal => removal.Reason, reason)
                         .SetProperty(removal => removal.StateChangedUtc, changedUtc)
                         .SetProperty(removal => removal.LibraryNoticeDueUtc, removal => libraryNoticeDueUtc ?? removal.LibraryNoticeDueUtc);
                     if (state == CopyRemovalState.Quarantined)
                         setters.SetProperty(removal => removal.QuarantinedUtc, changedUtc);
                 },
                 CancellationToken.None);
-    }
 
     /// <summary>
     /// Holds the removal <paramref name="copyRemovalId"/>, read as <paramref name="observedState"/>, for writes that go with

@@ -20,8 +20,9 @@ import '@/styles/settings-dialog.css' // .settings-dialog* — the scrolling bod
  * MAM-16 — each refusal shows where the answer says it belongs: the mismatch under Confirm password,
  * a 409 (only ever a taken name) under User name, and every other sentence in a banner above the
  * buttons. A user-name rule and a password rule share the 400 and say which field they are about
- * only in English, so they stay in the banner: copying the rules here to place them would give each
- * rule a second wording, free to drift from the server's.
+ * only in their sentence (the `code` beside it, MAM-47, isn't read here), so they stay in the banner:
+ * copying the rules here to place them would give each rule a second wording, free to drift from the
+ * server's.
  */
 export function CreateUserDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation(['users', 'auth', 'common'])

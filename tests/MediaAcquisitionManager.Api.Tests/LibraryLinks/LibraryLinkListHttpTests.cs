@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
@@ -150,7 +151,7 @@ public sealed class LibraryLinkListHttpTests : IClassFixture<MediaAcquisitionMan
         var workId = await SyncAsync(cancellationToken, (ShortId, null), (OtherShortId, null));
         var otherWorkId = await WorkOfAsync(OtherShortId, cancellationToken);
         var listed = await _links.Create(
-            _jellyfinIntegration, ShortId, workId, MediaIdentifierScheme.Tmdb, FilmId, writeState: state, configure: row => row.WriteError = "Jellyfin said no.");
+            _jellyfinIntegration, ShortId, workId, MediaIdentifierScheme.Tmdb, FilmId, writeState: state, configure: row => row.WriteError = Message.Legacy("Jellyfin said no."));
         await _links.Create(_jellyfinIntegration, OtherShortId, otherWorkId, MediaIdentifierScheme.Tmdb, "300", writeState: LibraryLinkWriteState.InLibrary);
 
         //Act
@@ -169,7 +170,7 @@ public sealed class LibraryLinkListHttpTests : IClassFixture<MediaAcquisitionMan
         var workId = await SyncAsync(cancellationToken, (ShortId, null));
         var attached = await _links.Create(
             _jellyfinIntegration, ShortId, workId, MediaIdentifierScheme.Tmdb, FilmId, writeState: LibraryLinkWriteState.NotWritten,
-            configure: row => row.WriteError = "Jellyfin said no.");
+            configure: row => row.WriteError = Message.Legacy("Jellyfin said no."));
         // Its item is gone: its card has no button (Retry needs a work) and the repair never retries it.
         var gone = await GoneAsync("01", "Calypso Cat", LibraryLinkWriteState.NotWritten);
 

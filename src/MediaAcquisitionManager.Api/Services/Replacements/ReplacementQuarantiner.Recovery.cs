@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -42,7 +43,7 @@ public sealed partial class ReplacementQuarantiner
         var roots = await db.AllowedRoots.AsNoTracking().OrderBy(root => root.Position).Select(root => root.Path).ToListAsync(cancellationToken);
 
         // Every disk read before the transaction: none is held across one.
-        var found = new List<(ReplacementJobNameEntity Name, ReplacementNameState State, string? Problem)>();
+        var found = new List<(ReplacementJobNameEntity Name, ReplacementNameState State, Message? Problem)>();
         var undecided = 0;
         foreach (var name in names.Where(name => name.State is ReplacementNameState.Moving or ReplacementNameState.Restoring or ReplacementNameState.Deleting))
         {
@@ -106,7 +107,7 @@ public sealed partial class ReplacementQuarantiner
     /// NeedsReview", as a review there could only end in a Retry that moves the restored copies back, or in nothing at
     /// all).
     /// </summary>
-    private static (ReplacementJobState End, string? Reason, bool NoticeDue, AuditAction EndAction) EndOf(
+    private static (ReplacementJobState End, Message? Reason, bool NoticeDue, AuditAction EndAction) EndOf(
         ReplacementJobState state, IReadOnlyList<ReplacementNameState> states)
     {
         switch (state)

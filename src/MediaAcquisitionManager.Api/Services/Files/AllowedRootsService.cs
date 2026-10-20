@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -114,7 +115,7 @@ public sealed class AllowedRootsService(
         // stays ticked until the owner unticks it. Never a path the app doesn't list: a tick is the owner's word on a
         // folder the page showed, not a way to name any folder of the host.
         if (UnknownTick(ticks, stored) is { } unknown)
-            return AllowedRootsUpdateResult.Invalid($"“{unknown}” isn't a library folder the app knows, so it can't be ticked for replacement.");
+            return AllowedRootsUpdateResult.Invalid(Message.Of("files.replacement-folders.unknown-folder", ("path", unknown)));
 
         var changes = ChangesOf(stored, roots, replacementEnabled, ticks);
         if (!changes.Any)
@@ -127,8 +128,7 @@ public sealed class AllowedRootsService(
         // name Moving here. A parent of the old root (/ for /media) keeps it in reach.
         if (changes.Roots && await StrandedQuarantineAsync(roots, cancellationToken) is { } stranded)
         {
-            return AllowedRootsUpdateResult.Invalid(
-                $"“{stranded}” still holds replaced or removed copies, so its media folder can't be taken out of the list. Restore them or delete them permanently first.");
+            return AllowedRootsUpdateResult.Invalid(Message.Of("files.allowed-roots.quarantine-holds-copies", ("path", stranded)));
         }
 
         // No target on any row: the roots, the switch and the ticks belong to the installation, not to a row the

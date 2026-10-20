@@ -251,6 +251,50 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `Tmdb/configuration-primary-translations.json`. `Settings/IntegrationsCatalogLanguageHttpTests`,
   `Settings/IntegrationsHttpTests`, `TmdbAdapterLanguageTests`, `CatalogLanguageRulesTests`,
   `IntegrationDialog.test.tsx`, `IntegrationsPage.test.tsx` and `catalog-languages.test.ts` pin it.
+- **Every sentence the server writes reads in the language of the page, and every API error carries a
+  stable code (MAM-47, ADR 0042, ADR 0001's MAM-47 section, Vasyl's decisions of 2026-10-19).** An
+  error after a failed save or a refused request, why a job stopped or waits for the owner, a
+  replacement's or a removal's reason, a check's or an inspection's problem, a sync's, a scan's or a
+  run's failure, a disabled action's reason, a connection test's answer, the health descriptions and
+  the MCP tools' answers come in the language the request's `Accept-Language` asks for — `uk` (or
+  `uk-UA`, or a list that ranks it above English) for Ukrainian, anything else or nothing for
+  English —, which
+  the web app sets to the language it runs in: they read in Ukrainian on a Ukrainian page, a job that
+  stopped before the update included, and follow a switch on Profile without a reload, as the web app
+  fetches again the answers on screen (`lib/query-client.ts`). The account's saved language isn't
+  read, so a script, a token or an MCP client gets English unless it sends the header, and the 401 of
+  every cause and the sign-in failures stay one answer per header, byte for byte. A service's own
+  words quoted in a sentence stay as the service wrote them; Jellyfin's and qBittorrent's menus named
+  in a Ukrainian sentence are their own Ukrainian labels, Transmission's and Jackett's their English
+  ones. Every error body is `{ "error": "<sentence>", "code": "<key>" }`, the code being the sentence's
+  key in the server's locale files — `account.sign-in-required`, `account.owner-only`,
+  `common.paging.page-size-invalid`, `downloads.release-missing` … —, the same in every language and
+  release: the README's "Errors, codes and languages" lists the common ones, and its API surface the
+  code of every sentence it quotes. A body or a query value the framework can't bind keeps ASP.NET's
+  own validation problem, English and without a code (Vasyl's decision). A library source's
+  `pathProblemCode`, its inspection's `problemCode`, and a TMDb dialog item's `cannotWriteReasonCode`
+  and `writeErrorCode` carry the key beside their sentence, and the Library page and the TMDb dialog
+  compare those instead of the words. The sentences — about 970 keys in 20 files a language — live
+  in `src/MediaAcquisitionManager.Api/Locales/en/` and `uk/`, embedded in the image, in the web app's
+  shape: placeholders, a hint for a number, a size, a running time, a list, a nested sentence or a
+  title that may be the label of a work with none, and the four Ukrainian plural forms; the Ukrainian
+  follows the glossary's new "Server sentences" section. Ukrainian writes numbers as the web app does
+  (`1 234`, `0,5`), sizes in their exact unit (`8 МіБ`) and running times as the server's clock
+  (`0:45:00`). Logs, the release notes and what an AI assistant's model reads — the MCP server's
+  instructions and the tools' descriptions — stay English. `Texts/RequestLanguageHttpTests`, the Ukrainian 401s of `Auth/AuthSignInHttpTests` and
+  `Auth/PersonalAccessTokenAuthenticationHttpTests`, `Texts/MessageRendererTests`,
+  `Texts/EnglishFormatPinTests`, `Replacements/ReplacementConfirmationLabelTests`,
+  `query-client.test.ts`, `LibrarySyncPanel.test.tsx` and `TmdbLinkEditor.test.tsx` pin it, with one
+  class per area that spells the Ukrainian a reader sees and the English without the header —
+  `Auth/AuthUkrainianHttpTests`, `Profile/ProfileUkrainianHttpTests`,
+  `Downloads/DownloadsUkrainianHttpTests`, `Search/SearchUkrainianHttpTests`,
+  `Settings/DestinationsUkrainianHttpTests`, `Settings/IntegrationsUkrainianHttpTests`,
+  `Library/LibraryUkrainianHttpTests`, `LibraryLinks/LibraryLinksUkrainianHttpTests`,
+  `Library/DuplicatesUkrainianHttpTests`, `Replacements/ReplacementsUkrainianHttpTests`,
+  `Recommendations/RecommendationsUkrainianHttpTests`, `Mcp/McpUkrainianHttpTests` and
+  `Health/HealthUkrainianHttpTests`: one Ukrainian body for every cause of a 401 or a sign-in failure,
+  the four plural forms, the vendors' labels, a reason an older version stored in English, and the
+  MCP tools' descriptions kept English.
 
 ### Changed
 
@@ -356,6 +400,61 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   phone, again whenever a label changes width (the Jobs page's counts arrive after its tabs, and in
   Ukrainian they pushed a current **Усі** partly out of the row). `styles/downloads.test.ts` ("the room
   the Ukrainian text takes"), `RecommendationTabs.test.tsx` and `PageTabs.test.tsx` pin it.
+- **The database keeps no sentence: the 21 columns that held a reason hold its key and values, and
+  the English an older version stored is converted as the app starts (MAM-47, ADR 0042).**
+  `DownloadJobs.Error` and `BlockReason`, `SearchSources.Error`, the replacements' and removals'
+  reasons and problems, `ReplacementJobWorks.ConfirmationText`, `LibraryItemLinks.WriteError` and
+  `LookupError`, the files' and inspections' errors, and the scans', syncs', suggestion runs' and
+  recommendation runs' errors keep their name, type, length and nullness and hold JSON
+  (`{"k":"<key>","v":{…}}`) through one EF value converter, so no migration rebuilds a table. A reason
+  longer than its 1,000 characters is cut inside its longest value with "…", so its own words stay,
+  where the first 999 characters used to be kept. At start, after the migrations and before the
+  reconcilers, `StoredTextConverter` reads every stored English sentence back into its key and values
+  with the English templates themselves, and accepts a reading only when writing it again gives the
+  stored text exactly — or, for a sentence an older version cut at the column's limit inside its last
+  value, its beginning; a row it can't read keeps its words, shown as they are and marked so a later
+  version tries again, a converted row is never read again, and nothing it meets stops the start. It
+  leaves null and empty texts alone, reads in pages of 500 and writes each page in one transaction,
+  and writes a row only while it still holds the text it read; a column that fails is logged and
+  tried again at the next start. Code that compared stored sentences compares keys or whole
+  messages. The audit row of an owner's confirmation names its claim in no language — `Alien
+  (1979)`, `Doctor Who (2005) S02E01–E05 · Фільми`, `— S01` for a work with no title — instead of his
+  sentence, and the older rows are rewritten the same way (Vasyl's decision of 2026-10-19); the claim
+  itself reads in the reader's language, the Download dialog's checkbox included. On a copy of
+  production's database taken on 2026-10-20 every stored sentence read back exactly (below).
+  `Conventions/MessageColumnsTests`, `Persistence/MessageColumnTests`,
+  `Persistence/ModelHasNoPendingChangesTests`, `Texts/MessageRoundTripTests`,
+  `Texts/StoredEnglishCorpusTests`, `Texts/StoredTextConverterTests` (every message column of the
+  model planted with older English, a second run changing nothing, a kept row tried again under a
+  newer version, a failure in the middle of a page, the audit rows, the TMDb links' restart and
+  no-episode-IMDb rows), `Texts/StoredTextConverterStartupHttpTests` (converted before the first
+  request, a failing column, the Jobs list in Ukrainian) and `Texts/ProductionCopyConversionTests`
+  (skipped unless `MAM47_PRODUCTION_DB_COPY` names a copy) pin it.
+- **English changed only where it had to (MAM-47).** "1 bytes" reads "1 byte" in a new file's size
+  reason, and a sync that read one different movie or episode says "1 different movie" (or
+  "episode"), no longer "movies"; a removal's name found swapped on **Restore** says "this copy's own
+  file wasn't found", no longer the old copy's, a replacement's words; a work with no title loses its
+  year in the consent words and the plan's refusals ("This release is a work with no title, season
+  2"), while the pairing's reasons keep it; a reason longer than its column is cut inside its longest
+  value (above); and every error body gains `code`. Every other sentence reads byte for byte as it
+  did, but in cases no reader meets today: a timeout or a limit of exactly one second, minute, byte
+  or character, an operating system's explanation ending in " .", a binder message with control
+  characters in the MCP arguments' sentence, a progress that isn't a number, and the adapters'
+  guards against a caller's bug, which now name the rule. Sentences no page or answer could show
+  were deleted, not translated.
+- **`run-tests.sh` runs the .NET suite twice by default (MAM-47, ADR 0042).** The second pass,
+  `MAM_TEST_LANGUAGE=pseudo`, sends every request in a pseudo-language whose sentences the server
+  wraps in ⟦…⟧: the harness unwraps them where a test reads English, and fails a sentence that reaches
+  a DTO field it doesn't list, the database or a log. Jenkins runs both and publishes each pass's
+  reports, so each test shows twice; `PSEUDO=0` skips the pass locally. It adds about a minute and a
+  half: a full run takes about three minutes where it took about one and a half (77 s for the first
+  pass alone, 164 s for both, measured on 2026-10-20). An IL scan of the three assemblies
+  (`Conventions/NoLiteralSentenceTests`) refuses a literal sentence that reaches a reader and a
+  message printed into a string or handed to a log, and each test project refuses a message compared
+  with a string; `Conventions/KeysInUseTests` refuses a key without its English or a template no code
+  names, `Conventions/LocaleParityTests` an English file without its Ukrainian one or a Ukrainian
+  file that differs from its English one, and `Conventions/ServerLabelsTests` a quoted label that is
+  neither the web app's nor a recorded vendor's.
 
 ### Notes for upgraders
 
@@ -397,22 +496,44 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   as before; production keeps Українська. The owner changes it under Integrations → TMDb → **Catalog
   language**, and the next computation reads the catalog again. A TMDb added after the upgrade starts
   in the owner's language.
-- **The server's sentences stay English until MAM-47 (MAM-46, ADR 0001's MAM-46 section).** In the
-  Ukrainian web app the sentences the API writes — an error, a job's or a check's reason, a run's
-  failure — still read in English, a service's own words stay as the service wrote them, and the
-  release notes stay English only (Vasyl's decision of 2026-10-14).
+- **The server's sentences follow the page's language, with MAM-47 (MAM-46, MAM-47, ADR 0001's
+  MAM-46 and MAM-47 sections).** In the Ukrainian web app the sentences the API writes — an error, a
+  job's or a check's reason, a run's failure — read in Ukrainian since MAM-47, while a service's own
+  words stay as the service wrote them, and the release notes stay English only (Vasyl's decision of
+  2026-10-14).
+- **The first start converts the stored reasons, with no migration (MAM-47).** The 21 columns keep
+  their shape, so nothing is rebuilt and no warning 20410 is logged; the conversion reads each column
+  once, in pages of 500, before the app serves its first request, and logs one Information line per
+  column it changed, such as `Converted 4 stored texts of DownloadJobs.Error; 0 with a cut value, 0
+  shortened to fit, 0 kept as their words.`, a second line with the row ids of any it kept or
+  shortened, and `Named 4 owner's confirmations in AuditEvents.TargetName by their claim; 0 left as
+  they were.` for the audit rows — counts and row ids, never a sentence. A reason it couldn't read
+  shows its English words as they are, in either language, and is tried again by a later version
+  that learns its wording. On a copy of production's database taken on 2026-10-20, all 26 texts were
+  read: 22 stored sentences in seven columns converted exactly and 4 audit rows named by their claim,
+  none kept, cut or shortened, so no older wording had to be taught to the converter.
+- **Rolling back to an older image after 0.5.0 shows the converted reasons as raw JSON (MAM-47,
+  accepted by Vasyl on 2026-10-19).** That image shows `{"k":…,"v":…}` wherever a reason was converted.
+  Its catch-up counts a converted restart reason of a TMDb link as one to repair, so **Update
+  Jellyfin** there may send a second Apply to an item whose write was interrupted: wait a few minutes
+  after the rollback before pressing it. It asks TMDb again for the episodes a converted "TMDb knows no
+  IMDb id of this episode" row names, and its job poller writes each followed job's block reason once
+  more, in English; both heal themselves. Upgrading again converts whatever English it wrote.
+- **A script that compared error sentences can compare `code` (MAM-47).** The English sentences are
+  what they were but for the few under Changed, and a request with no `Accept-Language` gets English,
+  so a script keeps working; the code is the part that never changes.
 - **With a catalog language other than Ukrainian, release matching for recommendations leans on the
   original title (MAM-46, ADR 0024's MAM-46 section).** The availability check and the newest releases
   match a work by its titles, the catalog's now in that language: Toloka's Ukrainian part of a name
   then matches nothing, and the original part, which its names carry beside it, decides; a work
   whose original title isn't in Latin letters (a Japanese or Korean film) is searched by its title in
   the catalog's language and shows nothing available on Toloka.
-- **0.5.0 adds Phase E's MAM-5, MAM-45 and MAM-46 to the 0.4.0 image published on 2026-10-14.** Vasyl
-  published 0.4.0 on 2026-10-14 at 20:41 UTC (Docker Hub's `0.4.0`, `0.4` and `latest`), built after
-  commit 6ef689b, so that image holds all of 0.4.0 below, the Recommendations page's Description
-  dialog and layout included. From MAM-5, `frontend/package.json` says 0.5.0 (the ticket's version,
-  Vasyl's decision of 2026-10-14), so the next image published from `main` is 0.5.0, never 0.4.0
-  again; MAM-45 and MAM-46 keep that number.
+- **0.5.0 adds Phase E's MAM-5, MAM-45, MAM-46 and MAM-47 to the 0.4.0 image published on
+  2026-10-14.** Vasyl published 0.4.0 on 2026-10-14 at 20:41 UTC (Docker Hub's `0.4.0`, `0.4` and
+  `latest`), built after commit 6ef689b, so that image holds all of 0.4.0 below, the Recommendations
+  page's Description dialog and layout included. From MAM-5, `frontend/package.json` says 0.5.0
+  (the ticket's version, Vasyl's decision of 2026-10-14), so the next image published from `main` is
+  0.5.0, never 0.4.0 again; MAM-45, MAM-46 and MAM-47 (built on 2026-10-20) keep that number.
 
 ## [0.4.0] — 2026-10-13
 

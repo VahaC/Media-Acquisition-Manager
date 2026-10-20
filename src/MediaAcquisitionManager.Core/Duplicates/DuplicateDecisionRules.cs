@@ -1,13 +1,14 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Duplicates;
 
 /// <summary>
 /// MAM-21 — what a decision on a possible match may be, as the Duplicates list's filter and the owner's Confirm and
-/// Dismiss send it, and what a group key looks like. One readable sentence for a value refused, <c>null</c> for one
-/// accepted — the MAM-4 rules-class pattern. MAM-40 — and which classes take which decision, and when a decision on kept
-/// copies is in force.
+/// Dismiss send it, and what a group key looks like. Why a value is refused, as a message the Api renders (ADR 0042),
+/// <c>null</c> for one accepted — the MAM-4 rules-class pattern. MAM-40 — and which classes take which decision, and
+/// when a decision on kept copies is in force.
 /// </summary>
 /// <remarks>
 /// A decision is read by name alone, in any letter case: <c>Enum.TryParse</c> would also take <c>1</c>, <c>-1</c> and
@@ -16,20 +17,18 @@ namespace MediaAcquisitionManager.Core.Duplicates;
 public static class DuplicateDecisionRules
 {
     /// <summary>
-    /// MAM-40 — the sentence a confirmation of copies of one work, or of byte-identical copies, gets: their bytes or
+    /// MAM-40 — the message a confirmation of copies of one work, or of byte-identical copies, gets: their bytes or
     /// registry ids already make them copies, so the owner's word is only whether to keep them as they are (Keep both).
     /// </summary>
-    public const string CopiesAreNotConfirmedError =
-        "These files are copies by their bytes or registry ids, which no one has to confirm: keep them as they are, or remove a copy.";
+    public static readonly Message CopiesAreNotConfirmedError = Message.Of("duplicates.decision.copies-not-confirmed");
 
     /// <summary>
-    /// MAM-40 — the sentence any decision on one file's names gets: removing a name frees nothing until the file's last
+    /// MAM-40 — the message any decision on one file's names gets: removing a name frees nothing until the file's last
     /// name goes, so there is no copy to keep or to remove.
     /// </summary>
-    public const string OneFileIsNotDecidedError =
-        "These are names of one file, not copies of it: removing a name frees nothing, so there is nothing to keep or remove.";
+    public static readonly Message OneFileIsNotDecidedError = Message.Of("duplicates.decision.one-file-not-decided");
 
-    /// <summary>How much of a value that isn't a decision a sentence repeats: the longest decision is 9 characters, and a
+    /// <summary>How much of a value that isn't a decision a message repeats: the longest decision is 9 characters, and a
     /// pasted page of text shouldn't come back whole (the list rules' rule).</summary>
     private const int EchoLength = 32;
 
@@ -39,13 +38,13 @@ public static class DuplicateDecisionRules
     /// </summary>
     private const char MemberSeparator = '\n';
 
-    private const string MissingError = "A decision is needed: Confirmed or Dismissed.";
+    private static readonly Message MissingError = Message.Of("duplicates.decision.missing");
 
     /// <summary>
-    /// The list's filter: the sentence for <paramref name="decision"/> when it is not a decision's name, or <c>null</c>
+    /// The list's filter: the message for <paramref name="decision"/> when it is not a decision's name, or <c>null</c>
     /// with the decision in <paramref name="matchDecision"/> — <c>null</c> for a blank value, which filters nothing.
     /// </summary>
-    public static string? ValidateFilter(string? decision, out DuplicateMatchDecision? matchDecision)
+    public static Message? ValidateFilter(string? decision, out DuplicateMatchDecision? matchDecision)
     {
         matchDecision = null;
         if (string.IsNullOrWhiteSpace(decision))
@@ -54,17 +53,17 @@ public static class DuplicateDecisionRules
         var trimmed = decision.Trim();
         var name = Enum.GetNames<DuplicateMatchDecision>().FirstOrDefault(candidate => candidate.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
         if (name is null)
-            return $"“{Echo(trimmed)}” is not a decision. Use Confirmed or Dismissed.";
+            return Message.Of("duplicates.decision.unknown", ("value", Echo(trimmed)));
 
         matchDecision = Enum.Parse<DuplicateMatchDecision>(name);
         return null;
     }
 
     /// <summary>
-    /// The owner's decision: the sentence for <paramref name="decision"/> missing, blank or not a decision's name, or
+    /// The owner's decision: the message for <paramref name="decision"/> missing, blank or not a decision's name, or
     /// <c>null</c> with the decision in <paramref name="matchDecision"/>.
     /// </summary>
-    public static string? Validate(string? decision, out DuplicateMatchDecision matchDecision)
+    public static Message? Validate(string? decision, out DuplicateMatchDecision matchDecision)
     {
         matchDecision = default;
         if (string.IsNullOrWhiteSpace(decision))
@@ -77,12 +76,12 @@ public static class DuplicateDecisionRules
     }
 
     /// <summary>
-    /// MAM-40 — the sentence when a group of <paramref name="groupClass"/> can't be given <paramref name="decision"/> —
+    /// MAM-40 — the message when a group of <paramref name="groupClass"/> can't be given <paramref name="decision"/> —
     /// or, with <c>null</c>, can't have its decision undone —; <c>null</c> when it can. A possible match is confirmed or
     /// dismissed (ADR 0029); copies of one work and byte-identical copies are only kept as they are, which is
     /// <see cref="DuplicateMatchDecision.Dismissed"/> (Keep both, Vasyl, 2026-10-12); one file's names are never decided.
     /// </summary>
-    public static string? RefusalOf(DuplicateClass groupClass, DuplicateMatchDecision? decision) => groupClass switch
+    public static Message? RefusalOf(DuplicateClass groupClass, DuplicateMatchDecision? decision) => groupClass switch
     {
         DuplicateClass.Possible => null,
         DuplicateClass.SameWork or DuplicateClass.ByteIdentical when decision is null or DuplicateMatchDecision.Dismissed => null,

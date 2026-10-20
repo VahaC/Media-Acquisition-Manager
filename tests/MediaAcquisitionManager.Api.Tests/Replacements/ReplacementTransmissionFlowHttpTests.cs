@@ -11,6 +11,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -156,7 +157,7 @@ public sealed class ReplacementTransmissionFlowHttpTests : IClassFixture<MediaAc
                 (DownloadingPartPath, ReplacementNameKind.Companion, ReplacementNameState.Stayed, PartHeldProblem),
                 (TheatricalSrtPath, ReplacementNameKind.Companion, ReplacementNameState.Quarantined, (string?)null),
             ],
-            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.Kind, name.State, name.Problem)));
+            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.Kind, name.State, TestTexts.En(name.Problem))));
         Assert.DoesNotContain(_factory.Quarantine.Renames, rename => rename.Item1 == DownloadingPartPath);
         Assert.Equal(
             FileInventoryStatus.Found,
@@ -214,9 +215,9 @@ public sealed class ReplacementTransmissionFlowHttpTests : IClassFixture<MediaAc
         var job = (await response.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
         Assert.Equal((DownloadJobStatus.Failed, (string?)FileListUncheckedError), (job.Status, job.Error));
         var row = await DownloadRowAsync(cancellationToken);
-        Assert.Equal((DownloadJobStatus.Failed, (string?)FileListUncheckedError, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App), (row.Status, row.Error, row.ErrorOrigin));
+        Assert.Equal((DownloadJobStatus.Failed, (string?)FileListUncheckedError, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App), (row.Status, TestTexts.En(row.Error), row.ErrorOrigin));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Failed, (string?)RefusedBeforeSentReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Failed, (string?)RefusedBeforeSentReason), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Empty(_harness.Transmission.AddRequests);
         Assert.Empty(_harness.Transmission.Writes);
     }

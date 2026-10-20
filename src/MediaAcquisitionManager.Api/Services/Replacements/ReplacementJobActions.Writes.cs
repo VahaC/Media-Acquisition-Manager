@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -17,7 +18,7 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 public sealed partial class ReplacementJobActions
 {
     // MAM-26, ADR 0033 — the {error} of a stop when replacement was switched off between two names.
-    private const string SwitchedOffMidwayError = "Replacement was switched off on the Media folders page.";
+    private static readonly Message SwitchedOffMidwayError = Message.Of("replacements.job.switched-off-midway");
 
     /// <summary>
     /// Runs <paramref name="write"/> over <paramref name="names"/> of <paramref name="job"/>, read as
@@ -27,7 +28,7 @@ public sealed partial class ReplacementJobActions
     /// </summary>
     /// <remarks>Never cancelled once the claim is made: a write decided is carried through, whether or not the browser is
     /// still there.</remarks>
-    private Task<string?> RunAsync(
+    private Task<Message?> RunAsync(
         OwnedJob job, ReplacementJobState observedState, IReadOnlyList<ReplacementJobNameEntity> names, OwnerWrite write, AuditActor actor) =>
         new JobWriteLoop(db, gates, auditTrail, time, notice, logger, job, observedState, write).RunAsync(names, write.Names, actor);
 
@@ -65,7 +66,7 @@ public sealed partial class ReplacementJobActions
     {
         private ReplacementJobState _endedIn;
 
-        protected override string ChangedMeanwhileError => ReplacementJobActions.ChangedMeanwhileError;
+        protected override Message ChangedMeanwhileError => ReplacementJobActions.ChangedMeanwhileError;
 
         protected override IQueryable<ReplacementJobNameEntity> Names => Db.ReplacementJobNames;
 
@@ -84,7 +85,7 @@ public sealed partial class ReplacementJobActions
 
         protected override AuditTarget TargetOf(ReplacementJobNameEntity name) => AuditTarget.ReplacementJobName(name);
 
-        protected override async Task<bool> FinishAsync(string? stopped, bool noticeDue, AuditActor actor, DateTime now)
+        protected override async Task<bool> FinishAsync(Message? stopped, bool noticeDue, AuditActor actor, DateTime now)
         {
             _endedIn = stopped is null ? write.End : ReplacementJobState.NeedsReview;
             if (await Db.ReplacementJobs.EndOwnerWriteAsync(job.Replacement.Id, write.Running, _endedIn, stopped, now, noticeDue ? now : null) == 0)
@@ -94,7 +95,7 @@ public sealed partial class ReplacementJobActions
             return true;
         }
 
-        protected override void Finished(string? stopped) => LogMoved(write.Running, _endedIn);
+        protected override void Finished(Message? stopped) => LogMoved(write.Running, _endedIn);
 
         /// <summary>
         /// ADR 0030 — tells the library the names came back, after the commit and outside any transaction: best effort. A

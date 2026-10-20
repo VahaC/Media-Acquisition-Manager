@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
+using MediaAcquisitionManager.Infrastructure.Files;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Files;
 
@@ -38,6 +40,13 @@ namespace MediaAcquisitionManager.TestInfrastructure.Files;
 /// checks — the world changing right before the write, or the app stopping before it began — and
 /// <see cref="AfterRename"/> once the rename is done, before its answer — the app stopping between a rename and its
 /// outcome.
+/// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — where it answers in the very words of the real quarantine (a read-only mount, a file that isn't a
+/// regular one, a swapped name), it uses its sentences (<see cref="FileQuarantineMessages"/>), so a test reads the keys a
+/// reader of the real one sees. Its other words, and a refusal a test plants (<see cref="Refuse"/>), are no sentence of
+/// the app's and have no key in the locale files: they travel as <see cref="Message.Legacy"/>, which every language shows
+/// exactly as they are.
 /// </para>
 /// </remarks>
 public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantine
@@ -332,7 +341,7 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
         if (Check(quarantinePath, expected) is { } changed)
             return changed;
         if (IsUnderAny(path, _readOnly))
-            return Refused<FileFacts>(FileQuarantineStatus.ReadOnly, ReadOnlyError(quarantinePath));
+            return Refused<FileFacts>(FileQuarantineStatus.ReadOnly, FileQuarantineMessages.ReadOnly(quarantinePath));
         if (IsUnderAny(path with { Segments = [.. path.Segments.SkipLast(1)] }, _notWritable))
             return Refused<FileFacts>(FileQuarantineStatus.NotAllowed, NotAllowedError(quarantinePath));
 
@@ -350,8 +359,6 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
 
     private static string NameTakenError(string path) => $"Something is already at “{path}”, and the app never renames over it.";
 
-    private static string ReadOnlyError(string path) => $"“{path}” is on a read-only mount.";
-
     private static string NotAllowedError(string path) => $"The app may not write in the folder of “{path}”.";
 
     // A planted swap of the name: the other file renamed in its place, the planted one gone.
@@ -363,9 +370,7 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
         files.Remove(from);
         files.AddFile(to, other);
         _renames.Enqueue((from, to));
-        return Refused<FileFacts>(
-            FileQuarantineStatus.Swapped,
-            $"What the app renamed from “{from}” to “{to}” isn't the file it checked: another file was put at that name just before the rename.");
+        return Refused<FileFacts>(FileQuarantineStatus.Swapped, FileQuarantineMessages.Swapped(from, to));
     }
 
     // A planted refusal of either end, the name's first.
@@ -378,7 +383,7 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
     private FileQuarantineResult<FileFacts>? Check(string appPath, FileFacts expected)
     {
         if (files.IsLinkedName(appPath))
-            return Refused<FileFacts>(FileQuarantineStatus.Changed, $"“{appPath}” isn't a regular file.");
+            return Refused<FileFacts>(FileQuarantineStatus.Changed, FileQuarantineMessages.NotARegularFile(appPath));
 
         switch (files.PlantedAt(appPath))
         {
@@ -410,9 +415,9 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
         if (MountOf(source) != MountOf(target))
             return Refused<FileFacts>(FileQuarantineStatus.OtherMount, $"“{source}” and “{target}” lie on different mounts, so renaming it would copy it.");
         if (IsUnderAny(source, _readOnly))
-            return Refused<FileFacts>(FileQuarantineStatus.ReadOnly, ReadOnlyError(source.ToString()));
+            return Refused<FileFacts>(FileQuarantineStatus.ReadOnly, FileQuarantineMessages.ReadOnly(source.ToString()));
         if (IsUnderAny(target, _readOnly))
-            return Refused<FileFacts>(FileQuarantineStatus.ReadOnly, ReadOnlyError(target.ToString()));
+            return Refused<FileFacts>(FileQuarantineStatus.ReadOnly, FileQuarantineMessages.ReadOnly(target.ToString()));
         if (IsUnderAny(source with { Segments = [.. source.Segments.SkipLast(1)] }, _notWritable))
             return Refused<FileFacts>(FileQuarantineStatus.NotAllowed, NotAllowedError(source.ToString()));
         if (IsUnderAny(target with { Segments = [.. target.Segments.SkipLast(1)] }, _notWritable))
@@ -468,7 +473,11 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
         return path.IsUnder(quarantine) && path.Segments.Count > quarantine.Segments.Count;
     }
 
-    private static FileQuarantineResult<T> Refused<T>(FileQuarantineStatus status, string? error) where T : class => new(status, null, error);
+    // The fake's own words, or the test's (see the remarks): shown as they are, in every language.
+    private static FileQuarantineResult<T> Refused<T>(FileQuarantineStatus status, string error) where T : class =>
+        new(status, null, Message.Legacy(error));
+
+    private static FileQuarantineResult<T> Refused<T>(FileQuarantineStatus status, Message? error) where T : class => new(status, null, error);
 
     private static NormalizedPath? Parse(string text) => NormalizedPath.TryParse(text, out var path, out _) ? path : null;
 

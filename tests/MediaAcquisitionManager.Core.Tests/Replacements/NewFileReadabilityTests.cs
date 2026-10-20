@@ -1,7 +1,9 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Replacements;
 
@@ -27,7 +29,7 @@ public sealed class NewFileReadabilityTests
         var result = NewFileReadability.Check(NewPath, inspection, Size, [OldCopy], "qBittorrent");
 
         //Assert
-        Assert.Equal((NewFileReadabilityStatus.Readable, (string?)null), (result.Status, result.Problem));
+        Assert.Equal((NewFileReadabilityStatus.Readable, (string?)null), (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -50,14 +52,14 @@ public sealed class NewFileReadabilityTests
     public void Check_of_a_file_the_app_can_not_reach_is_the_owners_review_with_the_inventorys_sentence(FileInventoryStatus status, string sentence)
     {
         //Arrange
-        var inspection = new FileInventoryResult<MediaInspection>(status, null, sentence);
+        var inspection = new FileInventoryResult<MediaInspection>(status, null, Message.Legacy(sentence));
 
         //Act
         var result = NewFileReadability.Check(NewPath, inspection, Size, [OldCopy], "qBittorrent");
 
         //Assert
         // It may come right: a mount back, a permission given, the folder allowed.
-        Assert.Equal((NewFileReadabilityStatus.Review, sentence), (result.Status, result.Problem));
+        Assert.Equal((NewFileReadabilityStatus.Review, sentence), (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Theory]
@@ -66,13 +68,13 @@ public sealed class NewFileReadabilityTests
     public void Check_of_a_file_changing_while_read_or_without_an_inspector_waits(FileInventoryStatus status)
     {
         //Arrange
-        var inspection = new FileInventoryResult<MediaInspection>(status, null, "Why.");
+        var inspection = new FileInventoryResult<MediaInspection>(status, null, Message.Legacy("Why."));
 
         //Act
         var result = NewFileReadability.Check(NewPath, inspection, Size, [OldCopy], "qBittorrent");
 
         //Assert
-        Assert.Equal((NewFileReadabilityStatus.Wait, "Why."), (result.Status, result.Problem));
+        Assert.Equal((NewFileReadabilityStatus.Wait, "Why."), (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Theory]
@@ -81,13 +83,13 @@ public sealed class NewFileReadabilityTests
     public void Check_of_a_file_that_is_no_media_file_failed(FileInventoryStatus status)
     {
         //Arrange
-        var inspection = new FileInventoryResult<MediaInspection>(status, null, "ffprobe couldn't read it as media: invalid data.");
+        var inspection = new FileInventoryResult<MediaInspection>(status, null, Message.Legacy("ffprobe couldn't read it as media: invalid data."));
 
         //Act
         var result = NewFileReadability.Check(NewPath, inspection, Size, [OldCopy], "qBittorrent");
 
         //Assert
-        Assert.Equal((NewFileReadabilityStatus.Failed, "ffprobe couldn't read it as media: invalid data."), (result.Status, result.Problem));
+        Assert.Equal((NewFileReadabilityStatus.Failed, "ffprobe couldn't read it as media: invalid data."), (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -100,7 +102,7 @@ public sealed class NewFileReadabilityTests
         var result = NewFileReadability.Check(NewPath, inspection, Size, [OldCopy], "qBittorrent");
 
         //Assert
-        Assert.Equal("The app couldn't read “/media/movies/Alien (1979)/Alien.1979.2160p.mkv”.", result.Problem);
+        Assert.Equal("The app couldn't read “/media/movies/Alien (1979)/Alien.1979.2160p.mkv”.", TestTexts.En(result.Problem));
     }
 
     [Fact]
@@ -116,7 +118,7 @@ public sealed class NewFileReadabilityTests
         Assert.Equal(
             (NewFileReadabilityStatus.Review,
                 "The app can't read the identity of “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” on this platform, so it can't tell the new file from the old copies."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -129,7 +131,7 @@ public sealed class NewFileReadabilityTests
         var result = NewFileReadability.Check(NewPath, inspection, 0, [OldCopy], "qBittorrent");
 
         //Assert
-        Assert.Equal((NewFileReadabilityStatus.Failed, "“/media/movies/Alien (1979)/Alien.1979.2160p.mkv” is empty."), (result.Status, result.Problem));
+        Assert.Equal((NewFileReadabilityStatus.Failed, "“/media/movies/Alien (1979)/Alien.1979.2160p.mkv” is empty."), (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -144,7 +146,7 @@ public sealed class NewFileReadabilityTests
 
         //Assert
         Assert.Equal(
-            (NewFileReadabilityStatus.Failed, "“/media/movies/Alien (1979)/Alien.1979.2160p.mkv” has no video stream."), (result.Status, result.Problem));
+            (NewFileReadabilityStatus.Failed, "“/media/movies/Alien (1979)/Alien.1979.2160p.mkv” has no video stream."), (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Theory]
@@ -163,7 +165,7 @@ public sealed class NewFileReadabilityTests
         //Assert
         Assert.Equal(
             (NewFileReadabilityStatus.Failed, "The media inspector found no running time in “/media/movies/Alien (1979)/Alien.1979.2160p.mkv”."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -179,7 +181,7 @@ public sealed class NewFileReadabilityTests
         Assert.Equal(
             (NewFileReadabilityStatus.Review,
                 "“/media/movies/Alien (1979)/Alien.1979.2160p.mkv” is 1,234,567 bytes on the disk, not the 7,654,321 bytes “qBittorrent” downloaded, so it may be another file."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -195,7 +197,7 @@ public sealed class NewFileReadabilityTests
         //Assert
         Assert.Equal(
             (NewFileReadabilityStatus.Review, "The new file “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” is the old copy itself."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -210,7 +212,7 @@ public sealed class NewFileReadabilityTests
         //Assert
         Assert.Equal(
             (NewFileReadabilityStatus.Review, "The new file “/media/movies/Alien (1979)/Alien.1979.1080p.mkv” is the old copy itself."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Files;
@@ -25,7 +26,8 @@ public sealed partial class FileInspectionRunner
     /// </remarks>
     private async Task WriteAsync(Progress progress, IReadOnlyList<Guid> fileIds, Outcome outcome, CancellationToken cancellationToken)
     {
-        var error = outcome.Error is null ? null : FileInspectionRunUpdates.Cut(outcome.Error, MediaInspectionEntity.ErrorMaximumLength);
+        // MAM-47 (ADR 0042) — key and values, fitted into the column by its converter.
+        var error = outcome.Error;
         FileInspectionStatus? status = outcome.Status;
         var (deviceId, inode, linkCount) = (outcome.Facts?.DeviceId, outcome.Facts?.Inode, outcome.Facts?.LinkCount);
         var (readSizeBytes, readModifiedUtc) = (outcome.Facts?.SizeBytes, outcome.Facts?.ModifiedUtc);
@@ -91,11 +93,11 @@ public sealed partial class FileInspectionRunner
     }
 
     /// <summary>
-    /// Stores a reading of the bytes <paramref name="key"/> names — the media inspector's facts, or the
-    /// sentence saying why it couldn't read them — and returns its id. A reading already stored under the
-    /// key is returned instead: the unique index settles it, never a second row.
+    /// Stores a reading of the bytes <paramref name="key"/> names — the media inspector's facts, or why it
+    /// couldn't read them — and returns its id. A reading already stored under the key is returned instead: the
+    /// unique index settles it, never a second row.
     /// </summary>
-    private async Task<Guid> StoreAsync(CacheKey key, MediaFacts? media, string? error, CancellationToken cancellationToken)
+    private async Task<Guid> StoreAsync(CacheKey key, MediaFacts? media, Message? error, CancellationToken cancellationToken)
     {
         await _writes.WaitAsync(cancellationToken);
         try
@@ -106,7 +108,7 @@ public sealed partial class FileInspectionRunner
                 Inode = key.Inode,
                 SizeBytes = key.SizeBytes,
                 ModifiedUtc = key.ModifiedUtc,
-                Error = error is null ? null : FileInspectionRunUpdates.Cut(error, MediaInspectionEntity.ErrorMaximumLength),
+                Error = error,
                 DurationMilliseconds = media?.Duration is { } duration ? (long)Math.Round(duration.TotalMilliseconds) : null,
                 BitRate = media?.BitRate,
                 CreatedUtc = time.GetUtcNow().UtcDateTime,
@@ -218,12 +220,12 @@ public sealed partial class FileInspectionRunner
     /// (<paramref name="read"/>), or not hashed for <paramref name="problem"/>'s reason, the first of which the
     /// run keeps for the owner.
     /// </summary>
-    private async Task HashCheckedAsync(Progress progress, bool read, string? problem, CancellationToken cancellationToken)
+    private async Task HashCheckedAsync(Progress progress, bool read, Message? problem, CancellationToken cancellationToken)
     {
         await _writes.WaitAsync(cancellationToken);
         try
         {
-            progress.AddHashChecked(read, problem is null ? null : FileInspectionRunUpdates.Cut(problem, FileInspectionRunEntity.ErrorMaximumLength));
+            progress.AddHashChecked(read, problem);
             var (checkedCount, readCount, problemCount, firstProblem) = (progress.HashChecked, progress.HashRead, progress.HashProblems, progress.HashProblem);
             await db.FileInspectionRuns
                 .Where(run => run.Id == progress.RunId && run.Status == FileInspectionRunStatus.Running)
@@ -269,18 +271,18 @@ public sealed partial class FileInspectionRunner
     /// <summary>The cache key of specification §3.3.</summary>
     private readonly record struct CacheKey(long DeviceId, long Inode, long SizeBytes, DateTime ModifiedUtc);
 
-    /// <summary>A stored reading: its id, and its sentence when the inspector couldn't read the bytes.</summary>
-    private sealed record CachedReading(Guid Id, string? Error);
+    /// <summary>A stored reading: its id, and why when the inspector couldn't read the bytes.</summary>
+    private sealed record CachedReading(Guid Id, Message? Error);
 
     /// <summary>What to write on a file name.</summary>
-    private sealed record Outcome(FileInspectionStatus Status, string? Error, Guid? MediaInspectionId, FileFacts? Facts)
+    private sealed record Outcome(FileInspectionStatus Status, Message? Error, Guid? MediaInspectionId, FileFacts? Facts)
     {
         /// <summary>A reading stored for the name's bytes: its facts, or its cached failure.</summary>
-        public static Outcome Read(Guid readingId, string? error, FileFacts facts) =>
+        public static Outcome Read(Guid readingId, Message? error, FileFacts facts) =>
             new(error is null ? FileInspectionStatus.Inspected : FileInspectionStatus.MediaUnreadable, error, readingId, facts);
 
         /// <summary>Nothing read, for <paramref name="error"/>'s reason.</summary>
-        public static Outcome Problem(FileInspectionStatus status, string? error, FileFacts? facts = null) => new(status, error, null, facts);
+        public static Outcome Problem(FileInspectionStatus status, Message? error, FileFacts? facts = null) => new(status, error, null, facts);
 
         /// <summary>What the inventory said instead of facts.</summary>
         public static Outcome NotRead<T>(FileInventoryResult<T> result) where T : class
@@ -295,7 +297,7 @@ public sealed partial class FileInspectionRunner
                 // Unreadable, and anything an inventory answers without the facts it promised.
                 _ => FileInspectionStatus.Unreadable,
             };
-            return Problem(status, result.Error ?? "The app couldn't read the file.");
+            return Problem(status, result.Error ?? UnreadableError);
         }
     }
 
@@ -307,7 +309,7 @@ public sealed partial class FileInspectionRunner
         private int _hashChecked;
         private int _hashRead;
         private int _hashProblems;
-        private string? _hashProblem;
+        private Message? _hashProblem;
 
         public Guid RunId => runId;
 
@@ -324,8 +326,8 @@ public sealed partial class FileInspectionRunner
 
         public int HashProblems => Volatile.Read(ref _hashProblems);
 
-        /// <summary>The sentence of the first candidate that couldn't be hashed.</summary>
-        public string? HashProblem => Volatile.Read(ref _hashProblem);
+        /// <summary>Why the first candidate that couldn't be hashed wasn't.</summary>
+        public Message? HashProblem => Volatile.Read(ref _hashProblem);
 
         public void AddChecked(int count) => Interlocked.Add(ref _checked, count);
 
@@ -333,7 +335,7 @@ public sealed partial class FileInspectionRunner
 
         public void StartHashing(int candidates) => HashCandidates = candidates;
 
-        public void AddHashChecked(bool read, string? problem)
+        public void AddHashChecked(bool read, Message? problem)
         {
             Interlocked.Increment(ref _hashChecked);
             if (read)

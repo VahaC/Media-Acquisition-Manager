@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -195,8 +196,8 @@ public sealed class ReplacementQuarantineChecksHttpTests : IClassFixture<MediaAc
         var line = await _harness.LineAsync(download.Id, cancellationToken);
         Assert.Equal((ReplacementJobState.NeedsReview, (string?)DiscClipReason), (line!.State, line.Reason));
         var stopped = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)DiscClipReason), (stopped.State, stopped.Reason));
-        Assert.Equal(DiscClipReason, Assert.Single(await _harness.CopiesAsync(cancellationToken)).Problem);
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)DiscClipReason), (stopped.State, TestTexts.En(stopped.Reason)));
+        Assert.Equal(DiscClipReason, TestTexts.En(Assert.Single(await _harness.CopiesAsync(cancellationToken)).Problem));
         Assert.Empty(await NamesAsync(cancellationToken));
         Assert.Equal([JobAudited(AuditAction.ReplacementNeedsReview, replacement.Id)], await _harness.QuarantineAuditsAsync(cancellationToken));
         Assert.Empty(_factory.Quarantine.Renames);
@@ -374,7 +375,7 @@ public sealed class ReplacementQuarantineChecksHttpTests : IClassFixture<MediaAc
 
         //Assert
         var moved = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Quarantined, (string?)null), (moved.State, moved.Reason));
+        Assert.Equal((ReplacementJobState.Quarantined, (string?)null), (moved.State, TestTexts.En(moved.Reason)));
         var names = await NamesAsync(cancellationToken);
         Assert.Equal(
             [
@@ -382,7 +383,7 @@ public sealed class ReplacementQuarantineChecksHttpTests : IClassFixture<MediaAc
                 (TheatricalNfoPath, ReplacementNameState.Quarantined, null),
                 (TheatricalSrtPath, ReplacementNameState.Stayed, SrtNotAllowedError),
             ],
-            names.Select(name => (name.AppPath, name.State, name.Problem)));
+            names.Select(name => (name.AppPath, name.State, TestTexts.En(name.Problem))));
         Assert.Equal((FileInventoryStatus.Found, (long?)3, (long?)51_234), await WhatIsAtAsync(TheatricalSrtPath, cancellationToken));
         Assert.Equal(
             [
@@ -421,7 +422,7 @@ public sealed class ReplacementQuarantineChecksHttpTests : IClassFixture<MediaAc
         var problem = Format(SwappedProblem, swappedName);
         var line = await _harness.LineAsync(job.Id, cancellationToken);
         Assert.Equal((ReplacementJobState.NeedsReview, (string?)reason, true), (line!.State, line.Reason, line.CanRetry));
-        Assert.Equal(reason, Assert.Single(await _harness.CopiesAsync(cancellationToken)).Problem);
+        Assert.Equal(reason, TestTexts.En(Assert.Single(await _harness.CopiesAsync(cancellationToken)).Problem));
         // Never Quarantined: what sits at its quarantine name is another file, which Restore and Delete for good must
         // never take for the old copy.
         var names = await NamesAsync(cancellationToken);
@@ -438,7 +439,7 @@ public sealed class ReplacementQuarantineChecksHttpTests : IClassFixture<MediaAc
                 (TheatricalNfoPath, ReplacementNameState.Quarantined, null),
                 (TheatricalSrtPath, ReplacementNameState.Lost, problem),
             ];
-        Assert.Equal(expected, names.Select(name => (name.AppPath, name.State, name.Problem)));
+        Assert.Equal(expected, names.Select(name => (name.AppPath, name.State, TestTexts.En(name.Problem))));
         var swapped = names.Single(name => name.AppPath == swappedPath);
         Assert.Equal((FileInventoryStatus.Found, (long?)99, (long?)1_000), await WhatIsAtAsync(swapped.QuarantinePath, cancellationToken));
         Assert.Equal((FileInventoryStatus.NotFound, (long?)null, (long?)null), await WhatIsAtAsync(swappedPath, cancellationToken));
@@ -524,9 +525,9 @@ public sealed class ReplacementQuarantineChecksHttpTests : IClassFixture<MediaAc
         var stopped = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)reason, now, (DateTime?)now, (DateTime?)null, (DateTime?)null),
-            (stopped.State, stopped.Reason, stopped.StateChangedUtc, stopped.QuarantineCheckedUtc, stopped.QuarantinedUtc, stopped.LibraryNoticeDueUtc));
+            (stopped.State, TestTexts.En(stopped.Reason), stopped.StateChangedUtc, stopped.QuarantineCheckedUtc, stopped.QuarantinedUtc, stopped.LibraryNoticeDueUtc));
         var copy = Assert.Single(await _harness.CopiesAsync(cancellationToken));
-        Assert.Equal(reason, copy.Problem);
+        Assert.Equal(reason, TestTexts.En(copy.Problem));
         Assert.Empty(await NamesAsync(cancellationToken));
         Assert.Equal([JobAudited(AuditAction.ReplacementNeedsReview, replacement.Id)], await _harness.QuarantineAuditsAsync(cancellationToken));
         Assert.Empty(_factory.Quarantine.Renames);
@@ -549,7 +550,7 @@ public sealed class ReplacementQuarantineChecksHttpTests : IClassFixture<MediaAc
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (DateTime?)now, (DateTime?)null, (DateTime?)null),
             (stopped.State, stopped.QuarantineCheckedUtc, stopped.QuarantinedUtc, stopped.LibraryNoticeDueUtc));
-        Assert.Equal(reason, Assert.Single(await _harness.CopiesAsync(cancellationToken)).Problem);
+        Assert.Equal(reason, TestTexts.En(Assert.Single(await _harness.CopiesAsync(cancellationToken)).Problem));
         var names = await NamesAsync(cancellationToken);
         var refusal = reason[(reason.IndexOf(": ", StringComparison.Ordinal) + 2)..];
         Assert.Equal(
@@ -558,7 +559,7 @@ public sealed class ReplacementQuarantineChecksHttpTests : IClassFixture<MediaAc
                 (TheatricalNfoPath, ReplacementNameState.Planned, null),
                 (TheatricalSrtPath, ReplacementNameState.Planned, null),
             ],
-            names.Select(name => (name.AppPath, name.State, name.Problem)));
+            names.Select(name => (name.AppPath, name.State, TestTexts.En(name.Problem))));
         Assert.Equal(
             [
                 JobAudited(AuditAction.ReplacementQuarantineStarted, replacement.Id),

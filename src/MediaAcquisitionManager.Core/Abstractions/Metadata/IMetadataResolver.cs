@@ -13,7 +13,7 @@ namespace MediaAcquisitionManager.Core.Abstractions.Metadata;
 /// <remarks>
 /// All methods return result types and never throw on expected failures (unreachable, refused,
 /// unexpected answer); only a cancellation by the caller propagates, as
-/// <see cref="OperationCanceledException"/>. Every message is one readable English sentence with the
+/// <see cref="OperationCanceledException"/>. Every message is a <c>Message</c> the Api renders (ADR 0042), with the
 /// call's secrets already masked.
 /// </remarks>
 public interface IMetadataResolver

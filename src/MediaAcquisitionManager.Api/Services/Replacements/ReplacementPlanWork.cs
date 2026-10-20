@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -13,7 +14,7 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// <param name="Year">Its year.</param>
 /// <param name="Evidence">How the release matched it.</param>
 /// <param name="ConfirmedByOwner">The owner ticked its confirmation, which a match by title and year needs.</param>
-/// <param name="ConfirmationText">The confirmation's own words.</param>
+/// <param name="ConfirmationText">The confirmation's own words, as the claim they say (MAM-47).</param>
 /// <param name="Identifiers">Its registry ids as the app's readers count them now, the owner's own TMDb links
 /// included.</param>
 public sealed record ReplacementPlanWork(
@@ -23,5 +24,5 @@ public sealed record ReplacementPlanWork(
     int? Year,
     MatchEvidence Evidence,
     bool ConfirmedByOwner,
-    string ConfirmationText,
+    Message ConfirmationText,
     IReadOnlyList<ReplacementPlanIdentifier> Identifiers);

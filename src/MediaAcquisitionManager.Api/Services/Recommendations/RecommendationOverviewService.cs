@@ -1,10 +1,10 @@
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Services.Catalog;
-using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Recommendations;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,9 +19,10 @@ public sealed class RecommendationOverviewService(
 {
     /// <summary>
     /// What a failed request tells anyone but the installation owner. The catalog's own sentence can quote the address
-    /// the owner saved — the rule of a run's error, a download job's and a poster's.
+    /// the owner saved — the rule of a run's error, a download job's and a poster's. MAM-47 — a message under the name
+    /// the constant had (ADR 0042).
     /// </summary>
-    public const string FetchFailedError = "The metadata catalog couldn't send this description.";
+    public static readonly Message FetchFailedError = Message.Of("recommendations.overview.fetch-failed");
 
     public async Task<RecommendationOverviewResult> GetAsync(
         string? kind, string? catalogId, string? language, Guid callerUserId, CancellationToken cancellationToken = default)
@@ -80,8 +81,9 @@ public sealed class RecommendationOverviewService(
         {
             if (kept is not null)
                 return Found(kept.Overview, language);
-            // Masked again with the call's secrets — a second pass after the adapter's own (the MAM-7 rule).
-            return await FailedAsync(SecretRedaction.Redact(answer.Error, catalog.Settings.Secrets)!, callerUserId, cancellationToken);
+            // Masked again with the call's secrets — a second pass after the adapter's own (the MAM-7 rule), over the
+            // message's values (ADR 0042).
+            return await FailedAsync(answer.Error!.Redacted(catalog.Settings.Secrets), callerUserId, cancellationToken);
         }
 
         // A work the catalog no longer knows has nothing to say about it, and that answer is kept like any other.
@@ -135,7 +137,7 @@ public sealed class RecommendationOverviewService(
 
     /// <summary>A failed request: <paramref name="error"/> for the installation owner, <see cref="FetchFailedError"/> for
     /// everyone else. Information, not Warning, as a poster's: the next click asks again.</summary>
-    private async Task<RecommendationOverviewResult> FailedAsync(string error, Guid callerUserId, CancellationToken cancellationToken)
+    private async Task<RecommendationOverviewResult> FailedAsync(Message error, Guid callerUserId, CancellationToken cancellationToken)
     {
         logger.LogInformation("A description couldn't be fetched from the metadata catalog.");
         return RecommendationOverviewResult.Failed(

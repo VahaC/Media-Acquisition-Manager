@@ -1,7 +1,7 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 
@@ -11,14 +11,6 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 // or renames a torrent or its files (torrent-set-location, torrent-rename-path) — a torrent's files stay where it put them.
 internal sealed partial class TransmissionAdapter
 {
-    /// <summary>
-    /// The answer outgrew <see cref="IntegrationsInfrastructureExtensions.MaximumResponseBytes"/>: on a big enough
-    /// installation that is the honest size of the list, not a wrong address, as the shared sentence would say.
-    /// </summary>
-    private static readonly string HoldingsTooLargeError = string.Create(
-        CultureInfo.InvariantCulture,
-        $"Transmission's list of every torrent with its files is larger than the app reads ({IntegrationsInfrastructureExtensions.MaximumResponseBytes / (1024 * 1024)} MiB), so the app couldn't tell which torrents hold these copies.");
-
     /// <inheritdoc/>
     /// <remarks>
     /// <para>
@@ -35,8 +27,10 @@ internal sealed partial class TransmissionAdapter
     /// torrent with its metadata and no files at all fails the whole answer — left out, it could hide a held copy.
     /// </para>
     /// <para>
-    /// The answer is a few hundred bytes a torrent and about 200 a file. One larger than the client buffers is a failed
-    /// read in its own words (<see cref="HoldingsTooLargeError"/>), which the caller reports as copies it couldn't check.
+    /// The answer is a few hundred bytes a torrent and about 200 a file. One larger than the client buffers
+    /// (<see cref="IntegrationsInfrastructureExtensions.MaximumResponseBytes"/>) is a failed read in its own words
+    /// (<see cref="IntegrationAdapterMessages.HoldingsTooLarge"/>), which the caller reports as copies it couldn't check: on
+    /// a big enough installation that is the honest size of the list, not a wrong address, as the shared sentence would say.
     /// </para>
     /// </remarks>
     public Task<IntegrationCallResult<IReadOnlyList<ClientJobWithFiles>>> ListJobsWithFilesAsync(
@@ -47,7 +41,7 @@ internal sealed partial class TransmissionAdapter
             settings,
             (client, sessionSecrets, token) => ReadJobsWithFilesAsync(client, settings, sessionSecrets, token),
             cancellationToken,
-            oversizeError: HoldingsTooLargeError);
+            oversizeError: IntegrationAdapterMessages.HoldingsTooLarge(Descriptor.DisplayName));
     }
 
     private async Task<IntegrationCallResult<IReadOnlyList<ClientJobWithFiles>>> ReadJobsWithFilesAsync(

@@ -11,6 +11,7 @@ using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -90,7 +91,7 @@ public sealed class DownloadJobTrackingFolderClientHttpTests : IClassFixture<Fol
         var row = await RowAsync(job.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Submitted, MissingReason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App),
-            (row.Status, row.BlockReason, row.BlockReasonOrigin));
+            (row.Status, TestTexts.En(row.BlockReason), row.BlockReasonOrigin));
         Assert.Equal(["FindJobs", "FindJobs"], _factory.FolderClient.Calls);
     }
 

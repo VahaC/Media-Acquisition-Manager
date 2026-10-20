@@ -4,12 +4,16 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
+using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 
@@ -104,7 +108,7 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
             (link.SourceItemId, link.ItemKind, link.MediaWorkId, link.Target, link.Scheme, link.Value, link.SupersededValue));
         Assert.Equal(
             (FilmImdbId, "TMDb", (Guid?)_owner.User.Id, "owner", now, (Guid?)null, LibraryLinkWriteState.Queued, (string?)null, (DateTime?)null),
-            (link.ImdbId, link.ImdbSourceName, link.SetByUserId, link.SetByUserName, link.SetUtc, link.BatchId, link.WriteState, link.WriteError, link.IdentifiedUtc));
+            (link.ImdbId, link.ImdbSourceName, link.SetByUserId, link.SetByUserName, link.SetUtc, link.BatchId, link.WriteState, TestTexts.En(link.WriteError), link.IdentifiedUtc));
 
         // Only the link's own row, with the ids the library held (none) and the link's: nothing was sent to Jellyfin.
         var audit = await _factory.AuditAsync(cancellationToken);
@@ -142,7 +146,7 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
             ((LibraryLinkWriteState?)LibraryLinkWriteState.Written, (string?)null, (DateTime?)identifiedAt),
             (item.WriteState, item.WriteError, item.IdentifiedUtc));
         var link = await _factory.SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.Written, (string?)null, (DateTime?)identifiedAt, (Guid?)null), (link.WriteState, link.WriteError, link.IdentifiedUtc, link.BatchId));
+        Assert.Equal((LibraryLinkWriteState.Written, (string?)null, (DateTime?)identifiedAt, (Guid?)null), (link.WriteState, TestTexts.En(link.WriteError), link.IdentifiedUtc, link.BatchId));
 
         // The version gate, the administrator to read as, the item, its libraries, the search of the film's kind, Apply
         // once with the images replaced (Jellyfin's own button), and the item read again — and no POST of the item itself.
@@ -198,7 +202,7 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
 
         //Assert
         var link = await _factory.SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.NotWritten, NotConfirmed, (DateTime?)null), (link.WriteState, link.WriteError, link.IdentifiedUtc));
+        Assert.Equal((LibraryLinkWriteState.NotWritten, NotConfirmed, (DateTime?)null), (link.WriteState, TestTexts.En(link.WriteError), link.IdentifiedUtc));
         // R10 — the Apply left the app, so it is recorded even though the item shows nothing of it.
         Assert.Equal([AuditAction.LibraryLinkSet, AuditAction.LibraryItemIdentified], await _factory.AuditActionsAsync(cancellationToken));
         Assert.Single(_jellyfin.Applied);
@@ -219,7 +223,7 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
 
         //Assert
         var link = await _factory.SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.NotWritten, NotConfirmed, (DateTime?)null), (link.WriteState, link.WriteError, link.IdentifiedUtc));
+        Assert.Equal((LibraryLinkWriteState.NotWritten, NotConfirmed, (DateTime?)null), (link.WriteState, TestTexts.En(link.WriteError), link.IdentifiedUtc));
         Assert.Empty(Movie(ShortId)["ImageTags"]!.AsObject());
         Assert.Equal([AuditAction.LibraryLinkSet, AuditAction.LibraryItemIdentified], await _factory.AuditActionsAsync(cancellationToken));
     }
@@ -370,9 +374,10 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         const string switchedOff = "“Living room” is switched off. Switch it on under Integrations, then retry.";
         var item = Assert.Single((await response.ReadDialogAsync(cancellationToken)).Items);
+        // MAM-47 — each sentence with its key: the dialog compares the kinds of reason, not the words.
         Assert.Equal(
-            ((LibraryLinkWriteState?)LibraryLinkWriteState.NotWritten, switchedOff, false, switchedOff),
-            (item.WriteState, item.WriteError, item.CanWrite, item.CannotWriteReason));
+            ((LibraryLinkWriteState?)LibraryLinkWriteState.NotWritten, switchedOff, "library-links.write.switched-off", false, switchedOff, "library-links.write.switched-off"),
+            (item.WriteState, item.WriteError, item.WriteErrorCode, item.CanWrite, item.CannotWriteReason, item.CannotWriteReasonCode));
         Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
         Assert.False(_factory.Resolve<LibraryLinkWriteQueue>().Reader.TryPeek(out _));
     }
@@ -701,6 +706,27 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("Connect a metadata catalog under Integrations first.", await response.ReadErrorAsync(cancellationToken));
         await AssertNothingSavedAsync(_factory.JellyfinHttp.Requests.Count, cancellationToken);
+    }
+
+    [Fact]
+    public async Task Set_of_a_work_no_library_reports_is_409_saying_there_is_nothing_to_link()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // A work no library reports an item of: no title, id or version of a library's item.
+        var work = await new MediaWorkDataFactory(_factory.Scope.GetRequiredService<ApplicationDbContext>(), _factory.Time).Create();
+        var sent = _factory.JellyfinHttp.Requests.Count;
+
+        //Act
+        var response = await _factory.PutHttpRequest(LinkUrl(work.Id), _owner.AccessToken, new LibraryLinkRequest("Movie", FilmId));
+
+        //Assert
+        // MAM-47 (ADR 0042) — the sentence with its key as the code; it had no test before.
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(
+            ErrorBody.Json("No library reports this work, so there is nothing to link.", "library-links.set.no-items"),
+            await response.Content.ReadAsStringAsync(cancellationToken));
+        await AssertNothingSavedAsync(sent, cancellationToken);
     }
 
     [Fact]

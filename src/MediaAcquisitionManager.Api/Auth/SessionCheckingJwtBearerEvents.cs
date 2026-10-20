@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +8,7 @@ namespace MediaAcquisitionManager.Api.Auth;
 
 /// <summary>
 /// The bearer handler's events: every access token is checked against its session, and a missing or
-/// refused token answers 401 <c>{ "error": "Sign in to continue." }</c>.
+/// refused token answers 401 <c>{ "error": "Sign in to continue.", "code": "account.sign-in-required" }</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,7 +27,8 @@ namespace MediaAcquisitionManager.Api.Auth;
 /// </remarks>
 public sealed class SessionCheckingJwtBearerEvents(ApplicationDbContext db, TimeProvider time) : JwtBearerEvents
 {
-    public const string SignInRequired = "Sign in to continue.";
+    /// <summary>The 401's message (<see cref="SignInRequiredResponse"/>).</summary>
+    public static readonly Message SignInRequired = Message.Of("account.sign-in-required");
 
     public override async Task TokenValidated(TokenValidatedContext context)
     {

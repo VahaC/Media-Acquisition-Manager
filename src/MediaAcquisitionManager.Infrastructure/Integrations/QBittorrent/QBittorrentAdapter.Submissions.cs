@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 
@@ -15,15 +16,13 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 // without asking which version answered.
 internal sealed partial class QBittorrentAdapter
 {
-    private const string AddFailedError =
-        "qBittorrent didn't add the release: it already has this torrent, or it couldn't use what it was sent.";
+    private static readonly Message AddFailedError = Message.Of("qbittorrent.add.failed");
 
-    private const string AddedNothingError =
-        "qBittorrent added nothing: it already has this torrent, or it couldn't use what it was sent.";
+    private static readonly Message AddedNothingError = Message.Of("qbittorrent.add.added-nothing");
 
-    private const string UnreadableTorrentError = "qBittorrent couldn't read the .torrent file it was sent (415 Unsupported Media Type).";
+    private static readonly Message UnreadableTorrentError = Message.Of("qbittorrent.add.unreadable-torrent");
 
-    private const string NotAnAddAnswerError = "The service at this address answered, but not the way qBittorrent answers a new torrent.";
+    private static readonly Message NotAnAddAnswerError = IntegrationAdapterMessages.NotAnAddAnswer(DisplayName);
 
     /// <summary>
     /// The name the .torrent is uploaded under. qBittorrent names a torrent by its info dictionary, never by
@@ -63,7 +62,9 @@ internal sealed partial class QBittorrentAdapter
         ArgumentNullException.ThrowIfNull(submission);
         ValidatePayload(submission.Payload);
         if (DestinationRules.ValidateClientDestinationKey(submission.DestinationKey) is { } keyError)
-            throw new ArgumentException(keyError, nameof(submission));
+            // MAM-47 — a developer's text naming the broken rule's key: Infrastructure renders no sentence, and this fires
+            // only on a caller's bug (the destination passed the same rules when it was saved).
+            throw new ArgumentException($"The destination's key breaks the rule {keyError.Key}.", nameof(submission));
 
         return CallAsync<SubmissionReceipt>(
             settings, (client, sessionSecrets, token) => SendSubmissionAsync(client, settings, submission, sessionSecrets, token), cancellationToken);

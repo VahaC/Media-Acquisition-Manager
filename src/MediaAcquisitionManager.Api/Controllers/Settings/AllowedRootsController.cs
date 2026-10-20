@@ -40,7 +40,7 @@ public class AllowedRootsController(IAllowedRootsService allowedRoots) : Control
         return result.Status switch
         {
             AllowedRootsUpdateStatus.Saved => NoContent(),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 }

@@ -18,7 +18,7 @@ public sealed class AuthMeHttpTests : IClassFixture<MediaAcquisitionManagerApiFa
     private const string BaseUrl = "/api/auth/me";
     private const string SignInUrl = "/api/auth/sign-in";
     private const string RefreshUrl = "/api/auth/refresh";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
 
     // The design's number, spelled out: a session ends 30 days after it was last used.
     private static readonly TimeSpan IdleLifetime = TimeSpan.FromDays(30);

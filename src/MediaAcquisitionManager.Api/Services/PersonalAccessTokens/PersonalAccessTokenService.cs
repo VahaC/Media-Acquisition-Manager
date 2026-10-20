@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,16 +20,16 @@ public sealed class PersonalAccessTokenService(
     ILogger<PersonalAccessTokenService> logger) : IPersonalAccessTokenService
 {
     /// <summary>
-    /// The sentence a body that can't be read as a token gets — not JSON, or an access or lifetime that isn't one of the
-    /// names — instead of the validation body MVC would send: it names every field and what it takes.
+    /// The key of the sentence a body that can't be read as a token gets — not JSON, or an access or lifetime that isn't
+    /// one of the names — instead of the validation body MVC would send: it names every field and what it takes.
     /// </summary>
-    public const string UnreadableBodyError =
-        "Send the token as JSON: a name, access ReadOnly or ReadAndDownload, and lifetime Days30, Days90, OneYear or Never.";
+    public const string UnreadableBodyError = "account.token.unreadable-body";
 
-    private const string NameRequired = "Give the token a name, such as “Claude on the laptop”.";
-    private const string NameTooLong = "A token's name can be at most 100 characters.";
-    private const string AccessRequired = "Choose the token's access: Read only or Read and download.";
-    private const string LifetimeRequired = "Choose when the token expires.";
+    private static readonly Message NameRequired = Message.Of("account.token.name-required");
+    private static readonly Message NameTooLong =
+        Message.Of("account.token.name-too-long", ("count", PersonalAccessTokenRules.NameMaximumLength));
+    private static readonly Message AccessRequired = Message.Of("account.token.access-required");
+    private static readonly Message LifetimeRequired = Message.Of("account.token.lifetime-required");
 
     public async Task<PersonalAccessTokenListResponse> ListAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -156,10 +157,10 @@ public sealed class PersonalAccessTokenService(
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
-    /// <summary>The sentence for the first field missing or wrong, in the dialog's order; <c>null</c> with the trimmed
+    /// <summary>The message for the first field missing or wrong, in the dialog's order; <c>null</c> with the trimmed
     /// name in <paramref name="name"/>. An access or lifetime sent as a number that names no member counts as
     /// missing.</summary>
-    private static string? Validate(CreatePersonalAccessTokenRequest? request, out string name)
+    private static Message? Validate(CreatePersonalAccessTokenRequest? request, out string name)
     {
         name = request?.Name?.Trim() ?? "";
         if (name.Length == 0)

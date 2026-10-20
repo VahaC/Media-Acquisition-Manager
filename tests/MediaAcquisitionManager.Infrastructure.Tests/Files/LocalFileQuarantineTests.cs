@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -83,7 +84,7 @@ public sealed class LocalFileQuarantineTests : IDisposable
         //Assert
         Assert.Equal(FileQuarantineStatus.OutsideAllowedRoots, listed.Status);
         Assert.Null(listed.Value);
-        Assert.Equal($"“{Canonical(Path.GetDirectoryName(film)!)}” is outside the media folders the app may read.", listed.Error);
+        Assert.Equal($"“{Canonical(Path.GetDirectoryName(film)!)}” is outside the media folders the app may read.", TestTexts.En(listed.Error));
     }
 
     [Fact]
@@ -97,9 +98,9 @@ public sealed class LocalFileQuarantineTests : IDisposable
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<IReadOnlyList<FolderFile>>(
-                FileQuarantineStatus.OutsideAllowedRoots, null, "No media folder is allowed yet, so the app reads no file."),
-            listed);
+            Refusal<IReadOnlyList<FolderFile>>(
+                FileQuarantineStatus.OutsideAllowedRoots, "No media folder is allowed yet, so the app reads no file."),
+            InEnglish(listed));
     }
 
     [Fact]
@@ -122,11 +123,10 @@ public sealed class LocalFileQuarantineTests : IDisposable
         Assert.Equal(FileQuarantineStatus.Done, listed.Status);
         Assert.Equal(expected, listed.Value);
         Assert.Equal(
-            new FileQuarantineResult<IReadOnlyList<string>>(
+            Refusal<IReadOnlyList<string>>(
                 FileQuarantineStatus.NotFound,
-                null,
                 $"The folder “{Canonical(Path.GetDirectoryName(gone)!)}” is gone, and the app creates no folder to put a file back."),
-            missing);
+            InEnglish(missing));
     }
 
     [Fact(Skip = "Linux renames; LocalFileQuarantineLinuxTests covers it there.", SkipWhen = nameof(IsLinux))]
@@ -146,10 +146,10 @@ public sealed class LocalFileQuarantineTests : IDisposable
         var deleted = await _quarantine.DeleteFromQuarantineAsync(quarantined, quarantinedFacts, [_media], cancellationToken);
 
         //Assert
-        var refused = new FileQuarantineResult<FileFacts>(FileQuarantineStatus.NotSupported, null, NotLinux);
-        Assert.Equal(refused, moved);
-        Assert.Equal(refused, restored);
-        Assert.Equal(refused, deleted);
+        var refused = Refusal<FileFacts>(FileQuarantineStatus.NotSupported, NotLinux);
+        Assert.Equal(refused, InEnglish(moved));
+        Assert.Equal(refused, InEnglish(restored));
+        Assert.Equal(refused, InEnglish(deleted));
         Assert.True(File.Exists(film));
         Assert.True(File.Exists(quarantined));
         Assert.False(File.Exists(quarantinePath));
@@ -178,4 +178,12 @@ public sealed class LocalFileQuarantineTests : IDisposable
     /// <summary>The path in the form the quarantine gives it (the drive letter in capitals on Windows).</summary>
     private static string Canonical(string path) =>
         NormalizedPath.TryParse(path, out var parsed, out _) ? parsed.ToString() : throw new ArgumentException($"“{path}” is not a full path.", nameof(path));
+
+    /// <summary>MAM-47 — a result with its message in English: a refusal compares by the words a reader sees.</summary>
+    private static (FileQuarantineStatus Status, T? Value, string? Error) InEnglish<T>(FileQuarantineResult<T> result) where T : class =>
+        (result.Status, result.Value, TestTexts.En(result.Error));
+
+    /// <summary>MAM-47 — a refusal as <see cref="InEnglish{T}"/> gives it.</summary>
+    private static (FileQuarantineStatus Status, T? Value, string? Error) Refusal<T>(FileQuarantineStatus status, string error) where T : class =>
+        (status, null, error);
 }

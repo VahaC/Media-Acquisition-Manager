@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 // A file's ids by scheme: the form each compares in, to the form it is shown in.
 using Ids = System.Collections.Generic.Dictionary<
     MediaAcquisitionManager.Core.Enums.MediaIdentifierScheme,
@@ -22,7 +23,7 @@ public static partial class ReplacementPairing
     /// <summary>Rule 1 for one new file: the library's word on it, and the matched work its ids make it.</summary>
     private static NewFileRead Identify(ReplacementPairingNewFile file, IReadOnlyList<ReplacementPairingWork> works, string library)
     {
-        var path = ReplacementText.Quote(file.AppPath);
+        var path = MessageText.Clean(file.AppPath);
         var read = new NewFileRead(file, ReplacementText.FileNameOf(file.AppPath), null, null, null, null, null, false);
         var reading = file.Library;
         var films = works.Where(work => work.Kind == MediaWorkKind.Movie).ToList();
@@ -55,7 +56,7 @@ public static partial class ReplacementPairing
                     return read with { Pending = FilmWithoutId(library, path, films) };
             }
 
-            var (pending, problem, another) = Unidentified(film, library, path, reading.Identifiers, FilmSchemes, films, ofSeries: false);
+            var (pending, problem, another) = Unidentified(film, library, path, Subject.NewFilm, reading.Identifiers, FilmSchemes, films);
             return read with { Pending = pending, Problem = problem, OtherFilm = another };
         }
 
@@ -68,7 +69,7 @@ public static partial class ReplacementPairing
                 return read with { Pending = EpisodeWithoutSeries(library, path, shows) };
             case { Work: null }:
                 // An episode of another series stops the job whatever was paired: a season pack holds one show's.
-                var (seriesPending, seriesProblem, _) = Unidentified(show, library, path, reading.SeriesIdentifiers, SeriesSchemes, shows, ofSeries: true);
+                var (seriesPending, seriesProblem, _) = Unidentified(show, library, path, Subject.NewEpisode, reading.SeriesIdentifiers, SeriesSchemes, shows);
                 return read with { Pending = seriesPending, Problem = seriesProblem };
         }
 
@@ -146,20 +147,20 @@ public static partial class ReplacementPairing
     /// another work's stop the job (<c>Problem</c>) — another work's said so (<c>Another</c>), since a film of it is
     /// simply added instead once every ticked copy found its pair (<c>Pair</c>) —; ids that compare with nothing of a work
     /// wait for one that does (<c>Pending</c>) — unless no such work has an id of the deciding schemes at all, which stops
-    /// it too.
+    /// it too. <paramref name="subject"/> says whose ids they are, which the reasons word.
     /// </summary>
-    private static (string? Pending, string? Problem, bool Another) Unidentified(
+    private static (Message? Pending, Message? Problem, bool Another) Unidentified(
         Identification identification,
         string library,
         string path,
+        Subject subject,
         IReadOnlyList<MediaIdentifier> held,
         IReadOnlyList<MediaIdentifierScheme> deciding,
-        IReadOnlyList<ReplacementPairingWork> candidates,
-        bool ofSeries)
+        IReadOnlyList<ReplacementPairingWork> candidates)
     {
         var heldIds = IdsOf(held);
         if (identification.Several.Count > 1)
-            return (null, SeveralWorks(library, path, identification.Several), false);
+            return (null, SeveralWorks(library, path, subject, identification.Several), false);
         if (identification.Sharing is { } sharing)
         {
             var theirs = IdsOf(sharing.Identifiers);
@@ -173,7 +174,7 @@ public static partial class ReplacementPairing
                 .FirstOrDefault();
             // Sharing an id of a scheme that doesn't decide, with nothing differing, says no more than sharing none.
             if (differing is not null)
-                return (null, Conflicting(library, path, ofSeries, shared, differing, sharing.Name), false);
+                return (null, Conflicting(library, path, subject, shared, differing, sharing.Name), false);
         }
 
         var shown = ShownOf(heldIds, deciding);
@@ -183,18 +184,18 @@ public static partial class ReplacementPairing
         // schemes at all — one confirmed by its title and year — could never be told by one, so that stops the job now.
         if (identification.Uncompared.Count > 0)
         {
-            List<(string Name, IReadOnlyList<string> Ids)> known =
+            List<(MessageValue Name, IReadOnlyList<string> Ids)> known =
             [
                 .. identification.Uncompared
                     .Select(work => (work.Name, Ids: (IReadOnlyList<string>)ShownOf(IdsOf(work.Identifiers), deciding)))
                     .Where(work => work.Ids.Count > 0),
             ];
             return known.Count > 0
-                ? (OtherSchemes(library, path, ofSeries, shown, known), null, false)
-                : (null, NoIdToCompare(library, path, ofSeries, shown, identification.Uncompared), false);
+                ? (OtherSchemes(library, path, subject, shown, known), null, false)
+                : (null, NoIdToCompare(library, path, subject, shown, identification.Uncompared), false);
         }
 
-        return (null, Another(library, path, ofSeries, shown, candidates), true);
+        return (null, Another(library, path, subject, shown, candidates), true);
     }
 
     /// <summary>The ids of <paramref name="deciding"/> as a sentence shows them, by scheme: "IMDb tt0078748", "TMDb 348".</summary>

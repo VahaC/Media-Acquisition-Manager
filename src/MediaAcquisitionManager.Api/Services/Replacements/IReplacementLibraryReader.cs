@@ -43,7 +43,8 @@ public interface IReplacementLibraryReader
     /// MAM-26 — tells the library integration <paramref name="integrationId"/> that <paramref name="change"/> happened at
     /// <paramref name="libraryPaths"/>, its own paths of a replacement's old copies — they went into the quarantine
     /// (<see cref="LibraryFileChange.Deleted"/>) or came back (<see cref="LibraryFileChange.Created"/>) —, in one request
-    /// per batch, through the same gates as asking. Its reasons are worded for the notice, which never stops a job.
+    /// per batch, through the same gates as asking. Its answer carries no reason (MAM-47): a notice never stops a job, and
+    /// only its status is read.
     /// </summary>
     Task<ReplacementLibraryAnswer> TellAsync(
         Guid integrationId, IReadOnlyList<string> libraryPaths, LibraryFileChange change, CancellationToken cancellationToken = default);

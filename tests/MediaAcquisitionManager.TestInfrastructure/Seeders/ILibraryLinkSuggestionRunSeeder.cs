@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Seeders;
 
@@ -15,5 +16,5 @@ public interface ILibraryLinkSuggestionRunSeeder
         DateTime? createdUtc = null,
         int? worksTotal = null,
         int worksDone = 0,
-        string? error = null);
+        Message? error = null);
 }

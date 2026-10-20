@@ -13,7 +13,7 @@ namespace MediaAcquisitionManager.Api.Tests.Conventions;
 // would stay green with the convention removed or inverted.
 public sealed class SettingsWritesAreOwnerOnlyConventionHttpTests : IClassFixture<PipelineProbeApiFactory>, IAsyncLifetime
 {
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
 
     private readonly PipelineProbeApiFactory _factory;
     private AuthorizedUser _owner = null!;

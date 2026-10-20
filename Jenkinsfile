@@ -90,7 +90,9 @@ pipeline {
                             sh 'dotnet build MediaAcquisitionManager.slnx -c Release --no-restore'
                             // Every test project, as concurrent shards; see run-tests.sh. Each
                             // project's .runsettings excludes Category=RequiresDocker, and there are
-                            // no such tests yet.
+                            // no such tests yet. MAM-47 — run-tests.sh runs the suite in two passes, the
+                            // normal one and the pseudo-language one; the junit glob below publishes both
+                            // passes' reports, so a test shows once per pass.
                             sh 'TMPDIR=/mam-test-tmp NO_BUILD=1 bash run-tests.sh'
                         }
                     }

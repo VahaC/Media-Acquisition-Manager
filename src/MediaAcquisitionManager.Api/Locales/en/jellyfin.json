@@ -1,0 +1,96 @@
+{
+  "key-refused": "Jellyfin refused the API key. Create one in Jellyfin under Dashboard → API Keys and enter it here.",
+  "forbidden": {
+    "server": "Jellyfin accepted the key but won't show it the server's details (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token.",
+    "library": "Jellyfin accepted the key but won't let it read the library (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token.",
+    "scan": "Jellyfin accepted the key but won't let it ask the library to look at new files (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token."
+  },
+  "not-jellyfin": "The service at this address answered, but not the way Jellyfin does. Check the address.",
+  "other-product": "The service at this address is {{product, vendor}}, not Jellyfin.",
+  "not-found": "Jellyfin wasn't found at this address (404 Not Found for {{route}}). If Jellyfin runs under a base path, include it, for example http://192.168.1.10:8096/jellyfin.",
+  "connected": {
+    "with-server": "Connected to Jellyfin {{version, vendor}} ({{server, vendor}})."
+  },
+  "version": {
+    "not-comparable": "Jellyfin reported the version “{{version, vendor}}”, which the app can't compare with {{minimum}}, the oldest version it reads libraries from.",
+    "too-old": "This is Jellyfin {{version, vendor}}; the app reads libraries from Jellyfin {{minimum}} or later. Update Jellyfin, then test again."
+  },
+  "items": {
+    "parts-not-found": {
+      "movie": "Jellyfin no longer finds the other parts of a movie it has just listed (404 Not Found); its library is changing. Try again once Jellyfin's library scan has finished.",
+      "episode": "Jellyfin no longer finds the other parts of an episode it has just listed (404 Not Found); its library is changing. Try again once Jellyfin's library scan has finished."
+    },
+    "without-id": {
+      "movie": "The service at this address listed a movie without an id, which Jellyfin never does. Check the address.",
+      "episode": "The service at this address listed an episode without an id, which Jellyfin never does. Check the address.",
+      "series": "The service at this address listed a series without an id, which Jellyfin never does. Check the address."
+    },
+    "odd-id": {
+      "movie": "The service at this address listed a movie in several parts under an id Jellyfin never gives, so the app won't ask for its other parts. Check the address.",
+      "episode": "The service at this address listed an episode in several parts under an id Jellyfin never gives, so the app won't ask for its other parts. Check the address."
+    },
+    "wrong-type": {
+      "movie": "Jellyfin listed an item of type “{{type, vendor}}” when asked for movies only, so the app can't rely on the list. Check the address.",
+      "episode": "Jellyfin listed an item of type “{{type, vendor}}” when asked for episodes only, so the app can't rely on the list. Check the address.",
+      "series": "Jellyfin listed an item of type “{{type, vendor}}” when asked for series only, so the app can't rely on the list. Check the address."
+    }
+  },
+  "poster": {
+    "not-jpeg": "Jellyfin answered the poster with something that isn't a JPEG image.",
+    "none": "Jellyfin has no poster for this item."
+  },
+  "identify": {
+    "episode-unidentifiable": "Jellyfin identifies movie and series items only, so a link on an episode stays in the app.",
+    "wrong-type": {
+      "movie": "Jellyfin holds an item of type “{{type, vendor}}” under this id, not a movie, so the app didn't identify it. Sync the library and link it again.",
+      "series": "Jellyfin holds an item of type “{{type, vendor}}” under this id, not a series, so the app didn't identify it. Sync the library and link it again."
+    },
+    "no-administrator": "Jellyfin has no enabled administrator account to read the item as.",
+    "item-gone": "Jellyfin no longer has this item; sync the library and link it again.",
+    "hidden-from-administrator": "Jellyfin's administrator account can't see this item (a parental limit, a blocked tag or no access to its library), so the app can't read it as that account.",
+    "search-forbidden": "Jellyfin refused the search for the match. Check that the API key belongs to an administrator.",
+    "search-refused": "Jellyfin refused the search for the match; nothing was changed.",
+    "apply-forbidden": "Jellyfin refused to identify the item. Check that the API key belongs to an administrator.",
+    "apply-refused": "Jellyfin refused the match it was sent; nothing was changed.",
+    "no-match": {
+      "tmdb-film": "Jellyfin found no film with TMDb id {{id}}. Check the id, and that TheMovieDb is among this library's metadata sources in Jellyfin.",
+      "tmdb-show": "Jellyfin found no show with TMDb id {{id}}. Check the id, and that TheMovieDb is among this library's metadata sources in Jellyfin.",
+      "omdb": "Jellyfin's Open Movie Database found no title with IMDb id {{id}}. Check that it is among this library's metadata sources in Jellyfin.",
+      "ambiguous-tmdb": "Jellyfin found more than one result for TMDb id {{id}}, so the app picked none.",
+      "ambiguous-imdb": "Jellyfin found more than one result for IMDb id {{id}}, so the app picked none.",
+      "no-name-tmdb": "Jellyfin's result for TMDb id {{id}} has no name, so the app picked none.",
+      "no-name-imdb": "Jellyfin's result for IMDb id {{id}} has no name, so the app picked none."
+    },
+    "item-locked": "This item is locked in Jellyfin (the whole item, its name or its overview), so Jellyfin wouldn't take the match. Unlock it there, then retry.",
+    "conflicting-id": {
+      "imdb": "Jellyfin holds IMDb id {{held}} for this item, not {{wanted}}, and the app doesn't replace a library's own ids on its own. If the link is right, press Retry to identify it anyway; otherwise change the link.",
+      "tmdb": "Jellyfin holds TMDb id {{held}} for this item, not {{wanted}}, and the app doesn't replace a library's own ids on its own. If the link is right, press Retry to identify it anyway; otherwise change the link.",
+      "imdb-uncheckable": "Jellyfin holds IMDb id {{held}} for this item and TMDb gives no IMDb id for this link to compare it with, so the app doesn't replace a library's own id on its own. If the link is right, press Retry to identify it anyway; otherwise change the link."
+    },
+    "answer-lost": "The match was sent to Jellyfin, but its answer never came, and the item read again doesn't show it. Jellyfin may still be working on it: Retry in a few minutes checks again before sending anything.",
+    "answer-timed-out_one": "The match was sent to Jellyfin, but it didn't answer within {{count, number}} minute, and the item read again doesn't show it. Jellyfin may still be working on it: Retry in a few minutes checks again before sending anything.",
+    "answer-timed-out_other": "The match was sent to Jellyfin, but it didn't answer within {{count, number}} minutes, and the item read again doesn't show it. Jellyfin may still be working on it: Retry in a few minutes checks again before sending anything.",
+    "answer-failed": "Jellyfin answered the match with {{status}}, and the item read again doesn't show it. Its own log says why; the item may have lost its images. Retry checks again before sending anything.",
+    "not-confirmed": "Jellyfin took the match, but the item read again doesn't show it (its name, year or id): it may be locked, or its metadata sources failed. Its own log says why; Retry checks again.",
+    "read-again-failed": "Jellyfin took the match, but the app couldn't read the item again to confirm it. {{error, message}}",
+    "library": {
+      "writes-files": "Jellyfin's library “{{library, vendor}}” saves {{saved, list:and:message}} next to the media, so identifying this item could change files in your media folders; the app left it alone. Switch that off in the library's settings in Jellyfin, then retry.",
+      "writes-files-unnamed": "Jellyfin's library “(unnamed)” saves {{saved, list:and:message}} next to the media, so identifying this item could change files in your media folders; the app left it alone. Switch that off in the library's settings in Jellyfin, then retry.",
+      "saved": {
+        "artwork-and-metadata-clause": "artwork and metadata",
+        "nfo-files-clause": "NFO files",
+        "trickplay-images-clause": "trickplay images",
+        "downloaded-subtitles-clause": "downloaded subtitles"
+      },
+      "unknown": "The app couldn't tell what this item's Jellyfin library saves next to the media ({{why, message}}), so it left the item alone.",
+      "why": {
+        "no-library-clause": "none of Jellyfin's libraries holds the item's path",
+        "options-missing-clause": "the library's options are missing",
+        "save-local-metadata-clause": "its SaveLocalMetadata setting is missing or isn't a yes or a no",
+        "metadata-savers-clause": "its MetadataSavers setting isn't a list",
+        "save-trickplay-clause": "its SaveTrickplayWithMedia setting is missing or isn't a yes or a no",
+        "subtitle-languages-clause": "its SubtitleDownloadLanguages setting isn't a list"
+      }
+    }
+  }
+}

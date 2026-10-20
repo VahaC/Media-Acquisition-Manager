@@ -3,7 +3,6 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Api.Services.Files;
-using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Media;
@@ -11,6 +10,7 @@ using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
@@ -21,14 +21,16 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 // (ADR 0026) — an Apply takes seconds for a film and minutes for a series, which no request waits for.
 public sealed partial class LibraryLinkService
 {
-    private const string KindMissingError = "Choose a TMDb film (Movie) or show (Series).";
-    private const string IdMissingError = "Give the TMDb id to link.";
-    private const string EpisodeWithoutSeasonError = "An episode number needs a season number.";
-    private const string NumbersNotAllowedError = "Season and episode numbers go only with a show linked to a film or to an episode.";
-    private const string FilmForShowError = "A show or an episode can be linked only to a TMDb show.";
-    private const string SeriesEpisodeError = "Link its series instead: an episode is known by its series' ids.";
-    private const string WorkGoneError = "The work is no longer in the library.";
-    private const string LinkedMeanwhileError = "It was linked meanwhile.";
+    // MAM-47 (ADR 0042) — the refusals and skip reasons LibraryLinkSuggestionService says too (its free search, its pasted
+    // id, "Accept all confident") are internal and used from there: one key per wording, never a copy of the words.
+    internal static readonly Message KindMissingError = Message.Of("library-links.set.kind-missing");
+    internal static readonly Message IdMissingError = Message.Of("library-links.set.id-missing");
+    private static readonly Message EpisodeWithoutSeasonError = Message.Of("library-links.set.episode-without-season");
+    private static readonly Message NumbersNotAllowedError = Message.Of("library-links.set.numbers-not-allowed");
+    private static readonly Message FilmForShowError = Message.Of("library-links.set.film-for-show");
+    private static readonly Message SeriesEpisodeError = Message.Of("library-links.set.series-episode");
+    internal static readonly Message WorkGoneError = Message.Of("library-links.batch.work-gone");
+    internal static readonly Message LinkedMeanwhileError = Message.Of("library-links.batch.linked-meanwhile");
 
     /// <summary>The highest season number taken: TMDb numbers seasons from 0 (the specials) up.</summary>
     private const int MaximumSeasonNumber = 999;
@@ -36,18 +38,23 @@ public sealed partial class LibraryLinkService
     /// <summary>The highest episode number taken: the longest-running shows count episodes in the thousands.</summary>
     private const int MaximumEpisodeNumber = 9999;
 
-    private static string KindInvalidError(string kind) => $"“{Echo(kind)}” is not a TMDb kind. Use Movie or Series.";
+    internal static Message KindInvalidError(string kind) => Message.Of("library-links.set.kind-invalid", ("value", Echo(kind)));
 
-    private static string IdInvalidError(string id) => $"“{Echo(id)}” is not a TMDb id.";
+    internal static Message IdInvalidError(string id) => Message.Of("library-links.set.id-invalid", ("value", Echo(id)));
 
-    private static string SeasonInvalidError(string season) => $"“{Echo(season)}” is not a season number. Use 0 to {MaximumSeasonNumber}.";
+    private static Message SeasonInvalidError(string season) =>
+        Message.Of("library-links.set.season-invalid", ("value", Echo(season)), ("max", MaximumSeasonNumber));
 
-    private static string EpisodeInvalidError(string episode) => $"“{Echo(episode)}” is not an episode number. Use 1 to {MaximumEpisodeNumber}.";
+    private static Message EpisodeInvalidError(string episode) =>
+        Message.Of("library-links.set.episode-invalid", ("value", Echo(episode)), ("max", MaximumEpisodeNumber));
 
-    private static string UnknownItemError(string itemId) => $"“{Echo(itemId)}” is not an item of this work.";
+    private static Message UnknownItemError(string itemId) => Message.Of("library-links.set.unknown-item", ("value", Echo(itemId)));
 
-    private static string CatalogWorkNotFoundError(MediaWorkKind kind, string id) =>
-        $"TMDb has no {(kind == MediaWorkKind.Series ? "show" : "film")} {id}.";
+    // A key per kind: "film" and "show" are words of the sentence, which a translation inflects (MAM-47, ADR 0042).
+    internal static Message CatalogWorkNotFoundError(MediaWorkKind kind, string id) =>
+        kind == MediaWorkKind.Series
+            ? Message.Of("library-links.catalog.show-not-found", ("id", id))
+            : Message.Of("library-links.catalog.film-not-found", ("id", id));
 
     public async Task<LibraryLinkResult> SetAsync(Guid workId, LibraryLinkRequest? request, Guid ownerUserId, CancellationToken cancellationToken = default)
     {
@@ -108,7 +115,7 @@ public sealed partial class LibraryLinkService
         // One catalog for the click, found once.
         var connected = picks.Any(pick => pick.SkipReason is null) ? await catalogs.ConnectAsync(cancellationToken) : null;
 
-        var outcomes = new List<(Guid WorkId, string? SkipReason)>();
+        var outcomes = new List<(Guid WorkId, Message? SkipReason)>();
         try
         {
             foreach (var pick in picks)
@@ -144,13 +151,13 @@ public sealed partial class LibraryLinkService
             [
                 .. outcomes.Select(outcome => outcome.SkipReason is null
                     ? new LibraryLinkBatchItemDto(outcome.WorkId, LinkBatchOutcome.Linked, null, rows.TryGetValue(outcome.WorkId, out var item) ? item.Links : [])
-                    : new LibraryLinkBatchItemDto(outcome.WorkId, LinkBatchOutcome.Skipped, outcome.SkipReason, [])),
+                    : new LibraryLinkBatchItemDto(outcome.WorkId, LinkBatchOutcome.Skipped, texts.Render(outcome.SkipReason), [])),
             ]);
     }
 
     // One work of the click, linked as the dialog's Save links it — the identifications left to the background writer — or
-    // the sentence why it was skipped.
-    private async Task<(SaveOutcome? Saved, string? SkipReason)> LinkOneOfBatchAsync(
+    // why it was skipped.
+    private async Task<(SaveOutcome? Saved, Message? SkipReason)> LinkOneOfBatchAsync(
         LibraryLinkBatchPick batchPick, Guid batchId, CatalogConnectResult connected, AuditActor actor, CancellationToken cancellationToken)
     {
         var pick = new LinkPick(batchPick.CatalogKind, batchPick.CatalogId.Trim(), null, null, null);
@@ -183,8 +190,8 @@ public sealed partial class LibraryLinkService
 
     // ── the request ──────────────────────────────────────────────────────────────────────────────
 
-    /// <summary>The request's fields parsed (R18: strings, so every mistake gets its sentence), or the sentence.</summary>
-    private static (LinkPick? Pick, string? Error) Parse(LibraryLinkRequest request)
+    /// <summary>The request's fields parsed (R18: strings, so every mistake gets its sentence), or why not.</summary>
+    private static (LinkPick? Pick, Message? Error) Parse(LibraryLinkRequest request)
     {
         var kindText = request.CatalogKind?.Trim();
         if (string.IsNullOrEmpty(kindText))
@@ -231,9 +238,9 @@ public sealed partial class LibraryLinkService
     /// <summary>
     /// What the link says the work's items are, by the work's kind and the catalog's: a film is a film (Movie work ↔
     /// TMDb film), a show is a show (Series work ↔ TMDb show), and a show picked for a film — or for an episode no series
-    /// holds — makes it an episode of that show. The sentence when the pair can't be linked.
+    /// holds — makes it an episode of that show. Why not when the pair can't be linked.
     /// </summary>
-    private async Task<(LibraryLinkTarget? Target, string? Error)> TargetOfAsync(MediaWorkEntity work, LinkPick pick, CancellationToken cancellationToken)
+    private async Task<(LibraryLinkTarget? Target, Message? Error)> TargetOfAsync(MediaWorkEntity work, LinkPick pick, CancellationToken cancellationToken)
     {
         LibraryLinkTarget target;
         switch (work.Kind)
@@ -271,7 +278,7 @@ public sealed partial class LibraryLinkService
         // R18 — an id the catalog doesn't know is the request's mistake, said in a sentence (DownloadsController's body ids).
         return read.Status == IntegrationCallStatus.NotFound
             ? (null, LibraryLinkResult.CatalogWorkNotFound(CatalogWorkNotFoundError(pick.CatalogKind, pick.CatalogId)))
-            : (null, LibraryLinkResult.BadGateway(SecretRedaction.Redact(read.Error!, catalog.Settings.Secrets)!));
+            : (null, LibraryLinkResult.BadGateway(read.Error!.Redacted(catalog.Settings.Secrets)));
     }
 
     /// <summary>
@@ -377,12 +384,12 @@ public sealed partial class LibraryLinkService
                 var (state, error) = writesIds
                     ? item.Connection.IsEnabled
                         // Always queued, the dialog's Save too: an Apply is the background writer's alone.
-                        ? (LibraryLinkWriteState.Queued, (string?)null)
+                        ? (LibraryLinkWriteState.Queued, (Message?)null)
                         // R12 — a library switched off is never identified in: the link waits for it.
                         : (LibraryLinkWriteState.NotWritten, LibraryLinkWriter.SwitchedOffError(item.Connection.Name))
                     // Kept in the app. TMDb's "no IMDb id of this episode" is the link's error, as only asking TMDb tells
                     // it: the writer and the repair don't ask again.
-                    : (LibraryLinkWriteState.KeptInApp, keptReason == LibraryLinkWritability.NoEpisodeImdbReason ? keptReason : null);
+                    : (LibraryLinkWriteState.KeptInApp, keptReason?.Key == LibraryLinkWritability.NoEpisodeImdbKey ? keptReason : null);
 
                 var link = existing ?? new LibraryItemLinkEntity
                 {

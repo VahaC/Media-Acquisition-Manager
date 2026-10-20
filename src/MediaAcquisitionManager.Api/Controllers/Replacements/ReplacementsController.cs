@@ -39,9 +39,9 @@ public class ReplacementsController(IReplacementOptionsReader options, IDownload
         return result.Status switch
         {
             ReplacementOptionsStatus.Listed => Ok(result.Options),
-            ReplacementOptionsStatus.Invalid => this.BadRequestError(result.Error),
+            ReplacementOptionsStatus.Invalid => this.BadRequestError(result.Error!),
             // Ids in the query, not the addressed row, so the dialog gets the sentence.
-            _ => this.NotFoundError(result.Error),
+            _ => this.NotFoundError(result.Error!),
         };
     }
 
@@ -65,13 +65,13 @@ public class ReplacementsController(IReplacementOptionsReader options, IDownload
             // The job is a download job, read where every job is (R4).
             DownloadSendStatus.Created => CreatedAtAction(nameof(DownloadsController.Get), "Downloads", new { id = result.Job!.Id }, result.Job),
             DownloadSendStatus.Replayed => Ok(result.Job),
-            DownloadSendStatus.Invalid or DownloadSendStatus.ReplacementInvalid => this.BadRequestError(result.Error),
+            DownloadSendStatus.Invalid or DownloadSendStatus.ReplacementInvalid => this.BadRequestError(result.Error!),
             // Ids in the body, not the addressed row, so the dialog gets the sentence.
             DownloadSendStatus.ReleaseMissing or DownloadSendStatus.ClientMissing or DownloadSendStatus.DestinationMissing =>
-                this.NotFoundError(result.Error),
+                this.NotFoundError(result.Error!),
             // A copy that can't be replaced now, the request id used for something else, a client or a source that can't
             // be used, or a release already sent to the client.
-            _ => this.ConflictError(result.Error),
+            _ => this.ConflictError(result.Error!),
         };
     }
 }

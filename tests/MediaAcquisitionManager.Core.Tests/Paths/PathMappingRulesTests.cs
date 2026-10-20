@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Paths;
 
@@ -34,7 +35,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, Torznab);
 
         //Assert
-        Assert.Equal("Torznab reports no file paths, so it takes no path mappings.", error);
+        Assert.Equal("Torznab reports no file paths, so it takes no path mappings.", TestTexts.En(error));
     }
 
     [Fact]
@@ -47,7 +48,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, QBittorrent);
 
         //Assert
-        Assert.Equal(TooManyError, error);
+        Assert.Equal(TooManyError, TestTexts.En(error));
     }
 
     [Fact]
@@ -76,7 +77,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, QBittorrent);
 
         //Assert
-        Assert.Equal(ServicePathMissingError, error);
+        Assert.Equal(ServicePathMissingError, TestTexts.En(error));
     }
 
     [Theory]
@@ -92,7 +93,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, QBittorrent);
 
         //Assert
-        Assert.Equal(AppPathMissingError, error);
+        Assert.Equal(AppPathMissingError, TestTexts.En(error));
     }
 
     [Theory]
@@ -108,7 +109,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, QBittorrent);
 
         //Assert
-        Assert.Equal(TooLongError, error);
+        Assert.Equal(TooLongError, TestTexts.En(error));
     }
 
     [Fact]
@@ -138,7 +139,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, QBittorrent);
 
         //Assert
-        Assert.Equal(ControlCharacterError, error);
+        Assert.Equal(ControlCharacterError, TestTexts.En(error));
     }
 
     [Theory]
@@ -156,7 +157,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, QBittorrent);
 
         //Assert
-        Assert.Equal($"“{echoed}” is not a full path. Start it with / (Linux) or a drive letter such as D:\\ (Windows).", error);
+        Assert.Equal($"“{echoed}” is not a full path. Start it with / (Linux) or a drive letter such as D:\\ (Windows).", TestTexts.En(error));
     }
 
     [Theory]
@@ -172,7 +173,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, QBittorrent);
 
         //Assert
-        Assert.Equal($"“{echoed}” contains . or .. as a folder name. Write the folder's full path without them.", error);
+        Assert.Equal($"“{echoed}” contains . or .. as a folder name. Write the folder's full path without them.", TestTexts.En(error));
     }
 
     [Fact]
@@ -185,7 +186,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, QBittorrent);
 
         //Assert
-        Assert.Equal(StylesError, error);
+        Assert.Equal(StylesError, TestTexts.En(error));
     }
 
     [Theory]
@@ -201,7 +202,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, QBittorrent);
 
         //Assert
-        Assert.Equal($"The path “{echoed}” of qBittorrent is mapped twice. Keep one mapping for it.", error);
+        Assert.Equal($"The path “{echoed}” of qBittorrent is mapped twice. Keep one mapping for it.", TestTexts.En(error));
     }
 
     [Fact]
@@ -217,7 +218,7 @@ public sealed class PathMappingRulesTests
         Assert.Equal(
             "The mappings for “/downloads” and “/downloads/movies” send “/downloads/movies” to different places: " +
             "“/media/movies” and “/films”. Remove one, or make them agree.",
-            error);
+            TestTexts.En(error));
     }
 
     [Theory]
@@ -237,7 +238,7 @@ public sealed class PathMappingRulesTests
         //Assert
         Assert.Equal(
             $"“{echoed}” is inside “D:\\Torrents”. With Windows paths on the qBittorrent side and Linux paths in this app, keep only one of them.",
-            error);
+            TestTexts.En(error));
     }
 
     [Fact]
@@ -250,7 +251,7 @@ public sealed class PathMappingRulesTests
         var error = PathMappingRules.Validate(pairs, QBittorrent);
 
         //Assert
-        Assert.Equal("“relative” is not a full path. Start it with / (Linux) or a drive letter such as D:\\ (Windows).", error);
+        Assert.Equal("“relative” is not a full path. Start it with / (Linux) or a drive letter such as D:\\ (Windows).", TestTexts.En(error));
     }
 
     [Fact]

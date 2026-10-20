@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Recommendations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Recommendations;
 
@@ -51,7 +52,7 @@ public sealed class RecommendationSettingsRulesTests
         var error = RecommendationSettingsRules.ValidateDailySearchLimit(limit);
 
         //Assert
-        Assert.Equal("The daily search limit is a whole number from 0 to 500.", error);
+        Assert.Equal("The daily search limit is a whole number from 0 to 500.", TestTexts.En(error));
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
@@ -18,7 +19,7 @@ public sealed class LibraryLinkSuggestionRunWorker(
     TimeProvider time,
     ILogger<LibraryLinkSuggestionRunWorker> logger) : BackgroundService
 {
-    internal const string AppErrorMessage = "The TMDb suggestions stopped being prepared because of an error in the app. Its log says more.";
+    internal static readonly Message AppErrorMessage = Message.Of("library-links.suggestions.app-error");
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

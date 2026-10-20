@@ -1,0 +1,49 @@
+{
+  "dismissal": {
+    "catalog-id-invalid": "Значення «{{value}}» не є ID каталогу — такий ID є числом, наприклад 603."
+  },
+  "list": {
+    "tab-switched-off": "Цю вкладку вимкнено у вашому профілі.",
+    "tab-missing": "Вкажіть вкладку: Movies, Series, Cartoons або Documentaries.",
+    "tab-unknown": "Значення «{{value}}» не є вкладкою рекомендацій. Вкажіть Movies, Series, Cartoons або Documentaries.",
+    "reason-unknown": "Значення «{{value}}» не є причиною рекомендації. Вкажіть Collection, Director, Creator, Recommended, MissingSeasons, TopRated або NewAtSource.",
+    "availability-invalid": "Значення «{{value}}» не підходить для фільтра доступності. Вкажіть true або false.",
+    "genre-invalid": "Значення «{{value}}» не є ID жанру — такий ID є числом, наприклад 18.",
+    "decade-invalid": "Значення «{{value}}» не є десятиліттям. Вкажіть його перший рік, наприклад 1990.",
+    "sort-unknown": "Значення «{{value}}» не є способом сортування. Вкажіть Score, Rating, Votes, Newest, Oldest, Title або Releases.",
+    "kind-unknown": "Значення «{{value}}» не є типом твору. Вкажіть Movie або Series."
+  },
+  "overview": {
+    "language-invalid": "Значення «{{value}}» не є кодом мови — такий код складається з двох літер і, за потреби, регіону, наприклад en або uk-UA.",
+    "fetch-failed": "Каталог метаданих не зміг надіслати цей опис."
+  },
+  "settings": {
+    "daily-search-limit-invalid": "Денний ліміт пошуків — ціле число від 0 до 500.",
+    "unreadable-body": "Надішліть налаштування як JSON: movies, series, cartoons і documentaries зі значенням true або false, а dailySearchLimit — ціле число від 0 до 500.",
+    "movies-missing": "Вкажіть, чи ввімкнено вкладку «Фільми».",
+    "series-missing": "Вкажіть, чи ввімкнено вкладку «Серіали».",
+    "cartoons-missing": "Вкажіть, чи ввімкнено вкладку «Мультфільми».",
+    "documentaries-missing": "Вкажіть, чи ввімкнено вкладку «Документальні»."
+  },
+  "poster": {
+    "fetch-failed": "Каталог метаданих не зміг надіслати цей постер."
+  },
+  "run": {
+    "restarted": "Застосунок перезапустився, перш ніж ці рекомендації було обчислено. Попередні рекомендації залишено.",
+    "queue-full": "У черзі забагато обчислень рекомендацій. Спробуйте ще раз за хвилину.",
+    "app-error": "Обчислення рекомендацій зупинилося через помилку в застосунку. Подробиці — в журналі застосунку.",
+    "catalog-removed": "Каталог метаданих було видалено під час обчислення цих рекомендацій. Попередні рекомендації залишено."
+  },
+  "mcp": {
+    "list": {
+      "listed_one": "На вкладці {{tab}} усього {{count, number}} рекомендація; на сторінці {{page, number}} — {{listed, number}}.",
+      "listed_few": "На вкладці {{tab}} усього {{count, number}} рекомендації; на сторінці {{page, number}} — {{listed, number}}.",
+      "listed_many": "На вкладці {{tab}} усього {{count, number}} рекомендацій; на сторінці {{page, number}} — {{listed, number}}.",
+      "listed_other": "На вкладці {{tab}} усього {{count, number}} рекомендації; на сторінці {{page, number}} — {{listed, number}}."
+    },
+    "dismiss": {
+      "movie-marked": "Фільм з ID {{catalogId}} позначено «Не цікавить» і прибрано з ваших рекомендацій; у вебзастосунку це рішення можна скасувати.",
+      "series-marked": "Серіал з ID {{catalogId}} позначено «Не цікавить» і прибрано з ваших рекомендацій; у вебзастосунку це рішення можна скасувати."
+    }
+  }
+}

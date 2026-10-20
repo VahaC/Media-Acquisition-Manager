@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Integrations;
 using MediaAcquisitionManager.Core.Abstractions;
@@ -7,6 +8,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Integrations;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
@@ -53,18 +55,21 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var integration = await _integrations.Create(name: "Living room");
-        _factory.FakeAdapter.Outcome = _ => new ConnectionTestResult(status, $"The fake answered {status}.");
+        _factory.FakeAdapter.Outcome = _ => new ConnectionTestResult(status, Message.Legacy($"The fake answered {status}."));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
 
         //Assert
         // 200 for a failed test too: "no, because …" is the answer to "does it connect?", not a
-        // failure of this API. The status travels by name, as the dialog reads it.
+        // failure of this API. The status travels by name, as the dialog reads it. MAM-47 (ADR 0042) — the message is
+        // read through the contract, which the pseudo pass checks went through the renderer.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        Assert.StartsWith($$"""{"status":"{{status}}","message":""", body, StringComparison.Ordinal);
         Assert.Equal(
-            $$"""{"status":"{{status}}","message":"The fake answered {{status}}."}""",
-            await response.Content.ReadAsStringAsync(cancellationToken));
+            new ConnectionTestResponse(status, $"The fake answered {status}."),
+            JsonSerializer.Deserialize<ConnectionTestResponse>(body, MediaAcquisitionManagerApiFactory.JsonOptions));
         var entry = Assert.Single(_factory.Logs.Entries, entry => entry.Category == typeof(IntegrationConnectionService).FullName
             && entry.Message.StartsWith("Tested integration", StringComparison.Ordinal));
         // Information, and never the address or the message: either may carry what a service said
@@ -79,7 +84,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         //Arrange
         var integration = await _integrations.Create(
             name: "Living room", baseUrl: "http://media.test:8096/fake", userName: "admin", password: StoredPassword, apiKey: StoredApiKey);
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
@@ -100,7 +105,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var integration = await _integrations.Create(name: "Living room", isEnabled: false);
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
@@ -124,7 +129,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
             password: StoredPassword,
             apiKey: StoredApiKey,
             pathMappings: [new PathMappingPair("/downloads", "/media")]);
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
@@ -141,7 +146,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/{Guid.NewGuid()}/test", _owner.AccessToken);
@@ -166,8 +171,8 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(
-            "This version of the app can't connect to “emby”, so this integration can only be removed.",
-            await response.ReadErrorAsync(cancellationToken));
+            ("This version of the app can't connect to “emby”, so this integration can only be removed.", "integrations.service.adapter-unavailable"),
+            await response.ReadErrorBodyAsync(cancellationToken));
         Assert.Empty(_factory.FakeAdapter.Calls);
         Assert.Empty(_factory.JellyfinHttp.Requests);
         await AssertUnchangedAsync(integration, cancellationToken);
@@ -180,7 +185,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         var cancellationToken = TestContext.Current.CancellationToken;
         var integration = await _integrations.CreateWithUnreadableApiKey(FakeIntegrationAdapter.TypeId, "Living room");
         // Armed to succeed, so a call would show as a working service.
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
@@ -203,7 +208,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         var cancellationToken = TestContext.Current.CancellationToken;
         var source = await _integrations.Create(name: "Living room", apiKey: StoredApiKey);
         var copy = await _integrations.CreateWithCopiedApiKey(source.Id);
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/{copy.Id}/test", _owner.AccessToken);
@@ -250,7 +255,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         var integration = await _integrations.Create(name: "Living room", userName: "admin", password: StoredPassword, apiKey: StoredApiKey);
         // The fake is no HTTP adapter, so only the service's own pass can mask what it repeats.
         _factory.FakeAdapter.Outcome = settings => ConnectionTestResult.Failed(
-            IntegrationCallStatus.AuthenticationFailed, $"The service refused the key {settings.ApiKey} and the password {settings.Password}.");
+            IntegrationCallStatus.AuthenticationFailed, Message.Legacy($"The service refused the key {settings.ApiKey} and the password {settings.Password}."));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
@@ -268,7 +273,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/test", _owner.AccessToken, new TestIntegrationRequest(
@@ -293,7 +298,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
     public async Task TestDraft_of_a_new_integration_treats_keep_as_no_secret()
     {
         //Arrange
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest(
@@ -330,7 +335,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest(
@@ -354,7 +359,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("“emby” is not a service this app can connect to.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(("“emby” is not a service this app can connect to.", "integrations.service.adapter-type-unknown"), await response.ReadErrorBodyAsync(cancellationToken));
         Assert.Empty(_factory.FakeAdapter.Calls);
     }
 
@@ -363,7 +368,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
     {
         //Arrange
         var integration = await _integrations.Create(name: "Living room", userName: "admin", password: StoredPassword, apiKey: StoredApiKey);
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         // The dialog leaves a secret field empty to keep it: Keep for one, left out for the other.
@@ -384,7 +389,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var integration = await _integrations.Create(name: "Living room", userName: "admin", password: StoredPassword, apiKey: StoredApiKey);
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/test", _owner.AccessToken, new TestIntegrationRequest(
@@ -406,7 +411,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var integration = await _integrations.Create(name: "Living room", apiKey: StoredApiKey);
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest(
@@ -424,7 +429,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var integration = await _integrations.Create(name: "Living room", userName: "admin", password: StoredPassword);
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/test", _owner.AccessToken, new TestIntegrationRequest(
@@ -448,7 +453,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
     {
         //Arrange
         var integration = await _integrations.Create(name: "Living room", apiKey: StoredApiKey);
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest(
@@ -468,7 +473,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         var cancellationToken = TestContext.Current.CancellationToken;
         // What a row of a type an earlier build registered looks like to this one.
         var integration = await _integrations.Create("emby", "Old server", apiKey: StoredApiKey);
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         // The body names a registered type; the stored one still decides, so the stored key can't
@@ -479,8 +484,8 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(
-            "This version of the app can't connect to “emby”, so this integration can only be removed.",
-            await response.ReadErrorAsync(cancellationToken));
+            ("This version of the app can't connect to “emby”, so this integration can only be removed.", "integrations.service.adapter-unavailable"),
+            await response.ReadErrorBodyAsync(cancellationToken));
         Assert.Empty(_factory.FakeAdapter.Calls);
         Assert.Empty(_factory.JellyfinHttp.Requests);
         await AssertUnchangedAsync(integration, cancellationToken);
@@ -492,7 +497,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var integration = await _integrations.CreateWithUnreadableApiKey(FakeIntegrationAdapter.TypeId, "Living room");
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest(
@@ -512,7 +517,7 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Connected);
+        _factory.FakeAdapter.Outcome = _ => ConnectionTestResult.Succeeded(Message.Legacy(Connected));
 
         //Act
         var response = await _factory.PostHttpRequest(
@@ -522,8 +527,8 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         // The id is in the body, not the address, so the dialog is told what happened.
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal(
-            "The integration you are editing no longer exists. Close the dialog and reload the page.",
-            await response.ReadErrorAsync(cancellationToken));
+            ("The integration you are editing no longer exists. Close the dialog and reload the page.", "integrations.connection-test.edited-integration-missing"),
+            await response.ReadErrorBodyAsync(cancellationToken));
         Assert.Empty(_factory.FakeAdapter.Calls);
     }
 

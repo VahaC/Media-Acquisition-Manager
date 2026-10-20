@@ -121,7 +121,7 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
             ReplacementJobState.NeedsReview,
             [],
             quarantineCheckedUtc: moverChecked ? now : null,
-            reason: reason,
+            reason: PlantedMessage.Of(reason),
             copies: [new PlantedCopy(AlienPath, TestMedia.File(inode: 1))],
             inspectionStartedUtc: checkStarted ? now.AddHours(-2) : null);
 
@@ -152,12 +152,12 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
         var planted = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: TooShortProblem,
+            reason: PlantedMessage.Of(TooShortProblem),
             copies:
             [
-                new PlantedCopy(AlienPath, TestMedia.File(inode: 1), TooShortProblem, OnlyDropSettles: true),
-                new PlantedCopy(AliensPath, TestMedia.File(inode: 2), NoIdProblem),
-                new PlantedCopy(Alien3Path, TestMedia.File(inode: 3), TooShortProblem, OnlyDropSettles: true, DroppedUtc: now),
+                new PlantedCopy(AlienPath, TestMedia.File(inode: 1), PlantedMessage.Of(TooShortProblem), OnlyDropSettles: true),
+                new PlantedCopy(AliensPath, TestMedia.File(inode: 2), PlantedMessage.Of(NoIdProblem)),
+                new PlantedCopy(Alien3Path, TestMedia.File(inode: 3), PlantedMessage.Of(TooShortProblem), OnlyDropSettles: true, DroppedUtc: now),
             ],
             inspectionStartedUtc: now.AddHours(-2));
 
@@ -189,11 +189,11 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
         var planted = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: TooShortProblem,
+            reason: PlantedMessage.Of(TooShortProblem),
             copies:
             [
-                new PlantedCopy(AlienPath, TestMedia.File(inode: 1), TooShortProblem, OnlyDropSettles: true, DroppedUtc: now),
-                new PlantedCopy(AliensPath, TestMedia.File(inode: 2), NoIdProblem),
+                new PlantedCopy(AlienPath, TestMedia.File(inode: 1), PlantedMessage.Of(TooShortProblem), OnlyDropSettles: true, DroppedUtc: now),
+                new PlantedCopy(AliensPath, TestMedia.File(inode: 2), PlantedMessage.Of(NoIdProblem)),
             ],
             inspectionStartedUtc: now.AddHours(-2));
 
@@ -224,7 +224,7 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
             ReplacementJobState.NeedsReview,
             [],
             quarantineCheckedUtc: now,
-            reason: HeldReason,
+            reason: PlantedMessage.Of(HeldReason),
             copies:
             [
                 new PlantedCopy(AlienPath, TestMedia.File(inode: 1), DroppedUtc: now),
@@ -274,7 +274,7 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
                 new PlantedName(ReplacementNameKind.Video, HeatPath, TestMedia.File(inode: 4), ReplacementNameState.Planned),
             ],
             quarantineCheckedUtc: now,
-            reason: HeldReason,
+            reason: PlantedMessage.Of(HeldReason),
             inspectionStartedUtc: now.AddHours(-2));
 
         //Act
@@ -314,14 +314,14 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
                 ReplacementJobState.NeedsReview,
                 [
                     new PlantedName(ReplacementNameKind.Video, AlienPath, TestMedia.File(inode: 1)),
-                    new PlantedName(ReplacementNameKind.Video, HeatPath, TestMedia.File(inode: 4), ReplacementNameState.Stayed, HeldReason),
+                    new PlantedName(ReplacementNameKind.Video, HeatPath, TestMedia.File(inode: 4), ReplacementNameState.Stayed, PlantedMessage.Of(HeldReason)),
                 ],
                 quarantineCheckedUtc: now,
-                reason: HeldReason),
+                reason: PlantedMessage.Of(HeldReason)),
             "check stop" => await _planter.PlantAsync(
                 ReplacementJobState.NeedsReview,
                 [],
-                reason: TooShortProblem,
+                reason: PlantedMessage.Of(TooShortProblem),
                 copies: [new PlantedCopy(AlienPath, TestMedia.File(inode: 1))],
                 inspectionStartedUtc: now.AddHours(-2)),
             "a video deleted" => await _planter.PlantAsync(
@@ -433,7 +433,7 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
         var stopped = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: TooShortProblem,
+            reason: PlantedMessage.Of(TooShortProblem),
             copies: [new PlantedCopy(AliensPath, TestMedia.File(inode: 2))],
             inspectionStartedUtc: now.AddHours(-2));
 
@@ -466,10 +466,10 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
         var stopped = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: TooShortProblem,
+            reason: PlantedMessage.Of(TooShortProblem),
             copies:
             [
-                new PlantedCopy(AlienPath, TestMedia.File(inode: 1), TooShortProblem, OnlyDropSettles: true),
+                new PlantedCopy(AlienPath, TestMedia.File(inode: 1), PlantedMessage.Of(TooShortProblem), OnlyDropSettles: true),
                 new PlantedCopy(AliensPath, TestMedia.File(inode: 2), DroppedUtc: now),
             ],
             inspectionStartedUtc: now.AddHours(-2));

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Downloads;
 
@@ -100,7 +101,7 @@ public sealed class DestinationSectionRulesTests
         var error = DestinationSectionRules.Validate(hasSource ? SourceId : null, name, categoryIds);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Fact]
@@ -112,6 +113,6 @@ public sealed class DestinationSectionRulesTests
         var error = DestinationSectionRules.Validate(SourceId, "Мультсеріали", []);
 
         //Assert
-        Assert.Equal(CategoriesMissingError, error);
+        Assert.Equal(CategoriesMissingError, TestTexts.En(error));
     }
 }

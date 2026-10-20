@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Downloads;
 
@@ -63,7 +64,7 @@ public sealed class DownloadJobListRulesTests
         var error = DownloadJobListRules.Validate(status, out var filter);
 
         //Assert
-        Assert.Equal($"{expected} {Statuses}", error);
+        Assert.Equal($"{expected} {Statuses}", TestTexts.En(error));
         Assert.Null(filter);
     }
 
@@ -77,7 +78,7 @@ public sealed class DownloadJobListRulesTests
         var error = DownloadJobListRules.Validate("x", out _);
 
         //Assert
-        Assert.All(Enum.GetNames<DownloadJobStatus>(), name => Assert.Contains($" {name}", error, StringComparison.Ordinal));
+        Assert.All(Enum.GetNames<DownloadJobStatus>(), name => Assert.Contains($" {name}", TestTexts.En(error), StringComparison.Ordinal));
     }
 
     // ── MAM-41: the Jobs page's tab ─────────────────────────────────────────────────────────────
@@ -129,7 +130,7 @@ public sealed class DownloadJobListRulesTests
         var error = DownloadJobListRules.ValidateView(view, out var filter);
 
         //Assert
-        Assert.Equal($"“{echoed}” is not a view of the jobs. Use NeedsYou, InProgress or Finished.", error);
+        Assert.Equal($"“{echoed}” is not a view of the jobs. Use NeedsYou, InProgress or Finished.", TestTexts.En(error));
         Assert.Null(filter);
     }
 
@@ -143,6 +144,6 @@ public sealed class DownloadJobListRulesTests
         var error = DownloadJobListRules.ValidateView("x", out _);
 
         //Assert
-        Assert.All(Enum.GetNames<DownloadJobView>(), name => Assert.Contains($" {name}", error, StringComparison.Ordinal));
+        Assert.All(Enum.GetNames<DownloadJobView>(), name => Assert.Contains($" {name}", TestTexts.En(error), StringComparison.Ordinal));
     }
 }

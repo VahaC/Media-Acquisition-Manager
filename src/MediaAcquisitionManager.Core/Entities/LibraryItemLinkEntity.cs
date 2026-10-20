@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -34,7 +35,7 @@ public class LibraryItemLinkEntity : AuditableEntity
     /// <summary>The longest <see cref="CatalogTitle"/> and <see cref="ItemTitle"/> kept, as a library title's.</summary>
     public const int TitleMaximumLength = MediaWorkTitleEntity.TextMaximumLength;
 
-    /// <summary>The longest <see cref="WriteError"/> the column holds; a longer sentence is cut to it.</summary>
+    /// <summary>The longest <see cref="WriteError"/> the column holds; a longer message is fitted into it (ADR 0042).</summary>
     public const int ErrorMaximumLength = 1000;
 
     /// <summary>
@@ -151,11 +152,12 @@ public class LibraryItemLinkEntity : AuditableEntity
     /// </summary>
     public Guid WriteAttemptId { get; set; }
 
-    /// <summary>A readable sentence saying why the library didn't identify the item, the library's secrets masked; shown
-    /// to the owner only. <c>null</c> unless <see cref="WriteState"/> says something went wrong — or, for an episode's link
-    /// kept in the app because TMDb gives its episode no IMDb id, that sentence, as only asking TMDb tells it.</summary>
+    /// <summary>Why the library didn't identify the item, as a message the Api renders (ADR 0042), the library's secrets
+    /// masked in its values; shown to the owner only. <c>null</c> unless <see cref="WriteState"/> says something went wrong
+    /// — or, for an episode's link kept in the app because TMDb gives its episode no IMDb id, that message, as only asking
+    /// TMDb tells it (its key is what the app compares, <c>LibraryLinkWritability.NoEpisodeImdbKey</c>).</summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? WriteError { get; set; }
+    public Message? WriteError { get; set; }
 
     /// <summary>When <see cref="WriteState"/> last changed; <c>null</c> before it ever did.</summary>
     public DateTime? WriteStateUtc { get; set; }
@@ -180,8 +182,9 @@ public class LibraryItemLinkEntity : AuditableEntity
 
     /// <summary>
     /// Dormant since the 0.2.1 Identify rework (ADR 0026): nothing writes or reads it. Kept as a column and in the model so
-    /// an older image still runs against a migrated database. It held why the library didn't take that lookup.
+    /// an older image still runs against a migrated database. It held why the library didn't take that lookup — as a
+    /// message since MAM-47 (ADR 0042), so the database keeps no English even in a dormant column.
     /// </summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? LookupError { get; set; }
+    public Message? LookupError { get; set; }
 }

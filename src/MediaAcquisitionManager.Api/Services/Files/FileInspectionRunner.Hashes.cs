@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Files;
@@ -18,8 +19,7 @@ public sealed partial class FileInspectionRunner
     /// </summary>
     public const int MaximumConcurrentHashes = 1;
 
-    internal const string ChangedSinceLookError =
-        "A file changed after this inspection looked at it, so its hash counts from the next inspection.";
+    internal static readonly Message ChangedSinceLookError = Message.Of("files.inspection.changed-since-look");
 
     /// <summary>
     /// Hashes, one at a time and through the cache, the files a byte-identical copy could hide among
@@ -86,7 +86,7 @@ public sealed partial class FileInspectionRunner
 
     /// <summary>
     /// Reads one candidate whole through the file inventory, inside the allowed roots, and keeps its hash under
-    /// the key the read came with. A file it couldn't read is counted with its sentence; nothing is kept for it.
+    /// the key the read came with. A file it couldn't read is counted with its reason; nothing is kept for it.
     /// </summary>
     private async Task HashOneAsync(Progress progress, IReadOnlyList<string> roots, HashCandidate candidate, CancellationToken cancellationToken)
     {
@@ -106,10 +106,10 @@ public sealed partial class FileInspectionRunner
                 await HashCheckedAsync(progress, read: true, IdentityUnknownError, cancellationToken);
                 break;
             default:
-                // Gone, moved out of the roots, locked, or changed while it was read (the inventory's sentence
+                // Gone, moved out of the roots, locked, or changed while it was read (the inventory's reason
                 // says which): never a hash of bytes that may not be the file's, and never a failure of the run.
                 // The next run tries again.
-                await HashCheckedAsync(progress, read: false, result.Error ?? "The app couldn't read the file.", cancellationToken);
+                await HashCheckedAsync(progress, read: false, result.Error ?? UnreadableError, cancellationToken);
                 break;
         }
     }

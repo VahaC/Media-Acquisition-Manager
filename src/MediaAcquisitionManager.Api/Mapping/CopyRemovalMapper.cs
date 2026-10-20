@@ -1,12 +1,15 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.CopyRemovals;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
 /// <inheritdoc cref="ICopyRemovalMapper"/>
-public sealed class CopyRemovalMapper : ICopyRemovalMapper
+/// <remarks>MAM-47 (ADR 0042) — the removal's reason and each name's problem are messages, rendered in the request's
+/// language with <c>texts</c>.</remarks>
+public sealed class CopyRemovalMapper(IRequestTexts texts) : ICopyRemovalMapper
 {
     public CopyRemovalDto ToDto(CopyRemovalEntity removal, IReadOnlyList<CopyRemovalNameEntity> names, IReadOnlyDictionary<Guid, int> linkCountsNow)
     {
@@ -22,7 +25,7 @@ public sealed class CopyRemovalMapper : ICopyRemovalMapper
         return new CopyRemovalDto(
             removal.Id,
             removal.State,
-            removal.Reason,
+            texts.Render(removal.Reason),
             removal.Title,
             removal.GroupClass,
             removal.AppPath,
@@ -39,7 +42,7 @@ public sealed class CopyRemovalMapper : ICopyRemovalMapper
             CopyRemovalOffers.CanDeleteForGood(removal.State, quarantined.Count > 0),
             [
                 .. ordered.Select(name => new ReplacementNameDto(
-                    name.Id, name.Kind, name.AppPath, name.QuarantinePath, name.SizeBytes, LinkCountOf(name) > 1, name.State, name.Problem)),
+                    name.Id, name.Kind, name.AppPath, name.QuarantinePath, name.SizeBytes, LinkCountOf(name) > 1, name.State, texts.Render(name.Problem))),
             ]);
     }
 }

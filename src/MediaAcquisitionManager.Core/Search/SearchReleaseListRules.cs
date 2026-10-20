@@ -1,12 +1,13 @@
 using System.Globalization;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Search;
 
 /// <summary>
-/// What a stored search's release list may be filtered and sorted by (MAM-12). The rule answers one
-/// readable sentence, or <c>null</c> when every value is acceptable — the MAM-4 rules-class pattern —
-/// and reads the values into a <see cref="SearchReleaseFilter"/>.
+/// What a stored search's release list may be filtered and sorted by (MAM-12). The rule answers why a
+/// value is refused, as a message the Api renders (ADR 0042), or <c>null</c> when every value is acceptable — the
+/// MAM-4 rules-class pattern — and reads the values into a <see cref="SearchReleaseFilter"/>.
 /// </summary>
 /// <remarks>
 /// Every value comes as text, the way a query string carries it, so a wrong one reaches the page as this
@@ -26,7 +27,7 @@ public static class SearchReleaseListRules
     /// does.</summary>
     private const int EchoLength = 32;
 
-    private const string SizeRangeError = "The smallest size can't be larger than the largest.";
+    private static readonly Message SizeRangeError = Message.Of("releases.list.size-range");
 
     private static readonly Dictionary<string, SearchReleaseSort> Sorts = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -38,8 +39,8 @@ public static class SearchReleaseListRules
     };
 
     /// <summary>
-    /// The sentence saying what is wrong with the first value that is wrong, or <c>null</c> with every
-    /// value read into <paramref name="filter"/> (<c>null</c> when there is a sentence).
+    /// Why the first value that is wrong is refused, or <c>null</c> with every
+    /// value read into <paramref name="filter"/> (<c>null</c> when there is a message).
     /// </summary>
     /// <param name="source">A search source's id.</param>
     /// <param name="kind">MAM-32 — <c>Movie</c> or <c>Tv</c>, in any letter case.</param>
@@ -51,7 +52,7 @@ public static class SearchReleaseListRules
     /// <param name="sort"><c>seeders</c> (the default), <c>largest</c>, <c>smallest</c>, <c>newest</c> or
     /// <c>quality</c>, in any letter case.</param>
     /// <param name="filter">What the values say, when every one is acceptable.</param>
-    public static string? Validate(
+    public static Message? Validate(
         string? source,
         string? kind,
         string? language,
@@ -67,7 +68,7 @@ public static class SearchReleaseListRules
         if (Trimmed(source) is { } sourceText)
         {
             if (!Guid.TryParse(sourceText, out var parsed))
-                return $"“{Echo(sourceText)}” is not a release source.";
+                return Message.Of("releases.list.source-unknown", ("value", Echo(sourceText)));
             sourceId = parsed;
         }
 
@@ -80,7 +81,7 @@ public static class SearchReleaseListRules
             else if (string.Equals(kindText, nameof(ReleaseKind.Tv), StringComparison.OrdinalIgnoreCase))
                 releaseKind = ReleaseKind.Tv;
             else
-                return $"“{Echo(kindText)}” is not a kind filter. Use Movie or Tv.";
+                return Message.Of("releases.list.kind-unknown", ("value", Echo(kindText)));
         }
 
         string? audioLanguage = null;
@@ -94,7 +95,7 @@ public static class SearchReleaseListRules
             else if (languageText.Length == 3 && languageText.All(char.IsAsciiLetter))
                 audioLanguage = languageText.ToLowerInvariant();
             else
-                return $"“{Echo(languageText)}” is not a language code. Use a three-letter code such as ukr, or unknown.";
+                return Message.Of("releases.list.language-invalid", ("value", Echo(languageText)));
         }
 
         int? resolution = null;
@@ -106,7 +107,7 @@ public static class SearchReleaseListRules
             else if (int.TryParse(qualityText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) && parsed is >= 1 and <= ResolutionMaximum)
                 resolution = parsed;
             else
-                return $"“{Echo(qualityText)}” is not a resolution. Use one such as 1080, or unknown.";
+                return Message.Of("releases.list.resolution-invalid", ("value", Echo(qualityText)));
         }
 
         if (ValidateSize(minSizeBytes, out var minimum) is { } minimumError)
@@ -118,20 +119,20 @@ public static class SearchReleaseListRules
 
         var order = SearchReleaseSort.Seeders;
         if (Trimmed(sort) is { } sortText && !Sorts.TryGetValue(sortText, out order))
-            return $"“{Echo(sortText)}” is not a sort order. Use seeders, largest, smallest, newest or quality.";
+            return Message.Of("releases.list.sort-unknown", ("value", Echo(sortText)));
 
         filter = new SearchReleaseFilter(sourceId, releaseKind, audioLanguage, withoutAudioLanguage, resolution, withoutResolution, minimum, maximum, order);
         return null;
     }
 
     /// <summary>A size of zero or more bytes, ASCII digits only — no sign, separator or unit.</summary>
-    private static string? ValidateSize(string? text, out long? size)
+    private static Message? ValidateSize(string? text, out long? size)
     {
         size = null;
         if (Trimmed(text) is not { } sizeText)
             return null;
         if (!long.TryParse(sizeText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed))
-            return $"“{Echo(sizeText)}” is not a size in bytes.";
+            return Message.Of("releases.list.size-invalid", ("value", Echo(sizeText)));
         size = parsed;
         return null;
     }

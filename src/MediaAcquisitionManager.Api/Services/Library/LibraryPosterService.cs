@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Storage;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,7 +29,7 @@ public sealed class LibraryPosterService(
     /// What a failed fetch tells anyone but the installation owner. The library's own sentence can quote the address the
     /// owner saved — the rule of a sync run's error — and the page only shows a placeholder anyway.
     /// </summary>
-    public const string FetchFailedError = "The media library couldn't send this poster.";
+    public static readonly Message FetchFailedError = Message.Of("library.poster.fetch-failed");
 
     public async Task<LibraryPosterResult> GetAsync(string fileName, Guid callerUserId, CancellationToken cancellationToken = default)
     {
@@ -83,7 +84,7 @@ public sealed class LibraryPosterService(
             return LibraryPosterResult.NotFound;
         if (!poster.IsSuccess)
             // Masked again with the call's secrets — a second pass after the adapter's own (the MAM-7 rule).
-            return await FailedAsync(SecretRedaction.Redact(poster.Error, settings.Secrets)!, callerUserId, cancellationToken);
+            return await FailedAsync(poster.Error!.Redacted(settings.Secrets), callerUserId, cancellationToken);
 
         await PosterFiles.KeepAsync(directory, path, poster.Value!.Content, logger, cancellationToken);
         return LibraryPosterResult.Served(poster.Value.Content);
@@ -92,7 +93,7 @@ public sealed class LibraryPosterService(
     /// <summary>A failed fetch: <paramref name="error"/> for the installation owner, <see cref="FetchFailedError"/> for
     /// everyone else. Information, not Warning: a page of posters failing at once would otherwise flood what ships off
     /// the box, and the next request asks again.</summary>
-    private async Task<LibraryPosterResult> FailedAsync(string error, Guid callerUserId, CancellationToken cancellationToken)
+    private async Task<LibraryPosterResult> FailedAsync(Message error, Guid callerUserId, CancellationToken cancellationToken)
     {
         logger.LogInformation("A poster couldn't be fetched from the media library.");
         return LibraryPosterResult.Failed(

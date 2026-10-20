@@ -1,0 +1,51 @@
+{
+  "owner-only": "Only the installation owner can do this.",
+  "sign-in-required": "Sign in to continue.",
+  "too-many-attempts": "Too many attempts. Wait a minute and try again.",
+  "sign-in": {
+    "invalid-credentials": "The user name or password is incorrect."
+  },
+  "session": {
+    "ended": "Your session has ended. Sign in again.",
+    "refreshed-moments-ago": "This session was refreshed a moment ago. Try again."
+  },
+  "setup": {
+    "already-completed": "This installation is already set up. Sign in instead."
+  },
+  "password": {
+    "too-short_one": "A password must be at least {{count, number}} character long.",
+    "too-short_other": "A password must be at least {{count, number}} characters long.",
+    "too-long_one": "A password can be at most {{count, number}} character long.",
+    "too-long_other": "A password can be at most {{count, number}} characters long.",
+    "current-required": "Enter your current password.",
+    "current-incorrect": "The current password is incorrect."
+  },
+  "user-name": {
+    "length_one": "A user name must be {{minimum, number}} to {{count, number}} character long.",
+    "length_other": "A user name must be {{minimum, number}} to {{count, number}} characters long.",
+    "characters": "A user name can contain only letters, digits, dots, hyphens and underscores."
+  },
+  "users": {
+    "name-taken": "A user named “{{name}}” already exists.",
+    "owner-cannot-be-disabled": "The installation owner can't be disabled.",
+    "owner-cannot-be-deleted": "The installation owner can't be deleted."
+  },
+  "language": {
+    "unreadable-body": "Send the language as JSON: language en, uk, or null to follow the browser.",
+    "unsupported": "“{{value}}” is not a language of the app. Use en, uk, or null to follow the browser."
+  },
+  "token": {
+    "unreadable-body": "Send the token as JSON: a name, access ReadOnly or ReadAndDownload, and lifetime Days30, Days90, OneYear or Never.",
+    "name-required": "Give the token a name, such as “Claude on the laptop”.",
+    "name-too-long_one": "A token's name can be at most {{count, number}} character.",
+    "name-too-long_other": "A token's name can be at most {{count, number}} characters.",
+    "access-required": "Choose the token's access: Read only or Read and download.",
+    "lifetime-required": "Choose when the token expires.",
+    "read-only": "This access token is read only. To send downloads, cancel following or mark Not interested from a script, create a token with “Read and download” access on your Profile page; see “Scripts and the API” in the README.",
+    "not-for-tokens": "An access token can't do this. A token reads, and with “Read and download” access also sends downloads, cancels following and marks Not interested; everything else is done in the web app. See “Scripts and the API” in the README.",
+    "cancel-ends-replacement": "This job also replaces a copy in the library, and an access token never touches a replacement. Cancel it on the Jobs page of the web app; see “Scripts and the API” in the README.",
+    "session-not-accepted": "The MCP endpoint takes a personal access token, not a web app sign-in. Create a token on your Profile page and connect with it; see “Connect an AI assistant (MCP)” in the README.",
+    "too-many-requests_one": "Too many requests with this access token: at most {{count, number}} a minute. Wait a minute and try again.",
+    "too-many-requests_other": "Too many requests with this access token: at most {{count, number}} a minute. Wait a minute and try again."
+  }
+}

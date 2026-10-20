@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.Api.Services.Library;
@@ -19,7 +20,7 @@ public sealed class LibrarySyncWorker(
     TimeProvider time,
     ILogger<LibrarySyncWorker> logger) : BackgroundService
 {
-    private const string AppErrorMessage = "The sync stopped because of an error in the app. Its log says more.";
+    private static readonly Message AppErrorMessage = Message.Of("library.sync.app-error");
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

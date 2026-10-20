@@ -1,5 +1,6 @@
 using System.Net;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 
@@ -10,11 +11,9 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 // alone; when its sign-in works, the refusal of those credentials is forgotten.
 internal sealed partial class QBittorrentAdapter
 {
-    private const string RememberedCredentialsRefusedError =
-        "qBittorrent refused the user name or password the last time the app signed in, so the app won't try them again: each refused sign-in counts towards qBittorrent's ban of this app's address. Correct them under Integrations, or test the connection there once qBittorrent accepts them.";
+    private static readonly Message RememberedCredentialsRefusedError = Message.Of("qbittorrent.remembered.credentials-refused");
 
-    private const string RememberedBanError =
-        "qBittorrent had banned this app's address the last time the app signed in, so the app won't sign in again on its own. Once the ban has ended (qBittorrent's Web UI options set how long), test the connection under Integrations.";
+    private static readonly Message RememberedBanError = Message.Of("qbittorrent.remembered.ban");
 
     /// <summary>The sessions this singleton keeps, one per saved integration, and the sign-ins qBittorrent
     /// refused.</summary>

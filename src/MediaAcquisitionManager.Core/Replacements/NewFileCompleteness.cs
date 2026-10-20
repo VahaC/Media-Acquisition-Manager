@@ -1,7 +1,7 @@
-using System.Globalization;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Replacements;
 
@@ -19,7 +19,8 @@ namespace MediaAcquisitionManager.Core.Replacements;
 /// A new file is one the client downloads (wanted) with a video file's extension (<see cref="MediaFileNames"/>): a
 /// skipped file is no new copy, and subtitles or an <c>.nfo</c> never replace anything. 100 % for the download alone
 /// doesn't say which file is complete in a pack, so each new file must be complete by the client's word; one it says
-/// nothing of can't be confirmed. Each reason names the client by its name, as the download's own reasons do.
+/// nothing of can't be confirmed. Each reason names the client by its name, as the download's own reasons do, and is a
+/// message whose template in <c>replacements.json</c> quotes it (MAM-47, ADR 0042).
 /// </para>
 /// </remarks>
 public static class NewFileCompleteness
@@ -35,23 +36,20 @@ public static class NewFileCompleteness
     public static NewFileCompletenessResult OfJob(ClientJob? job, string clientName)
     {
         ArgumentNullException.ThrowIfNull(clientName);
-        var client = ReplacementText.Quote(clientName);
+        var client = MessageText.Clean(clientName);
         if (job is null)
-            return NewFileCompletenessResult.Review($"{client} no longer has this download, so the app can't confirm its files are complete.");
+            return NewFileCompletenessResult.Review(Message.Of("replacements.completeness.job-gone", ("client", client)));
 
         return job.State switch
         {
-            ClientJobState.Errored => NewFileCompletenessResult.Review(
-                $"{client} reports an error for this download, so the app can't confirm its files are complete."),
+            ClientJobState.Errored => NewFileCompletenessResult.Review(Message.Of("replacements.completeness.job-errored", ("client", client))),
             // A state a later client adds, or qBittorrent's "moving": never guessed into a finished one.
-            ClientJobState.Unknown => NewFileCompletenessResult.Wait(
-                $"{client} reports this download in a state the app doesn't know, such as moving its files, so its files can't be checked."),
+            ClientJobState.Unknown => NewFileCompletenessResult.Wait(Message.Of("replacements.completeness.job-state-unknown", ("client", client))),
             // A finished state short of 1 is a re-check (DownloadJobFollowing): not finished either.
             ClientJobState.Seeding or ClientJobState.Completed when job.Progress >= 1 => InSaveFolder(job)
                 ? NewFileCompletenessResult.Finished
-                : NewFileCompletenessResult.Wait(
-                    $"{client} still keeps this download's files outside its save folder, so they can't be checked where they will stay."),
-            _ => NewFileCompletenessResult.Wait($"{client} doesn't report this download as finished, so its files can't be checked."),
+                : NewFileCompletenessResult.Wait(Message.Of("replacements.completeness.job-outside-save-folder", ("client", client))),
+            _ => NewFileCompletenessResult.Wait(Message.Of("replacements.completeness.job-unfinished", ("client", client))),
         };
     }
 
@@ -65,9 +63,9 @@ public static class NewFileCompleteness
     {
         ArgumentNullException.ThrowIfNull(files);
         ArgumentNullException.ThrowIfNull(clientName);
-        var client = ReplacementText.Quote(clientName);
+        var client = MessageText.Clean(clientName);
         if (files.Count == 0)
-            return NewFileCompletenessResult.Wait($"{client} hasn't listed this download's files, so they can't be checked.");
+            return NewFileCompletenessResult.Wait(Message.Of("replacements.completeness.files-unlisted", ("client", client)));
 
         var newFiles = new List<ClientNewFile>();
         for (var position = 0; position < files.Count; position++)
@@ -76,25 +74,24 @@ public static class NewFileCompleteness
             if (!MediaFileNames.IsMediaFile(ReplacementText.FileNameOf(file.RelativePath)) || file.IsWanted == false)
                 continue;
 
-            var name = ReplacementText.Quote(file.RelativePath);
+            var name = MessageText.Clean(file.RelativePath);
             if (file.IsWanted is null)
-                return NewFileCompletenessResult.Review(
-                    $"{client} doesn't say whether it downloads {name}, so the app can't confirm the file is complete.");
+                return NewFileCompletenessResult.Review(Message.Of("replacements.completeness.file-wanted-unknown", ("client", client), ("file", name)));
             if (file.Progress is not { } progress)
-                return NewFileCompletenessResult.Review(
-                    $"{client} doesn't say how much of {name} it has downloaded, so the app can't confirm the file is complete.");
+                return NewFileCompletenessResult.Review(Message.Of("replacements.completeness.file-progress-unknown", ("client", client), ("file", name)));
             if (progress is not >= 1)
             {
                 // Rounded down, so a file a byte short never reads as 100 % done.
                 var percent = progress > 0 ? (int)Math.Floor(progress * 100) : 0;
-                return NewFileCompletenessResult.Review(string.Create(CultureInfo.InvariantCulture, $"{client} hasn't finished {name} ({percent} % done)."));
+                return NewFileCompletenessResult.Review(
+                    Message.Of("replacements.completeness.file-unfinished", ("client", client), ("file", name), ("percent", percent)));
             }
 
             newFiles.Add(new ClientNewFile(position, file));
         }
 
         return newFiles.Count == 0
-            ? NewFileCompletenessResult.Review($"The download holds no video file that {client} downloads, so nothing can replace the old copies.")
+            ? NewFileCompletenessResult.Review(Message.Of("replacements.completeness.no-video-file", ("client", client)))
             : new NewFileCompletenessResult(NewFileCompletenessStatus.Complete, newFiles, null);
     }
 

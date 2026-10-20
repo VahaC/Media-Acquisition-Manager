@@ -27,8 +27,9 @@ namespace MediaAcquisitionManager.Api.Mcp;
 /// <param name="options">The host's MCP JSON options (<see cref="McpJson.CreateOptions"/>).</param>
 public sealed class McpToolResults(JsonSerializerOptions options)
 {
-    /// <summary>A success: <paramref name="summary"/>, one short English sentence saying what the answer holds ("3 works
-    /// match “Dune”; this page lists 3."), then <paramref name="data"/> as JSON, also as the structured content.</summary>
+    /// <summary>A success: <paramref name="summary"/>, one short sentence in the request's language saying what the
+    /// answer holds ("3 works match “Dune”; this page lists 3."), then <paramref name="data"/> as JSON, also as the
+    /// structured content.</summary>
     /// <typeparam name="TData">The tool's <c>OutputSchemaType</c>, so the content is what its schema describes.</typeparam>
     public CallToolResult Success<TData>(string summary, TData data)
     {

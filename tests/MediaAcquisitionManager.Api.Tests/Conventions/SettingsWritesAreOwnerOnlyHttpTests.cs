@@ -18,7 +18,7 @@ public sealed class SettingsWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcq
 {
     // Spelled out rather than read from the convention: this pins where settings controllers live.
     private const string SettingsNamespace = "MediaAcquisitionManager.Api.Controllers.Settings";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private AuthorizedUser _member = null!;

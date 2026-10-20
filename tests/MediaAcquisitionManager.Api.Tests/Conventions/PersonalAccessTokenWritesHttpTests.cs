@@ -10,6 +10,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Logging;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -535,16 +536,19 @@ public sealed class PersonalAccessTokenWritesHttpTests : IClassFixture<MediaAcqu
     }
 
     // The error sentence of a { "error": … } body, or null for any other body — so a sweep reports which write answered
-    // what instead of stopping at the first body that isn't one.
+    // what instead of stopping at the first body that isn't one. MAM-47 — in the pseudo pass the sentence must be one
+    // rendered message, read as its English, as ReadErrorAsync reads it.
     private static async Task<string?> ReadErrorOrNullAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         var text = await response.Content.ReadAsStringAsync(cancellationToken);
         try
         {
             using var document = JsonDocument.Parse(text);
-            return document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("error", out var error)
-                ? error.GetString()
-                : null;
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("error", out var error)
+                || error.GetString() is not { } sentence)
+                return null;
+            return AcceptLanguageHandler.AskedForPseudo(response.RequestMessage) ? PseudoText.Unwrap(sentence, "the error body") : sentence;
         }
         catch (JsonException)
         {

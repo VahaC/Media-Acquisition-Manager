@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Files;
 
@@ -309,7 +310,7 @@ internal static class FolderWalker
     private static Step MediaFile(string appPath, NormalizedPath resolvedPath) =>
         new(new FileListingEntry(FileListingStatus.MediaFile, appPath, resolvedPath.ToString(), null), null);
 
-    private static Step Give(FileListingStatus status, string appPath, string? error) =>
+    private static Step Give(FileListingStatus status, string appPath, Message? error) =>
         new(new FileListingEntry(status, appPath, null, error), null);
 
     private static FileListingEntry LimitReached(string appPath, int maximumFolders, int maximumEntries) =>

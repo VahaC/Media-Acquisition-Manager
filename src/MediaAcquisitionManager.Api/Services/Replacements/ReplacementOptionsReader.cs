@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,15 +28,15 @@ public sealed class ReplacementOptionsReader(
 {
     /// <summary>R1 — the destination's folder isn't confirmed inside a library, and its check has no sentence of its
     /// own.</summary>
-    private const string NotInLibraryProblem = "The destination's folder isn't confirmed inside a library the app knows.";
+    private static readonly Message NotInLibraryProblem = Message.Of("replacements.options.not-in-library");
 
     /// <summary>R1 — a replacement is sent only after the check for files already where it lands (ADR 0034), which a
     /// folder outside the Media folders, or without a path in the app, can't have.</summary>
-    private const string FolderUncheckedProblem =
-        "The destination's folder lies outside the Media folders or has no path in the app, so the app can't check it for files already there, and a replacement is sent only after that check.";
+    private static readonly Message FolderUncheckedProblem = Message.Of("replacements.options.folder-unchecked");
 
-    /// <summary>A destination whose client was removed after the destination was read.</summary>
-    private const string ClientGoneProblem = "The download client of this destination no longer exists.";
+    /// <summary>A destination whose client was removed after the destination was read: word for word the destinations'
+    /// own sentence, so one key (MAM-47, WP3 review).</summary>
+    private static readonly Message ClientGoneProblem = Message.Of("destinations.client.gone");
 
     public async Task<ReplacementOptionsResult> ReadAsync(
         string? releaseId, string? destinationId, string? holdings, Guid callerUserId, CancellationToken cancellationToken = default)
@@ -92,7 +93,7 @@ public sealed class ReplacementOptionsReader(
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
-    private ReplacementOptionsResult Unavailable(ReplacementUnavailableReason reason, string? problem, IReadOnlyList<MediaEdition> editions)
+    private ReplacementOptionsResult Unavailable(ReplacementUnavailableReason reason, Message? problem, IReadOnlyList<MediaEdition> editions)
     {
         logger.LogInformation("Replacement options answered {Reason}.", reason);
         return ReplacementOptionsResult.Listed(mapper.ToResponse(reason, problem, editions, [], ReplacementHoldings.None));
@@ -104,7 +105,7 @@ public sealed class ReplacementOptionsReader(
     /// can't look into it for files already there. Asked of its client the way the send's own check asks it
     /// (<see cref="IDestinationChecker.ListAsync"/>, <see cref="IDownloadOverwriteGuard.FolderReasonAsync"/>).
     /// </summary>
-    private async Task<string?> DestinationProblemAsync(DestinationMappingEntity destination, CancellationToken cancellationToken)
+    private async Task<Message?> DestinationProblemAsync(DestinationMappingEntity destination, CancellationToken cancellationToken)
     {
         // Not a download client is the same as none (the DestinationService rule); read with its path mappings, which the
         // category's folder is mapped through.
@@ -120,11 +121,17 @@ public sealed class ReplacementOptionsReader(
         // FolderNotSeen with the client's sentence, which the check's problem below carries.
         var listing = await destinations.ListAsync(client, [destination.ClientDestinationKey], cancellationToken);
         if (listing.Status != ClientDestinationsStatus.Listed)
-            return $"The app couldn't ask “{client.Name}” where this destination saves: {listing.Error}";
+        {
+            return Message.Of(
+                "replacements.options.client-unasked",
+                ("client", client.Name),
+                ("error", listing.Error!));
+        }
+
         // Only a category can be missing: the listing always holds a folder client's stored folder, the client's own entry
         // or one ListAsync adds with why the app can't use it (D3).
         if (listing.Find(destination.ClientDestinationKey) is not { } listed)
-            return $"The app couldn't ask “{client.Name}” where this destination saves: it has no category “{destination.ClientDestinationKey}” any more.";
+            return Message.Of("replacements.options.category-gone", ("client", client.Name), ("category", destination.ClientDestinationKey));
         if (listed.Check.Status != DestinationPathStatus.InLibrary)
             return listed.Check.Problem ?? NotInLibraryProblem;
         return await overwrites.FolderReasonAsync(listed, cancellationToken) is null ? null : FolderUncheckedProblem;

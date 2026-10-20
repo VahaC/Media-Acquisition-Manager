@@ -1,0 +1,146 @@
+{
+  "request": {
+    "request-id-missing": "The download has no request id, which keeps a retry from sending it twice. Reload the page and try again.",
+    "release-missing": "Pick the release to send.",
+    "client-missing": "Pick the download client to send it to.",
+    "destination-missing": "Pick the destination to send it to."
+  },
+  "jobs": {
+    "status-unknown": "“{{value}}” is not a download status. Use Created, Submitted, Downloading, Paused, Downloaded, Failed, NeedsLinking or Cancelled.",
+    "view-unknown": "“{{value}}” is not a view of the jobs. Use NeedsYou, InProgress or Finished."
+  },
+  "release-missing": "This release isn't available any more: a search keeps what it found for a day. Search again.",
+  "destination-gone": "The destination you picked no longer exists. Reload the page and pick one again.",
+  "client-gone": "The download client you picked no longer exists. Reload the page and pick one again.",
+  "send": {
+    "request-id-reused": "This request id was already used to send a different download. Reload the page and try again.",
+    "source-removed": "The source that listed this release has been removed, so the release can't be fetched. Search again.",
+    "destination-of-other-client": "“{{destination}}” is a destination of another download client. Pick one of “{{client}}”’s.",
+    "already-sent": "This release was already sent to “{{client}}”, so it isn't sent twice.",
+    "client-switched-off": "“{{client}}” is switched off. The owner can switch it on under Integrations.",
+    "cannot-take": {
+      "torrent-files": "“{{client}}” can't take .torrent files, which this release is.",
+      "magnet-links": "“{{client}}” can't take magnet links, which this release is.",
+      "nzb-files": "“{{client}}” can't take NZB files, which this release is.",
+      "torrents": "“{{client}}” can't take torrents, which this release is."
+    },
+    "source-switched-off": "“{{source}}” is switched off, so its releases can't be fetched. The owner can switch it on under Integrations.",
+    "source-type-unavailable": "This version of the app can't fetch releases from “{{type}}”."
+  },
+  "cancel": {
+    "already-downloaded": "This download is already finished, so there's nothing to stop following.",
+    "already-failed": "This download has already failed, so there's nothing to stop following.",
+    "already-cancelled": "This download is already cancelled, so there's nothing to stop following.",
+    "still-being-sent": "This download is still being sent, so it can't be cancelled yet. Try again in a few minutes."
+  },
+  "sender": {
+    "locator-unreadable": "The release's download link can't be read with this installation's encryption key, so nothing was sent. Search again.",
+    "replacement-magnet": "This release turned out to be a magnet link, whose files the app can't check before sending, so nothing was sent and no copy will be replaced. Pick Keep both to download it.",
+    "turned-out": {
+      "torrent-file": "“{{client}}” can't take a .torrent file, which this release turned out to be, so nothing was sent.",
+      "magnet": "“{{client}}” can't take a magnet link, which this release turned out to be, so nothing was sent.",
+      "nzb": "“{{client}}” can't take an NZB file, which this release turned out to be, so nothing was sent."
+    },
+    "v2-only": "“{{client}}” can't take a torrent that is BitTorrent v2 only, which this release is, so nothing was sent.",
+    "category-missing": "“{{client}}” has no category “{{category}}” any more, so nothing was sent: it would have created one in its default folder. Create the category again in “{{client}}”, or the owner edits the destination.",
+    "already-has-torrent": "“{{client}}” already has this torrent, so nothing was sent.",
+    "outside-libraries-destination": "The folder of the destination “{{destination}}” isn't inside a library the app knows, so nothing was sent and no copy will be replaced. Pick Keep both to download it, or the owner fixes the destination.",
+    "outside-libraries-category": "The folder of the category “{{category}}” isn't inside a library the app knows, so nothing was sent and no copy will be replaced. Pick Keep both to download it, or the owner fixes the destination.",
+    "overwrite-check-failed-destination": "The app couldn't check whether this release would write over a file in the folder of the destination “{{destination}}”, so nothing was sent. The app's log says why.",
+    "overwrite-check-failed-category": "The app couldn't check whether this release would write over a file in the folder of the category “{{category}}”, so nothing was sent. The app's log says why.",
+    "folder-unusable": "“{{client}}” can't use the folder of the destination “{{destination}}” any more, so nothing was sent. The owner checks the destination under Destinations in the user menu."
+  },
+  "overwrite": {
+    "refused-destination": "“{{client}}” would write over “{{path}}” in the folder of the destination “{{destination}}”: {{why, message}}, so nothing was sent.",
+    "refused-category": "“{{client}}” would write over “{{path}}” in the folder of the category “{{category}}”: {{why, message}}, so nothing was sent.",
+    "refused-destination-more_one": "“{{client}}” would write over “{{path}}” in the folder of the destination “{{destination}}”: {{why, message}}, so nothing was sent. One more of the release's files would land on a file already there too.",
+    "refused-destination-more_other": "“{{client}}” would write over “{{path}}” in the folder of the destination “{{destination}}”: {{why, message}}, so nothing was sent. {{count, number}} more of the release's files would land on files already there too.",
+    "refused-category-more_one": "“{{client}}” would write over “{{path}}” in the folder of the category “{{category}}”: {{why, message}}, so nothing was sent. One more of the release's files would land on a file already there too.",
+    "refused-category-more_other": "“{{client}}” would write over “{{path}}” in the folder of the category “{{category}}”: {{why, message}}, so nothing was sent. {{count, number}} more of the release's files would land on files already there too.",
+    "different-size-clause": "a file of another size is already there",
+    "different-content-clause": "a file of the same size but other content is already there",
+    "not-a-file-clause": "something that isn't a file is already there",
+    "changed-clause": "the file already there changed while the app compared it",
+    "queued-torrent-clause": "the torrent “{{torrent}}” it already has will write there",
+    "already-there-clause": "a file is already there, and a replacement never lands on a file already there",
+    "unreadable-clause": "a file the app couldn't read to compare is already there",
+    "unchecked-destination": "The app couldn't check every place this release would write in the folder of the destination “{{destination}}” ({{why, message}}), so nothing was sent and no copy will be replaced. Pick Keep both to download it.",
+    "unchecked-category": "The app couldn't check every place this release would write in the folder of the category “{{category}}” ({{why, message}}), so nothing was sent and no copy will be replaced. Pick Keep both to download it.",
+    "unchecked": {
+      "file-list-clause": "the .torrent's list of files can't be read",
+      "folder-unknown-clause": "the folder has no path in the app",
+      "outside-media-folders-clause": "the folder, or a link on the way to one of its places, lies outside the Media folders",
+      "client-jobs-folder-clause": "the client couldn't list its torrents in that folder, or their files",
+      "client-jobs-category-clause": "the client couldn't list its torrents in the category, or their files",
+      "file-name-clause": "a file's name holds characters the app can't look up"
+    }
+  },
+  "follow": {
+    "client-removed": "The download client “{{client}}” was removed, so this download can't be followed. Cancel the job to stop tracking it.",
+    "switched-off": "“{{client}}” is switched off, so this download isn't followed for now. The owner can switch it on under Integrations.",
+    "type-unavailable": "This version of the app can't follow downloads in “{{type}}”.",
+    "client-error": "“{{client}}” reports an error for this download, so it isn't moving on. Check it in “{{client}}”: the job goes on by itself once the error clears.",
+    "missing": "“{{client}}” doesn't list this download any more. It is still followed in case it comes back; to send the release again, cancel this job first.",
+    "not-listed": "“{{client}}” took this download but hasn't listed it since. It is still followed; to send the release again, cancel this job first.",
+    "interrupted-before-hashes": "The app stopped while sending this download, before it could tell whether “{{client}}” took it, so it isn't followed. Check “{{client}}” before sending the release again.",
+    "interrupted-not-listed": "The app stopped while sending this download, and “{{client}}” doesn't list it, so it isn't followed. Send the release again if you still want it."
+  },
+  "member": {
+    "source-failed": "“{{source}}” couldn't hand over the release, so nothing was sent. Ask the owner to check “{{source}}” under Integrations.",
+    "client-failed": "“{{client}}” couldn't take the release, so nothing was sent. Ask the owner to check “{{client}}” under Integrations.",
+    "client-not-asked": "“{{client}}” couldn't be asked about this download. Ask the owner to check “{{client}}” under Integrations."
+  },
+  "mcp": {
+    "destination-not-offered": "This destination isn't one of this release's download options; give one of the destinations get_download_options lists for it.",
+    "options": {
+      "no-clients": "No download client can take this release yet. The owner sets them up under Integrations and Destinations.",
+      "pick-destination_one": "{{count, number}} download client can take this release; the Download dialog would preselect “{{destination}}” of “{{client}}”.",
+      "pick-destination_other": "{{count, number}} download clients can take this release; the Download dialog would preselect “{{destination}}” of “{{client}}”.",
+      "pick-destination-tail_one": "{{count, number}} download client can take this release; the Download dialog would preselect “{{destination}}” of “{{client}}”, and {{tail, message}}.",
+      "pick-destination-tail_other": "{{count, number}} download clients can take this release; the Download dialog would preselect “{{destination}}” of “{{client}}”, and {{tail, message}}.",
+      "pick-client_one": "{{count, number}} download client can take this release; the Download dialog would preselect “{{client}}” with no destination.",
+      "pick-client_other": "{{count, number}} download clients can take this release; the Download dialog would preselect “{{client}}” with no destination.",
+      "pick-client-tail_one": "{{count, number}} download client can take this release; the Download dialog would preselect “{{client}}” with no destination, and {{tail, message}}.",
+      "pick-client-tail_other": "{{count, number}} download clients can take this release; the Download dialog would preselect “{{client}}” with no destination, and {{tail, message}}.",
+      "pick-none_one": "{{count, number}} download client can take this release; the Download dialog would preselect no client.",
+      "pick-none_other": "{{count, number}} download clients can take this release; the Download dialog would preselect no client.",
+      "pick-none-tail_one": "{{count, number}} download client can take this release; the Download dialog would preselect no client, and {{tail, message}}.",
+      "pick-none-tail_other": "{{count, number}} download clients can take this release; the Download dialog would preselect no client, and {{tail, message}}.",
+      "checked-there-clause": "a release sent there is checked for files it would write over",
+      "checked-to-clause": "a release sent to “{{destination}}” is checked for files it would write over",
+      "not-seen-there-clause": "nothing can be sent there: its download client can't see the folder",
+      "not-seen-to-clause": "nothing can be sent to “{{destination}}”: its download client can't see the folder",
+      "unchecked-there-clause": "a release sent there goes without the check for files it would write over ({{reason}})",
+      "unchecked-to-clause": "a release sent to “{{destination}}” goes without the check for files it would write over ({{reason}})"
+    },
+    "send": {
+      "sent": "Sent “{{release}}” to “{{client}}” and the job is {{status}}; list_jobs and get_job follow it.",
+      "sent-into": "Sent “{{release}}” to “{{client}}”, into “{{destination}}”, and the job is {{status}}; list_jobs and get_job follow it.",
+      "failed": "Sending “{{release}}” to “{{client}}” failed: {{why, message}} A new send needs a new requestId.",
+      "failed-into": "Sending “{{release}}” to “{{client}}”, into “{{destination}}”, failed: {{why, message}} A new send needs a new requestId.",
+      "replayed": "This requestId already sent “{{release}}” to “{{client}}” so nothing was sent again; the job is {{status}}.",
+      "replayed-into": "This requestId already sent “{{release}}” to “{{client}}”, into “{{destination}}”, so nothing was sent again; the job is {{status}}.",
+      "replayed-failed": "This requestId already tried to send “{{release}}” to “{{client}}” and that send failed: {{why, message}} A new send needs a new requestId.",
+      "replayed-failed-into": "This requestId already tried to send “{{release}}” to “{{client}}”, into “{{destination}}”, and that send failed: {{why, message}} A new send needs a new requestId.",
+      "not-sent": "The release wasn't sent."
+    },
+    "jobs": {
+      "listed_one": "{{count, number}} job matches; this page lists {{shown, number}}. Among all your jobs, NeedsYou holds {{needsYou, number}} and InProgress {{inProgress, number}}.",
+      "listed_other": "{{count, number}} jobs match; this page lists {{shown, number}}. Among all your jobs, NeedsYou holds {{needsYou, number}} and InProgress {{inProgress, number}}.",
+      "cancelled": "MAM no longer follows “{{release}}”: the job is Cancelled, and the torrent stays in “{{client}}” as it is."
+    },
+    "job": {
+      "summary": "“{{release}}” in “{{client}}” is {{status}}; {{listed, message}}.",
+      "summary-progress": "“{{release}}” in “{{client}}” is {{status}} at {{percent, number}}%; {{listed, message}}.",
+      "summary-why": "“{{release}}” in “{{client}}” is {{status}}; {{listed, message}}. {{why, list:space:message}}",
+      "summary-progress-why": "“{{release}}” in “{{client}}” is {{status}} at {{percent, number}}%; {{listed, message}}. {{why, list:space:message}}",
+      "listed": {
+        "none-clause": "its download client hasn't listed its files yet",
+        "all-clause_one": "its {{count, number}} file is listed",
+        "all-clause_other": "its {{count, number}} files are listed",
+        "first-clause_one": "the first {{shown, number}} of its {{count, number}} file is listed",
+        "first-clause_other": "the first {{shown, number}} of its {{count, number}} files are listed"
+      }
+    }
+  }
+}

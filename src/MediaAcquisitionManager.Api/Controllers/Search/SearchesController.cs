@@ -42,7 +42,7 @@ public class SearchesController(ISearchService searches) : ControllerBase
         return result.Status switch
         {
             SearchCreateStatus.Created => CreatedAtAction(nameof(Get), new { id = result.Search!.Id }, result.Search),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -80,7 +80,7 @@ public class SearchesController(ISearchService searches) : ControllerBase
         return result.Status switch
         {
             SearchReleaseListStatus.Listed => Ok(result.List),
-            SearchReleaseListStatus.Invalid => this.BadRequestError(result.Error),
+            SearchReleaseListStatus.Invalid => this.BadRequestError(result.Error!),
             _ => NotFound(),
         };
     }

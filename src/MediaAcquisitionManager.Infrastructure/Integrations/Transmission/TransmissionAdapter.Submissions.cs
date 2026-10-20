@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 
@@ -14,12 +15,11 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 // confirmed — and once more only after a 409, which Transmission answers before it reads the body (D8).
 internal sealed partial class TransmissionAdapter
 {
-    private const string DuplicateUnreadError = "Transmission already has this torrent, so it added nothing.";
+    private static readonly Message DuplicateUnreadError = Message.Of("transmission.add.duplicate");
 
-    private const string V2OnlyError =
-        "Transmission can't take a torrent that is BitTorrent v2 only, which this release is, so nothing was sent.";
+    private static readonly Message V2OnlyError = Message.Of("transmission.add.v2-only");
 
-    private const string NotAnAddAnswerError = "The service at this address answered, but not the way Transmission answers a new torrent.";
+    private static readonly Message NotAnAddAnswerError = IntegrationAdapterMessages.NotAnAddAnswer(DisplayName);
 
     /// <summary>The longest label a sentence repeats: a destination's name is at most 64 characters.</summary>
     private const int LabelsMaximumLength = 200;
@@ -57,14 +57,16 @@ internal sealed partial class TransmissionAdapter
     {
         ArgumentNullException.ThrowIfNull(submission);
         ValidatePayload(submission.Payload);
+        // MAM-47 — a developer's text naming the broken rule's key: Infrastructure renders no sentence, and these fire only
+        // on a caller's bug (the destination passed the same rules when it was saved).
         if (DestinationRules.ValidateClientDestinationKey(submission.DestinationKey) is { } keyError)
-            throw new ArgumentException(keyError, nameof(submission));
+            throw new ArgumentException($"The destination's key breaks the rule {keyError.Key}.", nameof(submission));
         if (!NormalizedPath.TryParse(submission.DestinationKey, out _, out _))
             throw new ArgumentException("A folder destination's key must be an absolute path.", nameof(submission));
         if (string.IsNullOrWhiteSpace(submission.Label))
             throw new ArgumentException("A torrent sent to Transmission needs a label: the destination's name.", nameof(submission));
         if (DestinationRules.ValidateLabel(submission.Label) is { } labelError)
-            throw new ArgumentException(labelError, nameof(submission));
+            throw new ArgumentException($"The destination's name can't be a torrent's label: it breaks the rule {labelError.Key}.", nameof(submission));
 
         if (TorrentInfoHashReader.Read(submission.Payload) is { V1: null, V2: not null })
             return Task.FromResult(IntegrationCallResult<SubmissionReceipt>.Failed(IntegrationCallStatus.Refused, V2OnlyError));
@@ -99,7 +101,7 @@ internal sealed partial class TransmissionAdapter
         {
             return IntegrationCallResult<SubmissionReceipt>.Failed(
                 IntegrationCallStatus.Refused,
-                $"Transmission refused the torrent: {RemoteText.Clean(answer.Result, ResultMaximumLength, secrets)}.");
+                Message.Of("transmission.add.refused", ("result", VendorText.Clean(answer.Result, ResultMaximumLength, secrets))));
         }
 
         if (answer.Arguments.TryGetProperty("torrent-added", out var added) && added.ValueKind == JsonValueKind.Object)
@@ -124,7 +126,7 @@ internal sealed partial class TransmissionAdapter
     /// sentence when that read fails — its transport and timeout too, which would otherwise end the whole call — or doesn't
     /// list the torrent: the add is refused either way.
     /// </summary>
-    private async Task<string> DescribeDuplicateAsync(
+    private async Task<Message> DescribeDuplicateAsync(
         HttpClient client, RpcCall call, string hash, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
     {
         var arguments = new JsonObject { ["ids"] = Names([hash]), ["fields"] = Names(["hashString", "downloadDir", "labels"]) };
@@ -150,10 +152,13 @@ internal sealed partial class TransmissionAdapter
         var labels = torrent.TryGetProperty("labels", out var listed) && listed.ValueKind == JsonValueKind.Array
             ? listed.EnumerateArray().Where(label => label.ValueKind == JsonValueKind.String).Select(label => label.GetString()!).ToList()
             : [];
-        var labelled = labels.Count == 0
-            ? "with no label"
-            : $"with the label “{RemoteText.Clean(string.Join(", ", labels), LabelsMaximumLength, secrets)}”";
-        return $"Transmission already has this torrent, in “{RemoteText.Clean(downloadDir, FolderMaximumLength, secrets)}” {labelled}, so it added nothing.";
+        // MAM-47 — "with no label" and "with the label …" fill the sentence's middle, so each is a sentence of its own. The
+        // labels stay Transmission's words as it lists them, joined as one value and cut as one.
+        (string, MessageValue) folder = ("folder", VendorText.Clean(downloadDir, FolderMaximumLength, secrets));
+        return labels.Count == 0
+            ? Message.Of("transmission.add.duplicate-no-label", folder)
+            : Message.Of(
+                "transmission.add.duplicate-labelled", folder, ("labels", VendorText.Clean(string.Join(", ", labels), LabelsMaximumLength, secrets)));
     }
 
     /// <summary>

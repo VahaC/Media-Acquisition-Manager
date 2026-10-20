@@ -9,6 +9,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 
@@ -38,8 +39,7 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 // take another file for it.
 internal sealed partial class JellyfinAdapter
 {
-    private const string ScanForbiddenError =
-        "Jellyfin accepted the key but won't let it ask the library to look at new files (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token.";
+    private static readonly Message ScanForbiddenError = Message.Of("jellyfin.forbidden.scan");
 
     private const string LookupPathError =
         "Each path is an absolute path of at most 4096 characters without control characters, as the library reports one.";

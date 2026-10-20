@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Duplicates;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
 
@@ -14,8 +15,7 @@ namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
 public sealed partial class CopyRemovalService
 {
     /// <summary>What a Remove body MVC can't read gets (<c>UnreadableBodyErrorAttribute</c>): what it must be.</summary>
-    public const string UnreadableBodyError =
-        "The body must be JSON with the group and the file, such as { \"groupKey\": \"<key>\", \"fileId\": \"<id>\" }.";
+    public const string UnreadableBodyError = "duplicates.removal.unreadable-body";
 
     public async Task<CopyRemovalResult> RemoveAsync(RemoveCopyRequest? request, Guid callerUserId, CancellationToken cancellationToken = default)
     {
@@ -150,11 +150,11 @@ public sealed partial class CopyRemovalService
     }
 
     /// <summary>What the checks found: the removal to make, or why none — a group or file not found, or a refusal.</summary>
-    private sealed record RemovalCheck(bool NotFound, string? Refusal, PlannedRemoval? Removal)
+    private sealed record RemovalCheck(bool NotFound, Message? Refusal, PlannedRemoval? Removal)
     {
         public static RemovalCheck Missing { get; } = new(true, null, null);
 
-        public static RemovalCheck Refused(string refusal) => new(false, refusal, null);
+        public static RemovalCheck Refused(Message refusal) => new(false, refusal, null);
 
         public static RemovalCheck Planned(PlannedRemoval removal) => new(false, null, removal);
     }
@@ -172,5 +172,5 @@ public sealed partial class CopyRemovalService
 
     /// <summary>One companion of the video as listed now, and the hold that keeps it where it is (<c>null</c> when none
     /// does).</summary>
-    private sealed record PlannedRemovalCompanion(NormalizedPath AppPath, FileFacts Facts, string? HeldBy);
+    private sealed record PlannedRemovalCompanion(NormalizedPath AppPath, FileFacts Facts, Message? HeldBy);
 }

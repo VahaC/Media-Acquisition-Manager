@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using MediaAcquisitionManager.Api;
 using MediaAcquisitionManager.Api.Serialization;
 using MediaAcquisitionManager.Api.Services.Files;
@@ -27,6 +28,7 @@ using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Logging;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Time;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -108,10 +110,16 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// The JSON options the tests read and write bodies with: web casing and enums as strings,
     /// mirroring what the API's controllers use.
     /// </summary>
-    public static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web)
-    {
-        Converters = { new JsonStringEnumConverter(), new UtcDateTimeConverter() },
-    };
+    /// <remarks>
+    /// MAM-47 (ADR 0042) — in the pseudo pass they also read every sentence field as one wrapped message and give back its
+    /// English, and refuse a mark in any other string (<see cref="PseudoJsonModifier"/>), so the English field asserts
+    /// prove the server rendered them. A test that asked for <c>uk</c> or <c>en</c> reads with <see cref="PlainJsonOptions"/>.
+    /// </remarks>
+    public static JsonSerializerOptions JsonOptions { get; } = CreateJsonOptions(TestLanguage.IsPseudo);
+
+    /// <summary>MAM-47 — <see cref="JsonOptions"/> without the pseudo pass's checks, in every pass: for an answer in a
+    /// language the test asked for itself.</summary>
+    public static JsonSerializerOptions PlainJsonOptions { get; } = CreateJsonOptions(pseudo: false);
 
     /// <summary>The app's data directory (<c>Storage:DataDirectory</c>) for this factory.</summary>
     public string DataDirectory { get; }
@@ -173,6 +181,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// command is sent (MAM-12); does nothing until armed. Disarmed by <see cref="ResetAsync"/>.</summary>
     public DbCommandHook DbCommandHook { get; } = new();
 
+    /// <summary>MAM-47 (ADR 0042) — in the pseudo pass, a command interceptor on every DbContext of the host that fails a
+    /// command carrying a rendered sentence. Not attached in the normal pass.</summary>
+    public PseudoWriteGuard PseudoWriteGuard { get; } = new();
+
     /// <summary>The app's mounts and media inspector (MAM-9), and the walk of its media folders (MAM-18);
     /// nothing is anywhere until a test adds a file. Emptied by <see cref="ResetAsync"/>.</summary>
     public FakeFileInventory Files { get; } = new();
@@ -194,31 +206,44 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// </summary>
     protected virtual bool StartFromMigratedDatabase => true;
 
+    /// <summary>
+    /// MAM-47 (ADR 0042) — whether the host accepts the pseudo-language (<c>Texts:Pseudo</c>): in the pseudo pass, and in
+    /// a subclass that tests the language a request asks for.
+    /// </summary>
+    protected virtual bool AcceptsPseudoLanguage => TestLanguage.IsPseudo;
+
     // One client per factory, never one per test: every request is built as its own message, so
     // nothing (a token, a header) carries over from one test to the next. MAM-4 — for the same
     // reason no cookie jar: with one, the refresh cookie a test's sign-in set would ride along on the
     // next test's requests. A test sends the cookie it means to, through the helpers' cookie argument.
+    // MAM-47 — no redirect or cookie handler, as CreateClient builds it with both off; the one handler asks for the
+    // pseudo-language in that pass, hand-built requests included.
     private HttpClient Client =>
-        _client ??= CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = false });
+        _client ??= CreateDefaultClient(new WebApplicationFactoryClientOptions().BaseAddress, new AcceptLanguageHandler());
 
     // ── HTTP helpers ───────────────────────────────────────────────────────────────────────────
     // token: the bearer access token, none = anonymous. cookie: the Cookie header, sent verbatim
-    // (ResponseCookie.RequestHeader, AuthorizedUser.RefreshCookie).
+    // (ResponseCookie.RequestHeader, AuthorizedUser.RefreshCookie). MAM-47 — language: the Accept-Language header, sent
+    // verbatim (a malformed one too); none = English in the normal pass, the pseudo-language in the pseudo pass.
 
-    public Task<HttpResponseMessage> GetHttpRequest(string url, string? token = null, string? cookie = null) =>
-        SendHttpRequest(CreateRequest(HttpMethod.Get, url, token, body: null, cookie));
+    public Task<HttpResponseMessage> GetHttpRequest(string url, string? token = null, string? cookie = null, string? language = null) =>
+        SendHttpRequest(CreateRequest(HttpMethod.Get, url, token, body: null, cookie, language));
 
-    public Task<HttpResponseMessage> PostHttpRequest(string url, string? token = null, object? body = null, string? cookie = null) =>
-        SendHttpRequest(CreateRequest(HttpMethod.Post, url, token, body, cookie));
+    public Task<HttpResponseMessage> PostHttpRequest(
+        string url, string? token = null, object? body = null, string? cookie = null, string? language = null) =>
+        SendHttpRequest(CreateRequest(HttpMethod.Post, url, token, body, cookie, language));
 
-    public Task<HttpResponseMessage> PutHttpRequest(string url, string? token = null, object? body = null, string? cookie = null) =>
-        SendHttpRequest(CreateRequest(HttpMethod.Put, url, token, body, cookie));
+    public Task<HttpResponseMessage> PutHttpRequest(
+        string url, string? token = null, object? body = null, string? cookie = null, string? language = null) =>
+        SendHttpRequest(CreateRequest(HttpMethod.Put, url, token, body, cookie, language));
 
-    public Task<HttpResponseMessage> PatchHttpRequest(string url, string? token = null, object? body = null, string? cookie = null) =>
-        SendHttpRequest(CreateRequest(HttpMethod.Patch, url, token, body, cookie));
+    public Task<HttpResponseMessage> PatchHttpRequest(
+        string url, string? token = null, object? body = null, string? cookie = null, string? language = null) =>
+        SendHttpRequest(CreateRequest(HttpMethod.Patch, url, token, body, cookie, language));
 
-    public Task<HttpResponseMessage> DeleteHttpRequest(string url, string? token = null, object? body = null, string? cookie = null) =>
-        SendHttpRequest(CreateRequest(HttpMethod.Delete, url, token, body, cookie));
+    public Task<HttpResponseMessage> DeleteHttpRequest(
+        string url, string? token = null, object? body = null, string? cookie = null, string? language = null) =>
+        SendHttpRequest(CreateRequest(HttpMethod.Delete, url, token, body, cookie, language));
 
     /// <summary>Sends a hand-built request — for the rare test that needs a header the helpers
     /// above don't set (a <c>traceparent</c>, say).</summary>
@@ -364,6 +389,11 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         builder.UseSetting($"{StorageOptions.SectionName}:{nameof(StorageOptions.DataDirectory)}", DataDirectory);
         builder.UseWebRoot(WebRootDirectory);
         ConfigureSecrets(builder);
+        // MAM-47 (ADR 0042) — strict sentences in every test host: a missing key, a missing or unused value, or a value that
+        // doesn't fit its placeholder throws in the test that reached it instead of rendering production's fallback.
+        builder.UseSetting($"{TextOptions.SectionName}:{nameof(TextOptions.Strict)}", "true");
+        if (AcceptsPseudoLanguage)
+            builder.UseSetting($"{TextOptions.SectionName}:{nameof(TextOptions.Pseudo)}", "true");
 
         builder.ConfigureTestServices(services =>
         {
@@ -389,6 +419,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             // MAM-12 — the same way, for the same reason: the app takes no command interceptor from the
             // container. Unarmed, it does nothing.
             services.ConfigureDbContext<ApplicationDbContext>(options => options.AddInterceptors(DbCommandHook));
+            // MAM-47 (ADR 0042) — the pseudo pass's proof that the database keeps no sentence, attached the same way: a
+            // command carrying a rendered sentence fails in the test that wrote it.
+            if (TestLanguage.IsPseudo)
+                services.ConfigureDbContext<ApplicationDbContext>(options => options.AddInterceptors(PseudoWriteGuard));
             // MAM-9 — instead of the local one: the host's folders and its ffprobe are the outside world
             // here, the way the vendors' networks are.
             ReplaceSingleton<IFileInventory>(services, Files);
@@ -418,6 +452,15 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(FirstRunSecrets.JwtSecret.ConfigurationKey, TestJwtSecret);
     }
 
+    /// <summary>
+    /// MAM-47 (ADR 0042, design §6.8) — runs on the copy of the migrated template at <paramref name="databasePath"/> before
+    /// the host opens it, so a subclass can plant what an older build left there; the host's own start (the migrations and
+    /// the startup converter) then meets it. Not called when <see cref="StartFromMigratedDatabase"/> is false.
+    /// </summary>
+    protected virtual void OnDatabaseCopied(string databasePath)
+    {
+    }
+
     protected static void ReplaceSingleton<T>(IServiceCollection services, T instance) where T : class
     {
         services.RemoveAll<T>();
@@ -442,13 +485,18 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     private void PrepareDataDirectory()
     {
         if (StartFromMigratedDatabase)
-            TestDatabase.CopyMigratedTemplateTo(Path.Combine(DataDirectory, StorageLayout.DatabaseFileName));
+        {
+            var databasePath = Path.Combine(DataDirectory, StorageLayout.DatabaseFileName);
+            TestDatabase.CopyMigratedTemplateTo(databasePath);
+            OnDatabaseCopied(databasePath);
+        }
 
         Directory.CreateDirectory(WebRootDirectory);
         File.Copy(RepositoryPaths.FrontendIndexHtml, Path.Combine(WebRootDirectory, "index.html"), overwrite: true);
     }
 
-    private static HttpRequestMessage CreateRequest(HttpMethod method, string url, string? token, object? body, string? cookie)
+    private static HttpRequestMessage CreateRequest(
+        HttpMethod method, string url, string? token, object? body, string? cookie, string? language)
     {
         var request = new HttpRequestMessage(method, url);
         if (token is not null)
@@ -457,7 +505,21 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             request.Content = JsonContent.Create(body, body.GetType(), options: JsonOptions);
         if (cookie is not null)
             request.Headers.Add("Cookie", cookie);
+        // Without validation, so a test can send a malformed header and see the server fall back to English.
+        if (language is not null)
+            request.Headers.TryAddWithoutValidation(AcceptLanguageHandler.HeaderName, language);
         return request;
+    }
+
+    private static JsonSerializerOptions CreateJsonOptions(bool pseudo)
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            Converters = { new JsonStringEnumConverter(), new UtcDateTimeConverter() },
+        };
+        if (pseudo)
+            options.TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { PseudoJsonModifier.Apply } };
+        return options;
     }
 
     private IPAddress NextClientAddress() => Volatile.Read(ref _pinnedClientAddress) ?? NewClientAddress();

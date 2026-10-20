@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,8 +20,7 @@ public sealed class LibraryLinkSuggestionRunReconciler(
     TimeProvider time,
     ILogger<LibraryLinkSuggestionRunReconciler> logger) : IHostedService
 {
-    private const string RestartedError =
-        "The app restarted before these TMDb suggestions were prepared. The works searched so far are kept.";
+    private static readonly Message RestartedError = Message.Of("library-links.suggestions.restarted");
 
     public Task StartAsync(CancellationToken cancellationToken) => ReconcileAsync(cancellationToken);
 
@@ -44,7 +44,7 @@ public sealed class LibraryLinkSuggestionRunReconciler(
         }
 
         // The queue lives in memory, so a run queued before the stop has no id in it any more. One the queue refuses is
-        // failed with the service's sentence: left queued with no id, every later trigger would join it and nothing would
+        // failed with the service's message: left queued with no id, every later trigger would join it and nothing would
         // run until the next start.
         var queued = await db.LibraryLinkSuggestionRuns
             .Where(run => run.Status == LibraryLinkSuggestionRunStatus.Queued)

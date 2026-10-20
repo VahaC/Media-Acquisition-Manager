@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Destinations;
 
@@ -6,9 +7,9 @@ namespace MediaAcquisitionManager.Api.Services.Destinations;
 /// <param name="Status">How it ended.</param>
 /// <param name="List">The page when <see cref="DestinationListStatus.Listed"/>.</param>
 /// <param name="Error">The sentence saying what the list doesn't take otherwise.</param>
-public sealed record DestinationListResult(DestinationListStatus Status, DestinationListResponse? List, string? Error)
+public sealed record DestinationListResult(DestinationListStatus Status, DestinationListResponse? List, Message? Error)
 {
     public static DestinationListResult Listed(DestinationListResponse list) => new(DestinationListStatus.Listed, list, null);
 
-    public static DestinationListResult Invalid(string error) => new(DestinationListStatus.Invalid, null, error);
+    public static DestinationListResult Invalid(Message error) => new(DestinationListStatus.Invalid, null, error);
 }

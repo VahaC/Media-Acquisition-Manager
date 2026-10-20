@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.Net.Http.Headers;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Http;
@@ -41,10 +42,54 @@ public static class HttpResponseMessageExtensions
     /// The <c>error</c> sentence of a <c>{ "error": "…" }</c> body. Read by exact property name, so a
     /// body that drifts to <c>Error</c> or <c>message</c> fails instead of deserializing to null.
     /// </summary>
+    /// <remarks>
+    /// MAM-47 (ADR 0042) — when the request asked for the pseudo-language (the pseudo pass's default), the sentence must
+    /// be one wrapped message and is returned as its English, so every English assert on an error body proves the
+    /// sentence came from the locale files. A request that asked for <c>uk</c> or <c>en</c> reads its sentence as it is.
+    /// </remarks>
     public static async Task<string?> ReadErrorAsync(this HttpResponseMessage response, CancellationToken cancellationToken)
     {
+        using var document = await ReadBodyAsync(response, cancellationToken);
+        return ErrorOf(response, document.RootElement);
+    }
+
+    /// <summary>
+    /// MAM-47 (ADR 0042) — the <c>code</c> of an error body: the sentence's key in the server's locale files, the same in
+    /// every language. Read by exact property name, like <see cref="ReadErrorAsync"/>.
+    /// </summary>
+    public static async Task<string?> ReadErrorCodeAsync(this HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        using var document = await ReadBodyAsync(response, cancellationToken);
+        return document.RootElement.GetProperty("code").GetString();
+    }
+
+    /// <summary>
+    /// MAM-47 (ADR 0042) — both parts of a <c>{ "error": "…", "code": "…" }</c> body: the sentence (its English in the
+    /// pseudo pass, as <see cref="ReadErrorAsync"/> reads it) and its key.
+    /// </summary>
+    public static async Task<(string Error, string Code)> ReadErrorBodyAsync(
+        this HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        using var document = await ReadBodyAsync(response, cancellationToken);
+        var error = ErrorOf(response, document.RootElement)
+            ?? throw new InvalidOperationException("The error body's \"error\" is null.");
+        var code = document.RootElement.GetProperty("code").GetString()
+            ?? throw new InvalidOperationException("The error body's \"code\" is null.");
+        return (error, code);
+    }
+
+    private static async Task<JsonDocument> ReadBodyAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(response);
         await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var document = await JsonDocument.ParseAsync(body, cancellationToken: cancellationToken);
-        return document.RootElement.GetProperty("error").GetString();
+        return await JsonDocument.ParseAsync(body, cancellationToken: cancellationToken);
+    }
+
+    private static string? ErrorOf(HttpResponseMessage response, JsonElement root)
+    {
+        var error = root.GetProperty("error").GetString();
+        return error is not null && AcceptLanguageHandler.AskedForPseudo(response.RequestMessage)
+            ? PseudoText.Unwrap(error, "the error body")
+            : error;
     }
 }

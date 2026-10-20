@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Data;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -56,7 +57,7 @@ public sealed class AddLibraryLinkLookupsMigrationTests : DatabaseTestBase
         Assert.Equal(
             (linkId, LibraryLinkTarget.ShowEpisode, "1044", (int?)1, (int?)8, LibraryLinkWriteState.KeptInApp, (DateTime?)setUtc),
             (link.Id, link.Target, link.Value, link.SeasonNumber, link.EpisodeNumber, link.WriteState, link.WriteStateUtc));
-        Assert.Equal(((string?)null, (DateTime?)null, (string?)null), (link.EpisodeImdbId, link.LookupRequestedUtc, link.LookupError));
+        Assert.Equal(((string?)null, (DateTime?)null, (string?)null), (link.EpisodeImdbId, link.LookupRequestedUtc, TestTexts.En(link.LookupError)));
     }
 
     [Fact]

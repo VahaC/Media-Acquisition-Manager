@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
@@ -13,7 +14,7 @@ public sealed class FileInspectionRunDataFactory(ApplicationDbContext db, TimePr
         Guid? requestedByUserId = null,
         string? requestedByUserName = null,
         DateTime? createdUtc = null,
-        string? error = null,
+        Message? error = null,
         int? filesTotal = null,
         int filesChecked = 0,
         int filesProbed = 0,

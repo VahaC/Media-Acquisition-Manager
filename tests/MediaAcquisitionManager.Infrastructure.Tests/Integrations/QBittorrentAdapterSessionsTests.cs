@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -230,7 +231,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("qBittorrent refused the session it had just opened.", result.Error);
+        Assert.Equal("qBittorrent refused the session it had just opened.", TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.True(next.IsSuccess);
         // Renewed once, never twice: asking again would only repeat the refusal. And the renewed session
@@ -263,9 +264,9 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(CredentialsRefusedError, result.Error);
+        Assert.Equal(CredentialsRefusedError, TestTexts.En(result.Error));
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, next.Status);
-        Assert.Equal(RememberedCredentialsRefusedError, next.Error);
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(next.Error));
         // One sign-in in the failing call: a repeated failure counts towards qBittorrent's ban of the
         // address. And none in the next: the forgotten session is gone for good, and the refused password
         // isn't sent again while it stays the same, even once qBittorrent would take it — a connection test
@@ -291,9 +292,9 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, first.Status);
-        Assert.Equal(CredentialsRefusedError, first.Error);
+        Assert.Equal(CredentialsRefusedError, TestTexts.En(first.Error));
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, second.Status);
-        Assert.Equal(RememberedCredentialsRefusedError, second.Error);
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(second.Error));
         Assert.Null(second.Value);
         // Every page load, dialog and save lists destinations: sending the refused password each time would
         // reach qBittorrent's ban of the app's address (five failures in a row by default) on its own.
@@ -314,9 +315,9 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, first.Status);
-        Assert.Equal(BannedError, first.Error);
+        Assert.Equal(BannedError, TestTexts.En(first.Error));
         Assert.Equal(IntegrationCallStatus.Refused, second.Status);
-        Assert.Equal(RememberedBanError, second.Error);
+        Assert.Equal(RememberedBanError, TestTexts.En(second.Error));
         Assert.Equal(["POST /api/v2/auth/login"], Describe(_harness.QBittorrentHttp.Requests));
     }
 
@@ -404,7 +405,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, test.Status);
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(RememberedCredentialsRefusedError, result.Error);
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(result.Error));
         Assert.Equal(
             ["POST /api/v2/auth/login", "POST /api/v2/auth/login", "GET /api/v2/app/version with session 02"],
             Describe(_harness.QBittorrentHttp.Requests));
@@ -431,7 +432,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         var expectedStatus = refusal == "banned address" ? IntegrationCallStatus.Refused : IntegrationCallStatus.AuthenticationFailed;
         Assert.Equal(expectedStatus, test.Status);
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(refusal == "banned address" ? RememberedBanError : RememberedCredentialsRefusedError, result.Error);
+        Assert.Equal(refusal == "banned address" ? RememberedBanError : RememberedCredentialsRefusedError, TestTexts.En(result.Error));
         Assert.Equal(["POST /api/v2/auth/login"], Describe(_harness.QBittorrentHttp.Requests));
     }
 
@@ -456,7 +457,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         // a ban that is over.
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, test.Status);
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(RememberedCredentialsRefusedError, result.Error);
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(result.Error));
         Assert.Equal(["POST /api/v2/auth/login", "POST /api/v2/auth/login"], Describe(_harness.QBittorrentHttp.Requests));
     }
 
@@ -482,7 +483,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         // ban it was refused with, and sends nothing.
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, test.Status);
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(RememberedBanError, result.Error);
+        Assert.Equal(RememberedBanError, TestTexts.En(result.Error));
         Assert.Equal(["POST /api/v2/auth/login", "POST /api/v2/auth/login"], Describe(_harness.QBittorrentHttp.Requests));
     }
 
@@ -538,7 +539,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         //Assert
         // A draft has no integration to remember a refusal for, and its refusal never stays behind for the
         // saved one.
-        Assert.All([first, second, saved], result => Assert.Equal(CredentialsRefusedError, result.Error));
+        Assert.All([first, second, saved], result => Assert.Equal(CredentialsRefusedError, TestTexts.En(result.Error)));
         Assert.Equal(
             ["POST /api/v2/auth/login", "POST /api/v2/auth/login", "POST /api/v2/auth/login"],
             Describe(_harness.QBittorrentHttp.Requests));
@@ -558,7 +559,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("qBittorrent refused the session it had just opened.", result.Error);
+        Assert.Equal("qBittorrent refused the session it had just opened.", TestTexts.En(result.Error));
         Assert.True(next.IsSuccess);
         // The refused session is dropped, never kept: the next call signs in rather than sending it again.
         Assert.Equal(
@@ -599,7 +600,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
         Assert.Equal(
             "qBittorrent asks for a user name and password. Enter them, or let this app's address skip authentication in qBittorrent's Web UI options.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Equal(["GET /api/v2/app/version"], Describe(_harness.QBittorrentHttp.Requests));
     }
 
@@ -646,7 +647,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         Assert.Equal(1, _signIns);
         Assert.Equal(
             "The address answered with a redirect to http://qbittorrent.test:8080/session/***/***/. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact]

@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.TestInfrastructure;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Paths;
 
@@ -118,7 +119,7 @@ public sealed class PathMapperBackTests
         //Assert
         Assert.Equal(PathMapStatus.NotCovered, result.Status);
         Assert.Null(result.ServicePath);
-        Assert.Equal("No path mapping of this integration leads to “/config/data/collections”.", result.Reason);
+        Assert.Equal("No path mapping of this integration leads to “/config/data/collections”.", TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -151,7 +152,7 @@ public sealed class PathMapperBackTests
         Assert.False(result.HasServicePath);
         Assert.Equal(
             "The path mappings of this integration lead to “/media/movies” from different places: “/downloads/movies” and “/data/movies”.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -168,7 +169,7 @@ public sealed class PathMapperBackTests
         // The longer app prefix never wins on its own; a folder only the outer pair covers is still mapped.
         Assert.Equal(
             "The path mappings of this integration lead to “/media/movies” from different places: “/downloads/movies” and “/incoming”.",
-            movies.Reason);
+            TestTexts.En(movies.Reason));
         Assert.Equal(PathMapStatus.Ambiguous, movies.Status);
         Assert.Equal((PathMapStatus.Mapped, "/downloads/cartoons"), (cartoons.Status, cartoons.ServicePath));
     }
@@ -190,7 +191,7 @@ public sealed class PathMapperBackTests
         //Assert
         Assert.Equal(PathMapStatus.Invalid, result.Status);
         Assert.Null(result.ServicePath);
-        Assert.Equal($"“{appPath}” is not a full path the app can map back.", result.Reason);
+        Assert.Equal($"“{appPath}” is not a full path the app can map back.", TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -265,7 +266,7 @@ public sealed class PathMapperBackTests
         Assert.Null(result.ServicePath);
         Assert.Equal(
             @"“/media/a\b” can't be written under “D:\Torrents”: its folder name “a\b” contains \, which separates folders in a Windows path.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -304,7 +305,7 @@ public sealed class PathMapperBackTests
         Assert.Equal(PathMapStatus.Ambiguous, result.Status);
         Assert.Equal(
             @"The path mappings of this integration lead to “D:\Media\Movies” from different places: “/downloads/Movies” and “/downloads/movies”.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -376,7 +377,7 @@ public sealed class PathMapperBackTests
                 checkedPaths.Add(appPath);
                 var forward = PathMapper.Map(servicePath, pairs);
                 if (forward.AppPath != appPath)
-                    failures.Add($"{appPath} → {servicePath} → {forward.AppPath ?? forward.Reason}");
+                    failures.Add($"{appPath} → {servicePath} → {forward.AppPath ?? TestTexts.En(forward.Reason)}");
             }
         }
 

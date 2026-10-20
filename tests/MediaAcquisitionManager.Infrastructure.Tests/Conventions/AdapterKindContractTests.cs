@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Conventions;
 
@@ -147,7 +148,7 @@ public sealed class AdapterKindContractTests
             Assert.All(found.Identifier.IdentifiableKinds, kind => Assert.Contains(kind, (MediaWorkKind[])[MediaWorkKind.Movie, MediaWorkKind.Series]));
             Assert.All(
                 Enum.GetValues<MediaWorkKind>().Except(found.Identifier.IdentifiableKinds),
-                kind => Assert.False(string.IsNullOrWhiteSpace(found.Identifier.UnidentifiableKindReason(kind))));
+                kind => Assert.False(string.IsNullOrWhiteSpace(TestTexts.En(found.Identifier.UnidentifiableKindReason(kind)))));
         });
         // Jellyfin identifies a series like a film (Vasyl's final decision of 2026-10-06, ADR 0026).
         Assert.Equal([MediaWorkKind.Movie, MediaWorkKind.Series], identifiers.Single(found => found.TypeId == "jellyfin").Identifier!.IdentifiableKinds);

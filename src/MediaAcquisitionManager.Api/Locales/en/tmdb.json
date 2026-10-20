@@ -1,0 +1,18 @@
+{
+  "connected": "Connected to TMDb.",
+  "key-refused": "TMDb refused the key (401 Unauthorized). Enter the API Read Access Token from themoviedb.org → Settings → API, not the shorter API key.",
+  "not-tmdb": "The service at this address answered, but not the way TMDb's API does. Check the address: TMDb's is https://api.themoviedb.org.",
+  "api-not-found": "TMDb's API wasn't found at this address (404 Not Found). Use https://api.themoviedb.org.",
+  "too-many-requests": "TMDb is asking the app to slow down (429 Too Many Requests), and still was after three retries. Try again in a minute.",
+  "not-found": {
+    "movie": "TMDb has no movie with the id {{id}}.",
+    "show": "TMDb has no show with the id {{id}}.",
+    "episode": "TMDb has no episode {{episode}} of season {{season}} of the show {{show}}.",
+    "collection": "TMDb has no collection with the id {{id}}.",
+    "person": "TMDb has no person with the id {{id}}."
+  },
+  "poster": {
+    "not-an-image": "TMDb's image host answered the poster with something other than a JPEG or PNG image.",
+    "none": "TMDb's image host has no poster at {{path}}."
+  }
+}

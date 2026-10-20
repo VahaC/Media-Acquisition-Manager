@@ -1,18 +1,19 @@
 using MediaAcquisitionManager.Api.Services.Catalog;
-using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Media;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 
 /// <summary>
 /// MAM-34 — what TMDb says of a numbered episode's own IMDb id, the id an episode's link writes into a film item
-/// (Vasyl's decision of 2026-10-06): the id, none — TMDb gives the episode none, or knows no such episode —, or the
-/// sentence why TMDb couldn't be asked.
+/// (Vasyl's decision of 2026-10-06): the id, none — TMDb gives the episode none, or knows no such episode —, or why TMDb
+/// couldn't be asked.
 /// </summary>
 /// <param name="ImdbId">The episode's IMDb id; <c>null</c> when TMDb gives none or couldn't be asked.</param>
-/// <param name="Error">Why TMDb couldn't be asked, its secrets masked; <c>null</c> when it answered.</param>
-public sealed record LibraryLinkEpisodeImdb(string? ImdbId, string? Error)
+/// <param name="Error">Why TMDb couldn't be asked, as a message the Api renders (ADR 0042), its secrets masked; <c>null</c>
+/// when it answered.</param>
+public sealed record LibraryLinkEpisodeImdb(string? ImdbId, Message? Error)
 {
     /// <summary>
     /// Asks <paramref name="catalog"/> for the episode <paramref name="episodeNumber"/> of season
@@ -29,6 +30,6 @@ public sealed record LibraryLinkEpisodeImdb(string? ImdbId, string? Error)
         // An episode TMDb doesn't know has no IMDb id it could give: the link stays in the app, as for one it gives none.
         return read.Status == IntegrationCallStatus.NotFound
             ? new LibraryLinkEpisodeImdb(null, null)
-            : new LibraryLinkEpisodeImdb(null, SecretRedaction.Redact(read.Error!, catalog.Settings.Secrets));
+            : new LibraryLinkEpisodeImdb(null, read.Error!.Redacted(catalog.Settings.Secrets));
     }
 }

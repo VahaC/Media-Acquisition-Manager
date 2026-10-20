@@ -6,12 +6,14 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -46,6 +48,9 @@ public sealed class DownloadsCancelHttpTests : IClassFixture<MediaAcquisitionMan
     private const string AlreadyHasError = "“qBittorrent” already has this torrent, so nothing was sent.";
     private const string MissingReason =
         "“qBittorrent” doesn't list this download any more. It is still followed in case it comes back; to send the release again, cancel this job first.";
+
+    /// <summary>MAM-47 — <see cref="MissingReason"/> as the poller stores it: its key and the client's name (ADR 0042).</summary>
+    private static readonly Message Missing = Message.Of("downloads.follow.missing", ("client", "qBittorrent"));
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IReleaseSeeder _releases = null!;
@@ -88,7 +93,7 @@ public sealed class DownloadsCancelHttpTests : IClassFixture<MediaAcquisitionMan
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         // Followed, and showing why it isn't moving on.
-        var job = await PlantAsync(_member, DownloadJobStatus.Downloading, progress: 0.42, blockReason: MissingReason);
+        var job = await PlantAsync(_member, DownloadJobStatus.Downloading, progress: 0.42, blockReason: Missing);
         var before = await ReadAsync(_member, job.Id, cancellationToken);
         _factory.Time.Advance(TimeSpan.FromMinutes(3));
         var cancelledUtc = _factory.Time.GetUtcNow().UtcDateTime;
@@ -111,7 +116,7 @@ public sealed class DownloadsCancelHttpTests : IClassFixture<MediaAcquisitionMan
             var row = await db.DownloadJobs.AsNoTracking().SingleAsync(x => x.Id == job.Id, cancellationToken);
             Assert.Equal(
                 (DownloadJobStatus.Cancelled, (double?)0.42, (string?)null, (DownloadJobErrorOrigin?)null, cancelledUtc, SampleInfoHash),
-                (row.Status, row.Progress, row.BlockReason, row.BlockReasonOrigin, row.StatusChangedUtc, row.ClientJobId));
+                (row.Status, row.Progress, TestTexts.En(row.BlockReason), row.BlockReasonOrigin, row.StatusChangedUtc, row.ClientJobId));
             var audit = await db.AuditEvents.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
                 (AuditAction.DownloadCancelled, (Guid?)_member.User.Id, "member", (AuditTargetKind?)AuditTargetKind.DownloadJob, (Guid?)job.Id, ReleaseTitle, cancelledUtc),
@@ -448,7 +453,7 @@ public sealed class DownloadsCancelHttpTests : IClassFixture<MediaAcquisitionMan
     /// <summary>A job of <paramref name="user"/>'s left <paramref name="status"/>, with qBittorrent's id for it — no
     /// torrent in qBittorrent, which a cancel never asks.</summary>
     private async Task<DownloadJobEntity> PlantAsync(
-        AuthorizedUser user, DownloadJobStatus status, double? progress = null, string? blockReason = null)
+        AuthorizedUser user, DownloadJobStatus status, double? progress = null, Message? blockReason = null)
     {
         var release = await _releases.CreateFound(user.User, _toloka, ReleaseTitle);
         return await Jobs().Create(

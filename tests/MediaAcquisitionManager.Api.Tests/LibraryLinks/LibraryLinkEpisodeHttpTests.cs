@@ -1,12 +1,14 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
@@ -109,7 +111,7 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         var link = await _factory.SingleLinkAsync(cancellationToken);
         Assert.Equal(
             (EpisodeImdbId, (string?)WrongTmdbId, LibraryLinkWriteState.Written, (string?)null),
-            (link.EpisodeImdbId, link.SupersededValue, link.WriteState, link.WriteError));
+            (link.EpisodeImdbId, link.SupersededValue, link.WriteState, TestTexts.En(link.WriteError)));
         Assert.NotNull(link.IdentifiedUtc);
         Assert.Equal(
             [
@@ -185,10 +187,12 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var item = Assert.Single((await response.ReadDialogAsync(cancellationToken)).Items);
         Assert.Equal(
-            ((LibraryLinkWriteState?)LibraryLinkWriteState.KeptInApp, true, (string?)NoEpisodeImdbReason, (string?)null),
-            (item.WriteState, item.CanWrite, item.CannotWriteReason, item.EpisodeImdbId));
-        // Only asking TMDb tells it, so the link keeps it: the repair and the writer don't ask again.
-        Assert.Equal(NoEpisodeImdbReason, (await _factory.SingleLinkAsync(cancellationToken)).WriteError);
+            ((LibraryLinkWriteState?)LibraryLinkWriteState.KeptInApp, true, (string?)NoEpisodeImdbReason, (string?)LibraryLinkWritability.NoEpisodeImdbKey, (string?)null),
+            (item.WriteState, item.CanWrite, item.CannotWriteReason, item.CannotWriteReasonCode, item.EpisodeImdbId));
+        // Only asking TMDb tells it, so the link keeps it: the repair and the writer don't ask again. MAM-47 — by its key,
+        // which is what they compare.
+        var stored = (await _factory.SingleLinkAsync(cancellationToken)).WriteError;
+        Assert.Equal((NoEpisodeImdbReason, LibraryLinkWritability.NoEpisodeImdbKey), (TestTexts.En(stored), stored?.Key));
         Assert.Equal(jellyfinSent, _factory.JellyfinHttp.Requests.Count);
         Assert.Empty(_jellyfin.RemoteSearches);
     }
@@ -212,12 +216,12 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)NoEpisodeImdbReason), (kept.WriteState, kept.WriteError));
+        Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)NoEpisodeImdbReason), (kept.WriteState, TestTexts.En(kept.WriteError)));
         Assert.Equal((kept.Id, LibraryLinkWriteState.Queued, (string?)PlanetEarthJunglesImdbId), (queued.Id, queued.WriteState, queued.EpisodeImdbId));
         var link = await _factory.SingleLinkAsync(cancellationToken);
         Assert.Equal(
             (kept.Id, LibraryLinkWriteState.Written, (string?)null, (string?)PlanetEarthJunglesImdbId),
-            (link.Id, link.WriteState, link.WriteError, link.EpisodeImdbId));
+            (link.Id, link.WriteState, TestTexts.En(link.WriteError), link.EpisodeImdbId));
         Assert.Equal(new Dictionary<string, string> { ["Imdb"] = PlanetEarthJunglesImdbId }, ProviderIdsOf(EpisodeItemId));
         Assert.Equal(
             [AuditAction.LibraryLinkSet, AuditAction.LibraryLinkReplaced, AuditAction.LibraryItemIdentified],
@@ -237,7 +241,7 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var link = await _factory.SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)NoEpisodeImdbReason, (int?)9, (int?)99), (link.WriteState, link.WriteError, link.SeasonNumber, link.EpisodeNumber));
+        Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)NoEpisodeImdbReason, (int?)9, (int?)99), (link.WriteState, TestTexts.En(link.WriteError), link.SeasonNumber, link.EpisodeNumber));
     }
 
     [Fact]
@@ -281,7 +285,7 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var link = await _factory.SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, link.WriteError));
+        Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, TestTexts.En(link.WriteError)));
         Assert.Equal(new Dictionary<string, string> { ["Imdb"] = EpisodeImdbId }, ProviderIdsOf(EpisodeItemId));
         Assert.Equal(
             [

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Replacements;
 
@@ -14,4 +15,4 @@ public sealed record PlantedName(
     string AppPath,
     FileFacts Facts,
     ReplacementNameState State = ReplacementNameState.Quarantined,
-    string? Problem = null);
+    Message? Problem = null);

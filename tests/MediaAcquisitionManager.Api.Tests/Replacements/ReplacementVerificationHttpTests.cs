@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -129,7 +130,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
             (ReplacementJobState.Verified, (string?)null, readUtc, (DateTime?)startedUtc, (DateTime?)startedUtc),
-            (replacement.State, replacement.Reason, replacement.StateChangedUtc, replacement.InspectionStartedUtc, replacement.LibraryAskedUtc));
+            (replacement.State, TestTexts.En(replacement.Reason), replacement.StateChangedUtc, replacement.InspectionStartedUtc, replacement.LibraryAskedUtc));
 
         // Each check's evidence: qBittorrent's word, the place in the app and in Jellyfin, the media inspector's reading,
         // Jellyfin's item and the work its ids made it.
@@ -153,12 +154,12 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
         Assert.Equal(
             ((string?)null, (int?)null, (int?)null, (int?)null),
             (newFile.SeriesItemId, newFile.SeasonNumber, newFile.EpisodeNumber, newFile.EpisodeNumberEnd));
-        Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Equal([(0, false, MediaIdentifierScheme.Imdb, AlienImdbId)], await _harness.NewFileIdentifiersAsync(cancellationToken));
 
         // The theatrical cut is paired with it, its running time read from the inspection the schedule found.
         var copy = Assert.Single(await _harness.CopiesAsync(cancellationToken));
-        Assert.Equal(((Guid?)newFile.Id, (long?)TakenMilliseconds, (string?)null), (copy.PairedNewFileId, copy.DurationMilliseconds, copy.Problem));
+        Assert.Equal(((Guid?)newFile.Id, (long?)TakenMilliseconds, (string?)null), (copy.PairedNewFileId, copy.DurationMilliseconds, TestTexts.En(copy.Problem)));
 
         // Two rows of the app's own, no actor, each naming the replacement by its release.
         Assert.Equal(
@@ -196,9 +197,9 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
 
         //Assert
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Verified, (string?)null), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Verified, (string?)null), (replacement.State, TestTexts.En(replacement.Reason)));
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Equal([(0, false, MediaIdentifierScheme.Tmdb, AlienTmdbId)], await _harness.NewFileIdentifiersAsync(cancellationToken));
         Assert.Equal((Guid?)newFile.Id, Assert.Single(await _harness.CopiesAsync(cancellationToken)).PairedNewFileId);
         Assert.Equal(["POST /Library/Media/Updated"], _harness.Writes());
@@ -252,7 +253,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
         //Assert
         Assert.Equal(ReplacementJobState.Verified, (await _harness.ReplacementAsync(cancellationToken)).State);
         var copy = Assert.Single(await _harness.CopiesAsync(cancellationToken));
-        Assert.Equal(((long?)null, (string?)null), (copy.DurationMilliseconds, copy.Problem));
+        Assert.Equal(((long?)null, (string?)null), (copy.DurationMilliseconds, TestTexts.En(copy.Problem)));
     }
 
     [Fact]
@@ -279,9 +280,9 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
 
         //Assert
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Verified, (string?)null, ""), (replacement.State, replacement.Reason, replacement.ReleaseEditions));
+        Assert.Equal((ReplacementJobState.Verified, (string?)null, ""), (replacement.State, TestTexts.En(replacement.Reason), replacement.ReleaseEditions));
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((Guid?)gems.Id, (string?)null), (newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((Guid?)gems.Id, (string?)null), (newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Equal(((Guid?)newFile.Id, (string?)null), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
     }
 
@@ -309,7 +310,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
 
         //Assert
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Verified, (string?)null), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Verified, (string?)null), (replacement.State, TestTexts.En(replacement.Reason)));
     }
 
     [Fact]
@@ -357,7 +358,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
         //Assert
         Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id, CanCancel = true }, await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.Verified, (string?)null), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Verified, (string?)null), (replacement.State, TestTexts.En(replacement.Reason)));
         // Alien's new file is Alien's; Aliens' is no work of the job's, and says nothing wrong of itself.
         var newFiles = await _harness.NewFilesAsync(cancellationToken);
         Assert.Equal(
@@ -365,7 +366,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
                 (0, (string?)CollectionAlienPath, (string?)CollectionAlienLibraryPath, (LibraryFileKind?)LibraryFileKind.Movie, true, (Guid?)_alien.Id, (string?)null),
                 (1, CollectionAliensPath, CollectionAliensLibraryPath, LibraryFileKind.Movie, true, null, null),
             ],
-            newFiles.Select(file => (file.Position, file.AppPath, file.LibraryPath, file.Kind, file.Refreshed, file.MediaWorkId, file.Problem)));
+            newFiles.Select(file => (file.Position, file.AppPath, file.LibraryPath, file.Kind, file.Refreshed, file.MediaWorkId, TestTexts.En(file.Problem))));
         Assert.Equal(
             [(0, false, MediaIdentifierScheme.Imdb, AlienImdbId), (1, false, MediaIdentifierScheme.Imdb, AliensImdbId), (1, false, MediaIdentifierScheme.Tmdb, AliensTmdbId)],
             await _harness.NewFileIdentifiersAsync(cancellationToken));
@@ -409,10 +410,10 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         // The new file says why; the copy waits on it, unpaired, with no problem of its own.
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((Guid?)null, (string?)WrongIdReason), (newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((Guid?)null, (string?)WrongIdReason), (newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Equal([(0, false, MediaIdentifierScheme.Imdb, AliensImdbId)], await _harness.NewFileIdentifiersAsync(cancellationToken));
         var copy = Assert.Single(await _harness.CopiesAsync(cancellationToken));
-        Assert.Equal(((Guid?)null, (string?)null), (copy.PairedNewFileId, copy.Problem));
+        Assert.Equal(((Guid?)null, (string?)null), (copy.PairedNewFileId, TestTexts.En(copy.Problem)));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementNeedsReview, replacement.Id)],
             await _harness.CheckAuditsAsync(cancellationToken));
@@ -450,7 +451,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
             },
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)CollectionWrongIdReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)CollectionWrongIdReason), (replacement.State, TestTexts.En(replacement.Reason)));
         // Each new file says why; the copy waits on them, unpaired, with no problem of its own.
         Assert.Equal(
             [((Guid?)null, (string?)CollectionWrongIdReason), (null, CollectionOtherFilmReason)],
@@ -491,7 +492,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((Guid?)null, (string?)ConflictingIdsReason), (newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((Guid?)null, (string?)ConflictingIdsReason), (newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Equal(
             [(0, false, MediaIdentifierScheme.Imdb, AlienImdbId), (0, false, MediaIdentifierScheme.Tmdb, AliensTmdbId)],
             await _harness.NewFileIdentifiersAsync(cancellationToken));
@@ -525,7 +526,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
 
         //Assert
         // Waiting, the file holds no problem yet: it may still be given an id to compare.
-        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, beforeTheHour.Reason));
+        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, TestTexts.En(beforeTheHour.Reason)));
         Assert.Equal(((Guid?)null, (string?)null), NewFileOutcome(Assert.Single(waitingFiles)));
         Assert.Equal(
             new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, OtherSchemeReason, false, 0)
@@ -537,7 +538,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
             },
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)OtherSchemeReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)OtherSchemeReason), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Equal(((Guid?)null, (string?)OtherSchemeReason), NewFileOutcome(Assert.Single(await _harness.NewFilesAsync(cancellationToken))));
         Assert.Equal([(0, false, MediaIdentifierScheme.Tmdb, AlienTmdbId)], await _harness.NewFileIdentifiersAsync(cancellationToken));
         Assert.Equal(((Guid?)null, (string?)null), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
@@ -586,7 +587,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
         // Both are Alien and say nothing wrong of themselves; the copy says why it can't be paired.
         Assert.Equal(
             [((string?)PackUhdPath, (Guid?)_alien.Id, (string?)null), (PackHdPath, _alien.Id, null)],
-            (await _harness.NewFilesAsync(cancellationToken)).Select(file => (file.AppPath, file.MediaWorkId, file.Problem)));
+            (await _harness.NewFilesAsync(cancellationToken)).Select(file => (file.AppPath, file.MediaWorkId, TestTexts.En(file.Problem))));
         Assert.Equal(((Guid?)null, (string?)TwoNewFilesReason), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementNeedsReview, replacement.Id)],
@@ -627,7 +628,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
         Assert.Equal("DirectorsCut", replacement.ReleaseEditions);
         // Jellyfin's ids made it Alien, and it paired: the stop is the pair's.
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Equal(((Guid?)newFile.Id, (string?)OtherEditionReason), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementNeedsReview, replacement.Id)],
@@ -665,9 +666,9 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((long?)4_000_000, (Guid?)_alien.Id, (string?)null), (newFile.DurationMilliseconds, newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((long?)4_000_000, (Guid?)_alien.Id, (string?)null), (newFile.DurationMilliseconds, newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         var copy = Assert.Single(await _harness.CopiesAsync(cancellationToken));
-        Assert.Equal(((Guid?)newFile.Id, (long?)TakenMilliseconds, (string?)TooShortReason), (copy.PairedNewFileId, copy.DurationMilliseconds, copy.Problem));
+        Assert.Equal(((Guid?)newFile.Id, (long?)TakenMilliseconds, (string?)TooShortReason), (copy.PairedNewFileId, copy.DurationMilliseconds, TestTexts.En(copy.Problem)));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementNeedsReview, replacement.Id)],
             await _harness.CheckAuditsAsync(cancellationToken));
@@ -800,7 +801,7 @@ public sealed class ReplacementVerificationHttpTests : IClassFixture<MediaAcquis
     private static (AuditAction, Guid?, AuditTargetKind?, Guid?, string?) Audited(AuditAction action, Guid replacementJobId, string release = AlienRelease) =>
         (action, null, AuditTargetKind.ReplacementJob, replacementJobId, release);
 
-    private static (Guid? MediaWorkId, string? Problem) NewFileOutcome(ReplacementJobNewFileEntity file) => (file.MediaWorkId, file.Problem);
+    private static (Guid? MediaWorkId, string? Problem) NewFileOutcome(ReplacementJobNewFileEntity file) => (file.MediaWorkId, TestTexts.En(file.Problem));
 
-    private static (Guid? PairedNewFileId, string? Problem) CopyOutcome(ReplacementJobFileEntity copy) => (copy.PairedNewFileId, copy.Problem);
+    private static (Guid? PairedNewFileId, string? Problem) CopyOutcome(ReplacementJobFileEntity copy) => (copy.PairedNewFileId, TestTexts.En(copy.Problem));
 }

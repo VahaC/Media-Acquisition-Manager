@@ -21,7 +21,7 @@ public sealed class LibraryLinksAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
 {
     // Spelled out rather than read from the convention: this pins where the links' controllers live.
     private const string LinksNamespace = "MediaAcquisitionManager.Api.Controllers.Library.Links";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private AuthorizedUser _member = null!;

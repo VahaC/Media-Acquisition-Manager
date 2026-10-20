@@ -15,6 +15,7 @@ using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -45,6 +46,11 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
     private const string KeptCopyPath = "/media/movies/Interstellar (2014)/Interstellar (2014) 1080p.mkv";
     private const string StoppedReason =
         "“/media/movies/Interstellar.2014.BDRip.1080p.mkv” runs 1:06:40, less than three quarters of the old copy's 2:49:03.";
+
+    // MAM-47 (ADR 0042) — what an image before 0.5.0 stored, or one rolled back to has written since: the sentence itself,
+    // which the startup converter hasn't made a message of yet.
+    private const string OlderError = "qBittorrent refused the torrent.";
+    private const string OlderBlockReason = "qBittorrent doesn't list this download any more.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -202,7 +208,7 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
         Assert.Null(body.ClientJobId);
         Assert.Equivalent(sent, body, strict: true);
         await _factory.WithDbAsync(async db =>
-            Assert.Equal(AlreadyHasError, (await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken)).Error));
+            Assert.Equal(AlreadyHasError, TestTexts.En((await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken)).Error)));
         Assert.Empty(_qbittorrent.AddRequests);
         await AssertUnchangedAsync(before, cancellationToken);
     }
@@ -296,9 +302,9 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
         var now = _factory.Time.GetUtcNow().UtcDateTime;
         var replacements = new ReplacementJobDataFactory(_factory.Scope.GetRequiredService<ApplicationDbContext>(), _factory.Time);
         var replacement = await replacements.Create(
-            sent.Id, _member.User.Id, ReplacementJobState.NeedsReview, StoppedReason, inspectionStartedUtc: now.AddHours(-2));
-        await replacements.AddFile(replacement.Id, DroppedCopyPath, TestMedia.File(inode: 1), position: 0, problem: StoppedReason, droppedUtc: now);
-        await replacements.AddFile(replacement.Id, KeptCopyPath, TestMedia.File(inode: 2), position: 1, problem: StoppedReason, onlyDropSettles: true);
+            sent.Id, _member.User.Id, ReplacementJobState.NeedsReview, PlantedMessage.Of(StoppedReason), inspectionStartedUtc: now.AddHours(-2));
+        await replacements.AddFile(replacement.Id, DroppedCopyPath, TestMedia.File(inode: 1), position: 0, problem: PlantedMessage.Of(StoppedReason), droppedUtc: now);
+        await replacements.AddFile(replacement.Id, KeptCopyPath, TestMedia.File(inode: 2), position: 1, problem: PlantedMessage.Of(StoppedReason), onlyDropSettles: true);
         var before = await SnapshotAsync(cancellationToken);
         var replacementRowsBefore = await ReplacementRowsSnapshot.TakeAsync(_factory, cancellationToken);
 
@@ -389,6 +395,34 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
 
         //Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        await AssertUnchangedAsync(before, cancellationToken);
+    }
+
+    [Fact]
+    public async Task Get_of_a_job_whose_row_holds_an_older_versions_words_shows_them_as_they_are_and_leaves_the_row()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var release = await _releases.CreateFound(_member.User, _toloka, ReleaseTitle);
+        var sent = await SendAsync(_member, release.Id, cancellationToken);
+        await _factory.WithDbAsync(db => db.Database.ExecuteSqlAsync(
+            $"""UPDATE "DownloadJobs" SET "Error" = {OlderError}, "BlockReason" = {OlderBlockReason}""", cancellationToken));
+        var before = await SnapshotAsync(cancellationToken);
+
+        //Act
+        var response = await _factory.GetHttpRequest($"{BaseUrl}/{sent.Id}", _member.AccessToken);
+
+        //Assert
+        // The column reads words it holds as a message of them, shown as they are (design §5.2).
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = (await response.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
+        Assert.Equal((OlderError, OlderBlockReason), (body.Error, body.BlockReason));
+        // A read converts nothing: the words stay for the startup converter.
+        List<string> stored = [];
+        await _factory.WithDbAsync(async db => stored = await db.Database
+            .SqlQuery<string>($"""SELECT "Error" || '|' || "BlockReason" AS "Value" FROM "DownloadJobs" """)
+            .ToListAsync(cancellationToken));
+        Assert.Equal([$"{OlderError}|{OlderBlockReason}"], stored);
         await AssertUnchangedAsync(before, cancellationToken);
     }
 

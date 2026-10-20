@@ -1,0 +1,74 @@
+{
+  "search": {
+    "text-missing": "Введіть назву, яку треба знайти.",
+    "text-too-long_one": "Текст пошуку може містити щонайбільше {{count, number}} символ.",
+    "text-too-long_few": "Текст пошуку може містити щонайбільше {{count, number}} символи.",
+    "text-too-long_many": "Текст пошуку може містити щонайбільше {{count, number}} символів.",
+    "text-too-long_other": "Текст пошуку може містити щонайбільше {{count, number}} символу.",
+    "text-control-characters": "Текст пошуку не може містити розривів рядків чи інших керувальних символів.",
+    "year-invalid": "Значення «{{value}}» не є роком.",
+    "season-invalid": "Значення «{{value}}» не є сезоном. Вкажіть номер сезону, наприклад 1, або 0 для спецвипусків.",
+    "imdb-id-invalid": "Значення «{{value}}» не є IMDb ID — такий ID має вигляд tt0816692.",
+    "tmdb-id-invalid": "Значення «{{value}}» не є TMDb ID — такий ID є числом, наприклад 157336."
+  },
+  "list": {
+    "source-unknown": "Значення «{{value}}» не є джерелом релізів.",
+    "kind-unknown": "Значення «{{value}}» не є фільтром типу. Вкажіть Movie або Tv.",
+    "language-invalid": "Значення «{{value}}» не є кодом мови. Вкажіть трилітерний код, наприклад ukr, або unknown.",
+    "resolution-invalid": "Значення «{{value}}» не є роздільною здатністю. Вкажіть роздільну здатність, наприклад 1080, або unknown.",
+    "size-invalid": "Значення «{{value}}» не є розміром у байтах.",
+    "size-range": "Найменший розмір не може бути більшим за найбільший.",
+    "sort-unknown": "Значення «{{value}}» не є порядком сортування. Вкажіть seeders, largest, smallest, newest або quality."
+  },
+  "source": {
+    "type-unavailable": "Ця версія застосунку не може шукати релізи через сервіс «{{type}}».",
+    "no-usable-search": "Джерело «{{source}}» не пропонує пошуку, яким застосунок міг би скористатися: ні пошуку за текстом, ні пошуку фільмів чи серіалів за назвою або за запитаним ID.",
+    "no-usable-season-search": "Джерело «{{source}}» не пропонує пошуку сезону, яким застосунок міг би скористатися: немає категорії серіалів або немає ні пошуку за текстом, ні пошуку серіалів за назвою чи за запитаним ID."
+  },
+  "mcp": {
+    "search": {
+      "found_one": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}; на першій сторінці — {{shown, number}}; у медіатеці є {{count, number}} відповідний твір.",
+      "found_few": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}; на першій сторінці — {{shown, number}}; у медіатеці є {{count, number}} відповідні твори.",
+      "found_many": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}; на першій сторінці — {{shown, number}}; у медіатеці є {{count, number}} відповідних творів.",
+      "found_other": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}; на першій сторінці — {{shown, number}}; у медіатеці є {{count, number}} відповідного твору.",
+      "found-none": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}; на першій сторінці — {{shown, number}}; у медіатеці немає відповідних творів.",
+      "found-filtered_one": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}, після фільтрів — {{passing, number}}; на першій сторінці — {{shown, number}}; у медіатеці є {{count, number}} відповідний твір.",
+      "found-filtered_few": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}, після фільтрів — {{passing, number}}; на першій сторінці — {{shown, number}}; у медіатеці є {{count, number}} відповідні твори.",
+      "found-filtered_many": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}, після фільтрів — {{passing, number}}; на першій сторінці — {{shown, number}}; у медіатеці є {{count, number}} відповідних творів.",
+      "found-filtered_other": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}, після фільтрів — {{passing, number}}; на першій сторінці — {{shown, number}}; у медіатеці є {{count, number}} відповідного твору.",
+      "found-filtered-none": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}, після фільтрів — {{passing, number}}; на першій сторінці — {{shown, number}}; у медіатеці немає відповідних творів.",
+      "found-unanswered_one": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}; на першій сторінці — {{shown, number}}; {{unanswered, list:comma:message}}; у медіатеці є {{count, number}} відповідний твір.",
+      "found-unanswered_few": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}; на першій сторінці — {{shown, number}}; {{unanswered, list:comma:message}}; у медіатеці є {{count, number}} відповідні твори.",
+      "found-unanswered_many": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}; на першій сторінці — {{shown, number}}; {{unanswered, list:comma:message}}; у медіатеці є {{count, number}} відповідних творів.",
+      "found-unanswered_other": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}; на першій сторінці — {{shown, number}}; {{unanswered, list:comma:message}}; у медіатеці є {{count, number}} відповідного твору.",
+      "found-unanswered-none": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}; на першій сторінці — {{shown, number}}; {{unanswered, list:comma:message}}; у медіатеці немає відповідних творів.",
+      "found-filtered-unanswered_one": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}, після фільтрів — {{passing, number}}; на першій сторінці — {{shown, number}}; {{unanswered, list:comma:message}}; у медіатеці є {{count, number}} відповідний твір.",
+      "found-filtered-unanswered_few": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}, після фільтрів — {{passing, number}}; на першій сторінці — {{shown, number}}; {{unanswered, list:comma:message}}; у медіатеці є {{count, number}} відповідні твори.",
+      "found-filtered-unanswered_many": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}, після фільтрів — {{passing, number}}; на першій сторінці — {{shown, number}}; {{unanswered, list:comma:message}}; у медіатеці є {{count, number}} відповідних творів.",
+      "found-filtered-unanswered_other": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}, після фільтрів — {{passing, number}}; на першій сторінці — {{shown, number}}; {{unanswered, list:comma:message}}; у медіатеці є {{count, number}} відповідного твору.",
+      "found-filtered-unanswered-none": "Знайдено {{releases, message}} за запитом «{{text}}» у {{sources, message}}, після фільтрів — {{passing, number}}; на першій сторінці — {{shown, number}}; {{unanswered, list:comma:message}}; у медіатеці немає відповідних творів.",
+      "not-searched-clause": "пошук у джерелі «{{source}}» не виконано ({{reason}})",
+      "failed-clause": "пошук у джерелі «{{source}}» не вдався ({{status}})"
+    },
+    "tally": {
+      "releases_one": "{{count, number}} реліз",
+      "releases_few": "{{count, number}} релізи",
+      "releases_many": "{{count, number}} релізів",
+      "releases_other": "{{count, number}} релізу",
+      "sources_one": "{{count, number}} джерелі релізів",
+      "sources_few": "{{count, number}} джерелах релізів",
+      "sources_many": "{{count, number}} джерелах релізів",
+      "sources_other": "{{count, number}} джерела релізів"
+    },
+    "list": {
+      "filtered_one": "Фільтрам відповідає {{count, number}} реліз цього пошуку; на сторінці {{page, number}} — {{shown, number}}.",
+      "filtered_few": "Фільтрам відповідають {{count, number}} релізи цього пошуку; на сторінці {{page, number}} — {{shown, number}}.",
+      "filtered_many": "Фільтрам відповідають {{count, number}} релізів цього пошуку; на сторінці {{page, number}} — {{shown, number}}.",
+      "filtered_other": "Фільтрам відповідає {{count, number}} релізу цього пошуку; на сторінці {{page, number}} — {{shown, number}}.",
+      "held_one": "Цей пошук містить {{count, number}} реліз; на сторінці {{page, number}} — {{shown, number}}.",
+      "held_few": "Цей пошук містить {{count, number}} релізи; на сторінці {{page, number}} — {{shown, number}}.",
+      "held_many": "Цей пошук містить {{count, number}} релізів; на сторінці {{page, number}} — {{shown, number}}.",
+      "held_other": "Цей пошук містить {{count, number}} релізу; на сторінці {{page, number}} — {{shown, number}}."
+    }
+  }
+}

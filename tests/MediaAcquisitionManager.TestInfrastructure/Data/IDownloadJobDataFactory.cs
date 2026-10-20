@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -29,7 +30,7 @@ public interface IDownloadJobDataFactory
         string? infoHashV2 = null,
         string? clientJobId = null,
         double? progress = null,
-        string? blockReason = null,
+        Message? blockReason = null,
         DownloadJobErrorOrigin? blockReasonOrigin = null,
         DownloadOverwriteCheck? overwriteCheck = null,
         DownloadDestinationKind? destinationKind = null);

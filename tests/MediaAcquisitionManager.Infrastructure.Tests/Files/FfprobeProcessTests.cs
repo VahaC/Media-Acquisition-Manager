@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -82,7 +83,7 @@ public sealed class FfprobeProcessTests : IDisposable
         Assert.Null(result.Output);
         // The stub writes what real ffprobe does for a cut-off file: an empty line, a demuxer's noise, then
         // "file:<path>: I/O error". The verdict is the reason; the sentence names the file itself.
-        Assert.Equal("it said “I/O error”", result.Reason);
+        Assert.Equal("it said “I/O error”", TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -99,7 +100,7 @@ public sealed class FfprobeProcessTests : IDisposable
         //Assert
         // Not the bare "Invalid argument": the owner learns what the file really is.
         Assert.Equal(MediaProbeStatus.Failed, result.Status);
-        Assert.Equal("its content is “concat”, which isn't a media container the app reads", result.Reason);
+        Assert.Equal("its content is “concat”, which isn't a media container the app reads", TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -113,7 +114,7 @@ public sealed class FfprobeProcessTests : IDisposable
 
         //Assert
         // The stub writes an empty line first: the first line that says anything.
-        Assert.Equal((MediaProbeStatus.Failed, "it said “Something went wrong”"), (result.Status, result.Reason));
+        Assert.Equal((MediaProbeStatus.Failed, "it said “Something went wrong”"), (result.Status, TestTexts.En(result.Reason)));
     }
 
     [Fact]
@@ -127,7 +128,7 @@ public sealed class FfprobeProcessTests : IDisposable
 
         //Assert
         Assert.Equal(MediaProbeStatus.Failed, result.Status);
-        Assert.Equal("it stopped with exit code 3", result.Reason);
+        Assert.Equal("it stopped with exit code 3", TestTexts.En(result.Reason));
     }
 
     [Fact(Timeout = 60_000)]
@@ -142,7 +143,7 @@ public sealed class FfprobeProcessTests : IDisposable
 
         //Assert
         Assert.Equal(MediaProbeStatus.Failed, result.Status);
-        Assert.Equal("it didn't finish within 1 second", result.Reason);
+        Assert.Equal("it didn't finish within 1 second", TestTexts.En(result.Reason));
         // Returning at all proves the stub's child was killed too: it held the pipes open for ten minutes.
         Assert.InRange(stopwatch.Elapsed, TimeSpan.FromSeconds(1), KillDeadline);
     }
@@ -176,7 +177,7 @@ public sealed class FfprobeProcessTests : IDisposable
         //Assert
         Assert.Equal(MediaProbeStatus.Unavailable, result.Status);
         // ENOENT and ERROR_FILE_NOT_FOUND are both 2.
-        Assert.Equal(Marshal.GetPInvokeErrorMessage(2), result.Reason);
+        Assert.Equal(Marshal.GetPInvokeErrorMessage(2), result.StartError);
     }
 
     [Fact]
@@ -192,7 +193,7 @@ public sealed class FfprobeProcessTests : IDisposable
         //Assert
         Assert.Equal(MediaProbeStatus.Failed, result.Status);
         Assert.Null(result.Output);
-        Assert.Equal("it printed more than 4 KiB", result.Reason);
+        Assert.Equal("it printed more than 4 KiB", TestTexts.En(result.Reason));
     }
 
     [Fact(Timeout = 60_000)]
@@ -229,7 +230,7 @@ public sealed class FfprobeProcessTests : IDisposable
         //Assert
         Assert.Equal(MediaProbeStatus.Failed, result.Status);
         Assert.Null(result.Output);
-        Assert.Equal("its content is “concat”, which isn't a media container the app reads", result.Reason);
+        Assert.Equal("its content is “concat”, which isn't a media container the app reads", TestTexts.En(result.Reason));
     }
 
     [Fact]

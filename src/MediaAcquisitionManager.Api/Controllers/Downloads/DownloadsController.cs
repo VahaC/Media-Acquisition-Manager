@@ -39,9 +39,9 @@ public class DownloadsController(IDownloadService downloads, IPersonalAccessToke
         return result.Status switch
         {
             DownloadOptionsStatus.Listed => Ok(result.Options),
-            DownloadOptionsStatus.Invalid => this.BadRequestError(result.Error),
+            DownloadOptionsStatus.Invalid => this.BadRequestError(result.Error!),
             // A release id in the query, not the addressed row, so the dialog gets the sentence.
-            _ => this.NotFoundError(result.Error),
+            _ => this.NotFoundError(result.Error!),
         };
     }
 
@@ -57,9 +57,9 @@ public class DownloadsController(IDownloadService downloads, IPersonalAccessToke
         return result.Status switch
         {
             DownloadOverwriteCheckStatus.Answered => Ok(result.Answer),
-            DownloadOverwriteCheckStatus.Invalid => this.BadRequestError(result.Error),
+            DownloadOverwriteCheckStatus.Invalid => this.BadRequestError(result.Error!),
             // A destination id in the query, not the addressed row, so the dialog gets the sentence.
-            _ => this.NotFoundError(result.Error),
+            _ => this.NotFoundError(result.Error!),
         };
     }
 
@@ -81,13 +81,13 @@ public class DownloadsController(IDownloadService downloads, IPersonalAccessToke
         {
             DownloadSendStatus.Created => CreatedAtAction(nameof(Get), new { id = result.Job!.Id }, result.Job),
             DownloadSendStatus.Replayed => Ok(result.Job),
-            DownloadSendStatus.Invalid => this.BadRequestError(result.Error),
+            DownloadSendStatus.Invalid => this.BadRequestError(result.Error!),
             // Ids in the body, not the addressed row, so the dialog gets the sentence.
             DownloadSendStatus.ReleaseMissing or DownloadSendStatus.ClientMissing or DownloadSendStatus.DestinationMissing =>
-                this.NotFoundError(result.Error),
+                this.NotFoundError(result.Error!),
             // The request id used for something else, a client or a source that can't be used, or a release
             // already sent to the client.
-            _ => this.ConflictError(result.Error),
+            _ => this.ConflictError(result.Error!),
         };
     }
 
@@ -105,7 +105,7 @@ public class DownloadsController(IDownloadService downloads, IPersonalAccessToke
         return result.Status switch
         {
             DownloadJobListStatus.Listed => Ok(result.List),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -119,7 +119,7 @@ public class DownloadsController(IDownloadService downloads, IPersonalAccessToke
         return result.Status switch
         {
             DownloadJobFileListStatus.Listed => Ok(result.List),
-            DownloadJobFileListStatus.Invalid => this.BadRequestError(result.Error),
+            DownloadJobFileListStatus.Invalid => this.BadRequestError(result.Error!),
             _ => NotFound(),
         };
     }
@@ -148,7 +148,7 @@ public class DownloadsController(IDownloadService downloads, IPersonalAccessToke
         return result.Status switch
         {
             DownloadCancelStatus.Cancelled => Ok(result.Job),
-            DownloadCancelStatus.NothingToStop or DownloadCancelStatus.StillBeingSent => this.ConflictError(result.Error),
+            DownloadCancelStatus.NothingToStop or DownloadCancelStatus.StillBeingSent => this.ConflictError(result.Error!),
             _ => NotFound(),
         };
     }

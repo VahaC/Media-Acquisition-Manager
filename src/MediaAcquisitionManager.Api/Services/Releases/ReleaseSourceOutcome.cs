@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Releases;
 
@@ -14,7 +15,8 @@ namespace MediaAcquisitionManager.Api.Services.Releases;
 /// <param name="Name">Its name when it was read for the search.</param>
 /// <param name="Status">How the call went; <c>null</c> when the app didn't ask it.</param>
 /// <param name="NotSearchedReason">Why the app didn't ask it; <c>null</c> when it did.</param>
-/// <param name="Error">The sentence saying what went wrong, for the owner; <c>null</c> when nothing did.</param>
+/// <param name="Error">What went wrong, for the owner, as a message the Api renders (ADR 0042); <c>null</c> when nothing
+/// did, and for a source the newest releases or a search of one kind of work didn't ask, which no reader is shown.</param>
 /// <param name="Hits">What it listed; empty unless it succeeded.</param>
 /// <param name="Categories">Its categories, for naming the ones a release is listed in; empty unless it
 /// succeeded.</param>
@@ -23,6 +25,6 @@ public sealed record ReleaseSourceOutcome(
     string Name,
     IntegrationCallStatus? Status,
     ReleaseSourceNotSearchedReason? NotSearchedReason,
-    string? Error,
+    Message? Error,
     IReadOnlyList<ReleaseSearchHit> Hits,
     IReadOnlyList<ReleaseCategory> Categories);

@@ -1,4 +1,3 @@
-using System.Globalization;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Search;
 using MediaAcquisitionManager.Core.Abstractions.Media;
@@ -11,7 +10,7 @@ using MediaAcquisitionManager.Core.Search;
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
 // MAM-24 — which works and copies a release offers (ADR 0032): the work-level reasons, a series' claimed episodes at
-// their places, and the confirmation's own words.
+// their places, and what the release claims of each, which its confirmation says (ReplacementConfirmation).
 public sealed partial class ReplacementCandidateReader
 {
     /// <summary>
@@ -49,7 +48,7 @@ public sealed partial class ReplacementCandidateReader
             _ when isTv && episodes.Count == 0 => ReplacementWorkUnavailableReason.NoClaimedEpisodes,
             _ => null,
         };
-        return new WorkPlan(match, work.Work.Kind, title, work.Work.Year, ConfirmationTextOf(title, work.Work.Year, isTv ? claimed : null, isTv), unavailable, episodes);
+        return new WorkPlan(match, work.Work.Kind, title, work.Work.Year, claimed, unavailable, episodes);
     }
 
     /// <summary>
@@ -125,37 +124,13 @@ public sealed partial class ReplacementCandidateReader
     private static string? TitleOf(IReadOnlyList<MediaWorkTitleEntity> titles) =>
         (LibraryMapper.FirstInTitleOrder(titles, MediaTitleKind.Display) ?? LibraryMapper.FirstInTitleOrder(titles, MediaTitleKind.Original))?.Text;
 
-    /// <summary>
-    /// R3 — the confirmation's own words, built here once for the dialog, the refusal and the audit row: "This release
-    /// is Alien (1979)", "This release is Alien" without a year; a series with its year when known and what the
-    /// release claims of it — ", season 2", ", seasons 1–5", ", season 2, episodes 1–5", ", season 2, episode 3".
-    /// </summary>
-    private static string ConfirmationTextOf(string? title, int? year, ClaimedEpisodes? claimed, bool isTv)
-    {
-        var name = title ?? "a work with no title";
-        var work = year is { } known ? string.Create(CultureInfo.InvariantCulture, $"{name} ({known})") : name;
-        if (!isTv || claimed is null)
-            return $"This release is {work}";
-
-        var seasons = claimed.FirstSeason == claimed.LastSeason
-            ? string.Create(CultureInfo.InvariantCulture, $"season {claimed.FirstSeason}")
-            : string.Create(CultureInfo.InvariantCulture, $"seasons {claimed.FirstSeason}–{claimed.LastSeason}");
-        var episodes = claimed switch
-        {
-            { FirstEpisode: { } first, LastEpisode: { } last } when first == last =>
-                string.Create(CultureInfo.InvariantCulture, $", episode {first}"),
-            { FirstEpisode: { } first, LastEpisode: { } last } => string.Create(CultureInfo.InvariantCulture, $", episodes {first}–{last}"),
-            _ => "",
-        };
-        return $"This release is {work}, {seasons}{episodes}";
-    }
-
     /// <summary>One matched work before its copies are read.</summary>
     /// <param name="Match">How the release matched it.</param>
     /// <param name="Kind">Its kind.</param>
     /// <param name="Title">Its title, displayed else original.</param>
     /// <param name="Year">Its year.</param>
-    /// <param name="ConfirmationText">The confirmation's words, before twins are told apart.</param>
+    /// <param name="Claimed">What the release claims of a series, which its confirmation says; <c>null</c> for a film, or
+    /// a series whose title claims no season.</param>
     /// <param name="Unavailable">Why none of its copies can be replaced.</param>
     /// <param name="Episodes">A series' claimed held episodes in their order; none for a film.</param>
     private sealed record WorkPlan(
@@ -163,7 +138,7 @@ public sealed partial class ReplacementCandidateReader
         MediaWorkKind Kind,
         string? Title,
         int? Year,
-        string ConfirmationText,
+        ClaimedEpisodes? Claimed,
         ReplacementWorkUnavailableReason? Unavailable,
         IReadOnlyList<EpisodePlan> Episodes);
 

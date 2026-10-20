@@ -4,10 +4,12 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Recommendations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -24,11 +26,15 @@ public sealed class RecommendationRunStartHttpTests : IClassFixture<MediaAcquisi
 {
     private const string BaseUrl = "/api/recommendations/runs";
     private const string LatestUrl = "/api/recommendations/runs/latest";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
     private const string NoCatalogError = "Connect a metadata catalog under Integrations first.";
     private const string QueueFullError = "Too many recommendation runs are waiting. Try again in a minute.";
-    private const string FailedError = "TMDb refused the key (401 Unauthorized).";
+    private const string FailedError =
+        "TMDb refused the key (401 Unauthorized). Enter the API Read Access Token from themoviedb.org → Settings → API, not the shorter API key.";
+
+    // MAM-47 (ADR 0042) — what the TMDb adapter stores when the catalog refuses the key, as a message.
+    private static readonly Message KeyRefused = Message.Of("tmdb.key-refused");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IRecommendationRunSeeder _runs = null!;
@@ -219,12 +225,12 @@ public sealed class RecommendationRunStartHttpTests : IClassFixture<MediaAcquisi
 
         //Assert
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Equal(QueueFullError, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal((QueueFullError, "recommendations.run.queue-full"), await response.ReadErrorBodyAsync(cancellationToken));
         await _factory.WithDbAsync(async db =>
         {
             // Failed, not left queued: a queued run no worker will take would be joined by every later request.
             var row = await db.RecommendationRuns.SingleAsync(cancellationToken);
-            Assert.Equal((RecommendationRunStatus.Failed, QueueFullError, now), (row.Status, row.Error, row.FinishedUtc));
+            Assert.Equal((RecommendationRunStatus.Failed, QueueFullError, now), (row.Status, TestTexts.En(row.Error), row.FinishedUtc));
             Assert.Equal((RecommendationRunTrigger.Requested, "owner"), (row.Trigger, row.RequestedByUserName));
         });
         // Warning, so it ships off the box: a full queue means the worker is stuck.
@@ -283,7 +289,7 @@ public sealed class RecommendationRunStartHttpTests : IClassFixture<MediaAcquisi
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var at = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-10);
-        var failed = await _runs.Create(RecommendationRunStatus.Failed, requestedBy: _owner.User, createdUtc: at, error: FailedError);
+        var failed = await _runs.Create(RecommendationRunStatus.Failed, requestedBy: _owner.User, createdUtc: at, error: KeyRefused);
 
         //Act
         var response = await _factory.GetHttpRequest(LatestUrl, _owner.AccessToken);
@@ -301,7 +307,7 @@ public sealed class RecommendationRunStartHttpTests : IClassFixture<MediaAcquisi
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var at = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-10);
-        var failed = await _runs.Create(RecommendationRunStatus.Failed, requestedBy: _owner.User, createdUtc: at, error: FailedError);
+        var failed = await _runs.Create(RecommendationRunStatus.Failed, requestedBy: _owner.User, createdUtc: at, error: KeyRefused);
 
         //Act
         var response = await _factory.GetHttpRequest(LatestUrl, _member.AccessToken);

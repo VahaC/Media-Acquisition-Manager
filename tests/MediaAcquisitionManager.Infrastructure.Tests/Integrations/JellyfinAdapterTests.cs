@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -71,7 +72,7 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to Jellyfin 12.1.0 (VahaC media).", result.Message);
+        Assert.Equal("Connected to Jellyfin 12.1.0 (VahaC media).", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -88,7 +89,7 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to Jellyfin 12.1.0.", result.Message);
+        Assert.Equal("Connected to Jellyfin 12.1.0.", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -108,7 +109,7 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal($"Connected to Jellyfin {version} (VahaC media).", result.Message);
+        Assert.Equal($"Connected to Jellyfin {version} (VahaC media).", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -130,7 +131,7 @@ public sealed class JellyfinAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
         Assert.Equal(
             $"This is Jellyfin {version}; the app reads libraries from Jellyfin 10.9 or later. Update Jellyfin, then test again.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -153,7 +154,7 @@ public sealed class JellyfinAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
         Assert.Equal(
             $"Jellyfin reported the version “{version}”, which the app can't compare with 10.9, the oldest version it reads libraries from.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -170,8 +171,8 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
-        Assert.Equal(expectedMessage, result.Message);
-        Assert.DoesNotContain(ApiKey, result.Message, StringComparison.Ordinal);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Message));
+        Assert.DoesNotContain(ApiKey, TestTexts.En(result.Message), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -238,7 +239,7 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Message);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -253,7 +254,7 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("The service at this address is Emby Server, not Jellyfin.", result.Message);
+        Assert.Equal("The service at this address is Emby Server, not Jellyfin.", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -277,7 +278,7 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotJellyfinError, result.Message);
+        Assert.Equal(NotJellyfinError, TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -299,7 +300,7 @@ public sealed class JellyfinAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             expectedStart + "Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Message);
+            TestTexts.En(result.Message));
         // Never followed: the key went nowhere but the address the owner entered.
         Assert.Single(_harness.JellyfinHttp.Requests);
     }
@@ -318,8 +319,8 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Message);
-        Assert.DoesNotContain("Socket failure", result.Message, StringComparison.Ordinal);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Message));
+        Assert.DoesNotContain("Socket failure", TestTexts.En(result.Message), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -336,7 +337,7 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("The answer from http://jellyfin.test:8096 is far larger than anything Jellyfin sends. Check the address.", result.Message);
+        Assert.Equal("The answer from http://jellyfin.test:8096 is far larger than anything Jellyfin sends. Check the address.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -354,7 +355,7 @@ public sealed class JellyfinAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Unreachable, result.Status);
         Assert.Equal(
             "Couldn't reach Jellyfin at http://127.0.0.1:9: nothing accepted the connection. Check the address and port, and that Jellyfin is running.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -370,7 +371,7 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("Jellyfin at http://jellyfin.test:8096 didn't answer within 0.1 seconds.", result.Message);
+        Assert.Equal("Jellyfin at http://jellyfin.test:8096 didn't answer within 0.1 seconds.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -389,7 +390,7 @@ public sealed class JellyfinAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
         Assert.Equal(
             "Jellyfin at http://jellyfin.test:8096 didn't accept the connection within 5 seconds. Check the address and port, and that Jellyfin is running.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -427,7 +428,7 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to Jellyfin 12.1.0 (Homegnp.exe media).", result.Message);
+        Assert.Equal("Connected to Jellyfin 12.1.0 (Homegnp.exe media).", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -443,7 +444,7 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal($"Connected to Jellyfin 12.1.0 ({new string('n', 99)}…).", result.Message);
+        Assert.Equal($"Connected to Jellyfin 12.1.0 ({new string('n', 99)}…).", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -463,11 +464,11 @@ public sealed class JellyfinAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal($"Connected to Jellyfin 12.1.0 ({new string('n', 90)}***).", result.Message);
+        Assert.Equal($"Connected to Jellyfin 12.1.0 ({new string('n', 90)}***).", TestTexts.En(result.Message));
         // Not 8 characters of the key in a row anywhere, the shortest value masking knows as a secret.
         Assert.All(
             Enumerable.Range(0, ApiKey.Length - 7),
-            start => Assert.DoesNotContain(ApiKey.Substring(start, 8), result.Message, StringComparison.Ordinal));
+            start => Assert.DoesNotContain(ApiKey.Substring(start, 8), TestTexts.En(result.Message), StringComparison.Ordinal));
     }
 
     // A 200 whose body never finishes arriving: the pipe is never written to or completed.

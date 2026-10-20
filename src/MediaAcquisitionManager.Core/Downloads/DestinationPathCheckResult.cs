@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Core.Downloads;
 
 /// <summary>
@@ -14,26 +16,26 @@ namespace MediaAcquisitionManager.Core.Downloads;
 /// <param name="LibraryNames">The libraries one of whose folders holds it, each once, in the order of
 /// their first folder that does; empty unless <see cref="DestinationPathStatus.InLibrary"/> or — MAM-30 —
 /// <see cref="DestinationPathStatus.FolderNotSeen"/>, where they name the folder the client can't see.</param>
-/// <param name="Problem">One readable sentence saying what is wrong and what follows from it; <c>null</c>
+/// <param name="Problem">What is wrong and what follows from it, as a message the Api renders (ADR 0042); <c>null</c>
 /// only for <see cref="DestinationPathStatus.InLibrary"/>.</param>
 public sealed record DestinationPathCheckResult(
     DestinationPathStatus Status,
     string? ServicePath,
     string? AppPath,
     IReadOnlyList<string> LibraryNames,
-    string? Problem)
+    Message? Problem)
 {
     /// <summary>
     /// The download client integration is switched off, so nothing was asked; <paramref name="problem"/>
     /// says so in the words of the page that shows it.
     /// </summary>
-    public static DestinationPathCheckResult ClientDisabled(string problem) =>
+    public static DestinationPathCheckResult ClientDisabled(Message problem) =>
         new(DestinationPathStatus.ClientDisabled, null, null, [], problem);
 
     /// <summary>
-    /// The client couldn't be asked; <paramref name="problem"/> is why — the adapter's sentence, or the
+    /// The client couldn't be asked; <paramref name="problem"/> is why — the adapter's message, or the
     /// app's own when the type isn't registered or the stored secret can't be read.
     /// </summary>
-    public static DestinationPathCheckResult ClientUnavailable(string problem) =>
+    public static DestinationPathCheckResult ClientUnavailable(Message problem) =>
         new(DestinationPathStatus.ClientUnavailable, null, null, [], problem);
 }

@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Files;
 
@@ -253,7 +254,7 @@ internal sealed partial class LocalFileQuarantine : IFileQuarantine
     /// Where the folder <paramref name="folder"/> really is, through the checks of a look; a folder that isn't there
     /// answers with <paramref name="notFound"/>, the sentence about what the caller wanted of it.
     /// </summary>
-    private static FileQuarantineResult<NormalizedPath> Located(NormalizedPath folder, IReadOnlyList<string> allowedRoots, string notFound)
+    private static FileQuarantineResult<NormalizedPath> Located(NormalizedPath folder, IReadOnlyList<string> allowedRoots, Message notFound)
     {
         var located = LocalFileInventory.Locate(folder.ToString(), allowedRoots);
         return located.Status switch
@@ -285,8 +286,10 @@ internal sealed partial class LocalFileQuarantine : IFileQuarantine
     }
 
     /// <summary>A look's refusal as the quarantine's: the same sentence, the status that says the same.</summary>
-    private static FileQuarantineResult<T> FromInventory<T>(FileInventoryStatus status, string? error) where T : class =>
-        Refused<T>(
+    /// <remarks>MAM-47 — the message travels as it is, as <see cref="Relay{TFrom, T}"/> carries one: every refusal of a look
+    /// has one, and a look's empty one was never written.</remarks>
+    private static FileQuarantineResult<T> FromInventory<T>(FileInventoryStatus status, Message? error) where T : class =>
+        new(
             status switch
             {
                 FileInventoryStatus.OutsideAllowedRoots => FileQuarantineStatus.OutsideAllowedRoots,
@@ -294,7 +297,8 @@ internal sealed partial class LocalFileQuarantine : IFileQuarantine
                 FileInventoryStatus.NotARegularFile => FileQuarantineStatus.Changed,
                 _ => FileQuarantineStatus.Failed,
             },
-            error ?? "");
+            null,
+            error);
 
     private static NormalizedPath FolderOf(NormalizedPath path) => path with { Segments = [.. path.Segments.SkipLast(1)] };
 
@@ -369,7 +373,7 @@ internal sealed partial class LocalFileQuarantine : IFileQuarantine
 
     private static FileQuarantineResult<T> Done<T>(T value) where T : class => new(FileQuarantineStatus.Done, value, null);
 
-    private static FileQuarantineResult<T> Refused<T>(FileQuarantineStatus status, string error) where T : class => new(status, null, error);
+    private static FileQuarantineResult<T> Refused<T>(FileQuarantineStatus status, Message error) where T : class => new(status, null, error);
 
     private static FileQuarantineResult<T> Relay<TFrom, T>(FileQuarantineResult<TFrom> refusal) where TFrom : class where T : class =>
         new(refusal.Status, null, refusal.Error);

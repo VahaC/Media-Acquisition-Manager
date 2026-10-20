@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 
@@ -32,6 +33,12 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 /// Transmission 4.0 or newer only (Vasyl's decision 2): <c>labels</c> in <c>torrent-add</c>, which carries a
 /// destination's name, came with 4.0's RPC version 17.
 /// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — every sentence is a key of <c>transmission.json</c> (or, where qBittorrent's words are the same
+/// but for the name, of <c>integrations.json</c> through <see cref="IntegrationAdapterMessages"/>) and its values:
+/// Transmission's own words — a <c>result</c>, a folder, its labels, its version — are vendor values, cleaned and masked
+/// where they are read (<see cref="VendorText.Clean"/>).
+/// </para>
 /// </remarks>
 internal sealed partial class TransmissionAdapter(IHttpClientFactory httpClients)
     : HttpIntegrationAdapter(httpClients, HttpClientName), IDownloadClient
@@ -41,6 +48,10 @@ internal sealed partial class TransmissionAdapter(IHttpClientFactory httpClients
 
     /// <summary>The named client this adapter's requests go through, so a test can swap its handler.</summary>
     public const string HttpClientName = TypeId;
+
+    /// <summary>MAM-47 — the service's name, which the descriptor shows and the sentences shared with the other adapters
+    /// name it by (<see cref="IntegrationAdapterMessages"/>), static readers included.</summary>
+    private const string DisplayName = "Transmission";
 
     /// <summary>The RPC method that reads Transmission's version and settings, which every call starts with.</summary>
     internal const string SessionGetMethod = "session-get";
@@ -72,7 +83,7 @@ internal sealed partial class TransmissionAdapter(IHttpClientFactory httpClients
     /// <summary>The longest text of Transmission's a sentence quotes, such as a <c>result</c>: its sentences are short.</summary>
     private const int ResultMaximumLength = 300;
 
-    private const string NotTransmissionError = "The service at this address answered, but not the way Transmission does.";
+    private static readonly Message NotTransmissionError = Message.Of("transmission.not-transmission");
 
     /// <summary><c>rpc-version-semver</c> 5.3.0 is Transmission 4.0.0; 4.0 also sends it first.</summary>
     private static readonly Version MinimumSemver = new(5, 3, 0);
@@ -90,7 +101,7 @@ internal sealed partial class TransmissionAdapter(IHttpClientFactory httpClients
     /// <inheritdoc/>
     public override IntegrationAdapterDescriptor Descriptor { get; } = new(
         TypeId,
-        "Transmission",
+        DisplayName,
         IntegrationKind.DownloadClient,
         // Optional: Transmission asks for no password unless rpc-authentication-required is on; without one it takes any
         // credentials or none (MAM-29).
@@ -128,7 +139,7 @@ internal sealed partial class TransmissionAdapter(IHttpClientFactory httpClients
     {
         var call = NewCall(settings, isTest: true, sessionSecrets);
         var (session, failure) = await OpenAsync(client, call, sessionSecrets, cancellationToken);
-        return failure ?? ConnectionTestResult.Succeeded($"Connected to Transmission {session!.Version}.");
+        return failure ?? ConnectionTestResult.Succeeded(IntegrationAdapterMessages.Connected(DisplayName, session!.Version));
     }
 
     /// <summary>
@@ -188,7 +199,7 @@ internal sealed partial class TransmissionAdapter(IHttpClientFactory httpClients
     /// </remarks>
     private static (SessionFacts? Session, ConnectionTestResult? Failure) ReadSession(JsonElement arguments, string?[] secrets)
     {
-        if (Text(arguments, "version") is not { } reported || ShortVersion(reported, secrets) is not { Length: > 0 } version)
+        if (Text(arguments, "version") is not { } reported || ShortVersion(reported, secrets) is not { Text.Length: > 0 } version)
             return (null, ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotTransmissionError));
 
         switch (IsAtLeast(arguments, MinimumSemver, MinimumRpcVersion))
@@ -197,18 +208,16 @@ internal sealed partial class TransmissionAdapter(IHttpClientFactory httpClients
                 return (null, ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotTransmissionError));
             case false:
                 return (null, ConnectionTestResult.Failed(
-                    IntegrationCallStatus.UnsupportedVersion,
-                    $"This is Transmission {version}; the app needs Transmission 4.0 or newer. Update Transmission, then test again."));
+                    IntegrationCallStatus.UnsupportedVersion, Message.Of("transmission.too-old", ("version", version))));
         }
 
         if (Text(arguments, "download-dir") is not { } downloadDir || Flag(arguments, "incomplete-dir-enabled") is not { } temporaryFolderOn)
             return (null, ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotTransmissionError));
         if (temporaryFolderOn)
         {
-            var temporaryFolder = RemoteText.Clean(Text(arguments, "incomplete-dir"), FolderMaximumLength, secrets);
+            var temporaryFolder = VendorText.Clean(Text(arguments, "incomplete-dir"), FolderMaximumLength, secrets);
             return (null, ConnectionTestResult.Failed(
-                IntegrationCallStatus.Refused,
-                $"Transmission keeps unfinished downloads in its temporary folder “{temporaryFolder}”, where the app can't follow them. In Transmission's web interface open Edit preferences, Torrents, untick “Use temporary folder”, then test again."));
+                IntegrationCallStatus.Refused, Message.Of("transmission.temporary-folder", ("folder", temporaryFolder))));
         }
 
         var cleansByOperatingSystem = IsAtLeast(arguments, CleansNamesByOperatingSystemSemver, CleansNamesByOperatingSystemRpcVersion) == true;
@@ -250,11 +259,11 @@ internal sealed partial class TransmissionAdapter(IHttpClientFactory httpClients
     /// The version as a sentence shows it: <c>version</c>'s first word — <c>4.1.3</c> of <c>4.1.3 (838877323f)</c>, its
     /// build left out — cleaned of anything a service shouldn't put into a sentence.
     /// </summary>
-    private static string ShortVersion(string reported, string?[] secrets)
+    private static VendorText ShortVersion(string reported, string?[] secrets)
     {
         var trimmed = reported.Trim();
         var end = trimmed.IndexOfAny([' ', '\t', '(']);
-        return RemoteText.Clean(end < 0 ? trimmed : trimmed[..end], VersionMaximumLength, secrets);
+        return VendorText.Clean(end < 0 ? trimmed : trimmed[..end], VersionMaximumLength, secrets);
     }
 
     /// <summary><c>5.3.0</c>, or <c>6.0.1</c>: three ASCII numbers, anything after them ignored.</summary>
@@ -268,5 +277,5 @@ internal sealed partial class TransmissionAdapter(IHttpClientFactory httpClients
     /// What <c>session-get</c> told a call: the version as sentences show it, the default download folder exactly as sent,
     /// and how this Transmission cleans a torrent's name (D20; <c>null</c> when it can't be told).
     /// </summary>
-    private sealed record SessionFacts(string Version, string DownloadDir, Func<string, IReadOnlyList<string>>? NameReading);
+    private sealed record SessionFacts(VendorText Version, string DownloadDir, Func<string, IReadOnlyList<string>>? NameReading);
 }

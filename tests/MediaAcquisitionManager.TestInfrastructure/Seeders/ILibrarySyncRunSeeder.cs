@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Seeders;
 
@@ -17,5 +18,5 @@ public interface ILibrarySyncRunSeeder
         LibrarySyncStatus status,
         UserEntity? requestedBy = null,
         DateTime? createdUtc = null,
-        string? error = null);
+        Message? error = null);
 }

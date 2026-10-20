@@ -270,7 +270,9 @@ public sealed class SetupHttpTests : IClassFixture<MediaAcquisitionManagerApiFac
 
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("This installation is already set up. Sign in instead.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(
+            ("This installation is already set up. Sign in instead.", "account.setup.already-completed"),
+            await response.ReadErrorBodyAsync(cancellationToken));
         Assert.Null(response.ReadSetCookie(RefreshCookieName));
         await _factory.WithDbAsync(async db =>
         {

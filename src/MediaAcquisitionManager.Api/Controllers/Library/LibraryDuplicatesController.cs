@@ -39,7 +39,7 @@ public class LibraryDuplicatesController(ILibraryDuplicateService duplicates, ID
         return result.Status switch
         {
             LibraryDuplicateListStatus.Listed => Ok(result.List),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -73,6 +73,6 @@ public class LibraryDuplicatesController(ILibraryDuplicateService duplicates, ID
     {
         DuplicateDecisionStatus.Done => NoContent(),
         DuplicateDecisionStatus.NotFound => NotFound(),
-        _ => this.BadRequestError(result.Error),
+        _ => this.BadRequestError(result.Error!),
     };
 }

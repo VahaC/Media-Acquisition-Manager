@@ -312,6 +312,11 @@ export interface LibrarySource {
   filesWithoutAppPathCount: number
   /** The first of those files' mapping problems. The installation owner only: null for everyone else. */
   pathProblem: string | null
+  /**
+   * MAM-47 — the key of `pathProblem`'s sentence (the API's error `code`), which names its kind whatever the language
+   * and the file: null when there is none. Optional until every server sends it; without it the words are compared.
+   */
+  pathProblemCode?: string | null
   /** MAM-9: how far the app's look at its files has got, counted when asked. */
   inspection: LibrarySourceInspection
   /** MAM-19: how much room its files take on disk, counted when asked. */
@@ -328,6 +333,8 @@ export interface LibrarySourceInspection {
   notInspectedCount: number
   /** Why the first problem file (by path) wasn't read. The installation owner only: null for everyone else. */
   problem: string | null
+  /** MAM-47 — the key of `problem`'s sentence, like `LibrarySource.pathProblemCode`. */
+  problemCode?: string | null
 }
 
 /**

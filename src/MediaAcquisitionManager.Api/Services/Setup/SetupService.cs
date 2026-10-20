@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,7 @@ public sealed class SetupService(
     TimeProvider time,
     ILogger<SetupService> logger) : ISetupService
 {
-    private const string AlreadyCompletedError = "This installation is already set up. Sign in instead.";
+    private static readonly Message AlreadyCompletedError = Message.Of("account.setup.already-completed");
 
     public async Task<SetupStatusResponse> GetStatusAsync(CancellationToken cancellationToken = default) =>
         new(IsRequired: !await db.Installations.AnyAsync(cancellationToken));

@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
@@ -6,7 +7,9 @@ using MediaAcquisitionManager.Core.Entities;
 namespace MediaAcquisitionManager.Api.Mapping;
 
 /// <inheritdoc cref="IIntegrationMapper"/>
-public sealed class IntegrationMapper : IIntegrationMapper
+/// <remarks>MAM-47 (ADR 0042) — a singleton still: the connection test's message is rendered in the language of the
+/// request being answered, which <see cref="IRequestTexts"/> reads per call.</remarks>
+public sealed class IntegrationMapper(IRequestTexts texts) : IIntegrationMapper
 {
     public IntegrationDto ToDto(IntegrationConnectionEntity connection, IntegrationAdapterDescriptor? adapter, DownloadDestinationKind? destinationKind) =>
         new(
@@ -42,5 +45,5 @@ public sealed class IntegrationMapper : IIntegrationMapper
             destinationKind,
             catalogLanguages);
 
-    public ConnectionTestResponse ToResponse(ConnectionTestResult result) => new(result.Status, result.Message);
+    public ConnectionTestResponse ToResponse(ConnectionTestResult result) => new(result.Status, texts.Render(result.Message));
 }

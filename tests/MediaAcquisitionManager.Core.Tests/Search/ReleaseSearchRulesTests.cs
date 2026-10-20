@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Search;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Search;
 
@@ -33,7 +34,7 @@ public sealed class ReleaseSearchRulesTests
         var error = ReleaseSearchRules.ValidateText(text);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Fact]
@@ -49,7 +50,7 @@ public sealed class ReleaseSearchRulesTests
 
         //Assert
         Assert.Null(longestError);
-        Assert.Equal("The search text can be at most 200 characters long.", tooLongError);
+        Assert.Equal("The search text can be at most 200 characters long.", TestTexts.En(tooLongError));
     }
 
     [Theory]
@@ -89,7 +90,7 @@ public sealed class ReleaseSearchRulesTests
         var error = ReleaseSearchRules.ValidateYear(year, out var value);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
         Assert.Null(value);
     }
 
@@ -133,7 +134,7 @@ public sealed class ReleaseSearchRulesTests
         var error = ReleaseSearchRules.ValidateSeason(season, out var value);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
         Assert.Null(value);
     }
 
@@ -165,7 +166,7 @@ public sealed class ReleaseSearchRulesTests
         var error = ReleaseSearchRules.ValidateImdbId(imdbId);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -195,6 +196,6 @@ public sealed class ReleaseSearchRulesTests
         var error = ReleaseSearchRules.ValidateTmdbId(tmdbId);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 }

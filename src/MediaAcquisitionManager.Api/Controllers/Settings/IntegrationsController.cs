@@ -30,7 +30,7 @@ public class IntegrationsController(IIntegrationConnectionService integrations) 
         return result.Status switch
         {
             IntegrationListStatus.Listed => Ok(result.List),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -51,8 +51,8 @@ public class IntegrationsController(IIntegrationConnectionService integrations) 
         return result.Status switch
         {
             IntegrationChangeStatus.Succeeded => CreatedAtAction(nameof(Get), new { id = result.Integration!.Id }, result.Integration),
-            IntegrationChangeStatus.Invalid => this.BadRequestError(result.Error),
-            _ => this.ConflictError(result.Error),
+            IntegrationChangeStatus.Invalid => this.BadRequestError(result.Error!),
+            _ => this.ConflictError(result.Error!),
         };
     }
 
@@ -65,9 +65,9 @@ public class IntegrationsController(IIntegrationConnectionService integrations) 
         {
             IntegrationChangeStatus.Succeeded => NoContent(),
             IntegrationChangeStatus.NotFound => NotFound(),
-            IntegrationChangeStatus.Invalid => this.BadRequestError(result.Error),
+            IntegrationChangeStatus.Invalid => this.BadRequestError(result.Error!),
             // The name is taken, or this build no longer connects to the integration's type.
-            _ => this.ConflictError(result.Error),
+            _ => this.ConflictError(result.Error!),
         };
     }
 
@@ -98,9 +98,9 @@ public class IntegrationsController(IIntegrationConnectionService integrations) 
         // The addressed integration: the same bare 404 as every missing row.
         IntegrationTestStatus.NotFound => NotFound(),
         // An id in a draft's body, not the addressed row, so the owner gets the sentence.
-        IntegrationTestStatus.EditedIntegrationMissing => this.NotFoundError(result.Error),
-        IntegrationTestStatus.Invalid => this.BadRequestError(result.Error),
+        IntegrationTestStatus.EditedIntegrationMissing => this.NotFoundError(result.Error!),
+        IntegrationTestStatus.Invalid => this.BadRequestError(result.Error!),
         // This build can't connect to the type, or a stored secret can't be read.
-        _ => this.ConflictError(result.Error),
+        _ => this.ConflictError(result.Error!),
     };
 }

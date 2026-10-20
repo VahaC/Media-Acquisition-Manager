@@ -1,5 +1,6 @@
 using System.Globalization;
 using MediaAcquisitionManager.Core.Accounts;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Accounts;
 
@@ -44,7 +45,7 @@ public sealed class UserNameRulesTests
         var error = UserNameRules.Validate(userName);
 
         //Assert
-        Assert.Equal(LengthError, error);
+        Assert.Equal(LengthError, TestTexts.En(error));
     }
 
     [Theory]
@@ -64,7 +65,7 @@ public sealed class UserNameRulesTests
         var error = UserNameRules.Validate(userName);
 
         //Assert
-        Assert.Equal(CharactersError, error);
+        Assert.Equal(CharactersError, TestTexts.En(error));
     }
 
     [Theory]

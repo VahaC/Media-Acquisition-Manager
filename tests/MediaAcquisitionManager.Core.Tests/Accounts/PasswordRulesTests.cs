@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Accounts;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Accounts;
 
@@ -20,7 +21,7 @@ public sealed class PasswordRulesTests
         var error = PasswordRules.Validate(password);
 
         //Assert
-        Assert.Equal(TooShortError, error);
+        Assert.Equal(TooShortError, TestTexts.En(error));
     }
 
     [Theory]
@@ -51,7 +52,7 @@ public sealed class PasswordRulesTests
         var error = PasswordRules.Validate(password);
 
         //Assert
-        Assert.Equal(TooLongError, error);
+        Assert.Equal(TooLongError, TestTexts.En(error));
     }
 
     // No composition rules (NIST SP 800-63B): one letter repeated, spaces only, any script — the

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Search;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Search;
 
@@ -54,7 +55,7 @@ public sealed class SearchReleaseListRulesTests
         var error = SearchReleaseListRules.Validate(source, null, null, null, null, null, null, out var filter);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
         Assert.Null(filter);
     }
 
@@ -110,7 +111,7 @@ public sealed class SearchReleaseListRulesTests
         var error = SearchReleaseListRules.Validate(null, null, language, null, null, null, null, out var filter);
 
         //Assert
-        Assert.Equal($"“{language}” is not a language code. Use a three-letter code such as ukr, or unknown.", error);
+        Assert.Equal($"“{language}” is not a language code. Use a three-letter code such as ukr, or unknown.", TestTexts.En(error));
         Assert.Null(filter);
     }
 
@@ -167,7 +168,7 @@ public sealed class SearchReleaseListRulesTests
         var error = SearchReleaseListRules.Validate(null, null, null, quality, null, null, null, out var filter);
 
         //Assert
-        Assert.Equal($"“{quality}” is not a resolution. Use one such as 1080, or unknown.", error);
+        Assert.Equal($"“{quality}” is not a resolution. Use one such as 1080, or unknown.", TestTexts.En(error));
         Assert.Null(filter);
     }
 
@@ -208,8 +209,8 @@ public sealed class SearchReleaseListRulesTests
         var maximumError = SearchReleaseListRules.Validate(null, null, null, null, null, size, null, out var maximumFilter);
 
         //Assert
-        Assert.Equal($"“{size}” is not a size in bytes.", minimumError);
-        Assert.Equal($"“{size}” is not a size in bytes.", maximumError);
+        Assert.Equal($"“{size}” is not a size in bytes.", TestTexts.En(minimumError));
+        Assert.Equal($"“{size}” is not a size in bytes.", TestTexts.En(maximumError));
         Assert.Null(minimumFilter);
         Assert.Null(maximumFilter);
     }
@@ -223,7 +224,7 @@ public sealed class SearchReleaseListRulesTests
         var error = SearchReleaseListRules.Validate(null, null, null, null, "2000", "1999", null, out var filter);
 
         //Assert
-        Assert.Equal("The smallest size can't be larger than the largest.", error);
+        Assert.Equal("The smallest size can't be larger than the largest.", TestTexts.En(error));
         Assert.Null(filter);
     }
 
@@ -261,7 +262,7 @@ public sealed class SearchReleaseListRulesTests
         var error = SearchReleaseListRules.Validate(null, null, null, null, null, null, sort, out var filter);
 
         //Assert
-        Assert.Equal($"“{sort}” is not a sort order. Use seeders, largest, smallest, newest or quality.", error);
+        Assert.Equal($"“{sort}” is not a sort order. Use seeders, largest, smallest, newest or quality.", TestTexts.En(error));
         Assert.Null(filter);
     }
 
@@ -289,7 +290,7 @@ public sealed class SearchReleaseListRulesTests
         var error = SearchReleaseListRules.Validate(null, null, "uk", "1080p", "-1", null, "rating", out var filter);
 
         //Assert
-        Assert.Equal("“uk” is not a language code. Use a three-letter code such as ukr, or unknown.", error);
+        Assert.Equal("“uk” is not a language code. Use a three-letter code such as ukr, or unknown.", TestTexts.En(error));
         Assert.Null(filter);
     }
 
@@ -304,8 +305,8 @@ public sealed class SearchReleaseListRulesTests
         var kindError = SearchReleaseListRules.Validate(null, "series", "uk", "1080p", null, null, "rating", out var filter);
 
         //Assert
-        Assert.Equal("“x” is not a release source.", sourceError);
-        Assert.Equal("“series” is not a kind filter. Use Movie or Tv.", kindError);
+        Assert.Equal("“x” is not a release source.", TestTexts.En(sourceError));
+        Assert.Equal("“series” is not a kind filter. Use Movie or Tv.", TestTexts.En(kindError));
         Assert.Null(filter);
     }
 
@@ -345,7 +346,7 @@ public sealed class SearchReleaseListRulesTests
         var error = SearchReleaseListRules.Validate(null, kind, null, null, null, null, null, out var filter);
 
         //Assert
-        Assert.Equal($"“{kind}” is not a kind filter. Use Movie or Tv.", error);
+        Assert.Equal($"“{kind}” is not a kind filter. Use Movie or Tv.", TestTexts.En(error));
         Assert.Null(filter);
     }
 
@@ -362,8 +363,8 @@ public sealed class SearchReleaseListRulesTests
         var kindError = SearchReleaseListRules.Validate(null, new string('k', 33), null, null, null, null, null, out _);
 
         //Assert
-        Assert.Equal($"“{new string('x', 32)}…” is not a release source.", sourceError);
-        Assert.Equal($"“{new string('k', 32)}…” is not a kind filter. Use Movie or Tv.", kindError);
-        Assert.Equal($"“{sort}” is not a sort order. Use seeders, largest, smallest, newest or quality.", sortError);
+        Assert.Equal($"“{new string('x', 32)}…” is not a release source.", TestTexts.En(sourceError));
+        Assert.Equal($"“{new string('k', 32)}…” is not a kind filter. Use Movie or Tv.", TestTexts.En(kindError));
+        Assert.Equal($"“{sort}” is not a sort order. Use seeders, largest, smallest, newest or quality.", TestTexts.En(sortError));
     }
 }

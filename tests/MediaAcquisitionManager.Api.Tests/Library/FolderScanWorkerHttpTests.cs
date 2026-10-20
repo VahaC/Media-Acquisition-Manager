@@ -4,12 +4,14 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -30,6 +32,11 @@ public sealed class FolderScanWorkerHttpTests : IClassFixture<MediaAcquisitionMa
     private const string AppErrorMessage = "The scan stopped because of an error in the app. Its log says more.";
     private const string RestartedError = "The app restarted before this scan finished, so nothing it found was stored. Scan the folders again.";
     private const string QueueFullError = "Too many folder scans are waiting. Try again in a minute.";
+
+    /// <summary>MAM-47 — the worker's and the reconciler's reasons as they store them: key and values (ADR 0042).</summary>
+    private static readonly Message AppError = Message.Of("files.scan.app-error");
+
+    private static readonly Message Restarted = Message.Of("files.scan.restarted");
     private const string InterstellarPath = "/media/downloads/Interstellar (2014)/Interstellar (2014) BDRip 1080p.mkv";
     private const string BirthdayPath = "/media/home/Birthday 2019.mkv";
     private const string GonePath = "/media/downloads/Gone (2001)/Gone (2001).mkv";
@@ -83,7 +90,7 @@ public sealed class FolderScanWorkerHttpTests : IClassFixture<MediaAcquisitionMa
         await _factory.WithDbAsync(async db =>
         {
             var failed = await db.FolderScanRuns.AsNoTracking().SingleAsync(run => run.Id == brokenRunId, cancellationToken);
-            Assert.Equal((FolderScanStatus.Failed, AppErrorMessage, now, null), (failed.Status, failed.Error, failed.FinishedUtc, failed.FilesUnreported));
+            Assert.Equal((FolderScanStatus.Failed, AppErrorMessage, now, null), (failed.Status, TestTexts.En(failed.Error), failed.FinishedUtc, failed.FilesUnreported));
             // The next scan in the queue still went, and stored the name the broken one couldn't.
             var next = await db.FolderScanRuns.AsNoTracking().SingleAsync(run => run.Id == nextRunId, cancellationToken);
             Assert.Equal((FolderScanStatus.Succeeded, 1, 1), (next.Status, next.FilesFound, next.FilesUnreported));
@@ -119,7 +126,7 @@ public sealed class FolderScanWorkerHttpTests : IClassFixture<MediaAcquisitionMa
         await _factory.WithDbAsync(async db =>
         {
             var failed = await db.FolderScanRuns.AsNoTracking().SingleAsync(run => run.Id == dead.Id, cancellationToken);
-            Assert.Equal((FolderScanStatus.Failed, AppErrorMessage, now, 50), (failed.Status, failed.Error, failed.FinishedUtc, failed.FilesFound));
+            Assert.Equal((FolderScanStatus.Failed, AppErrorMessage, now, 50), (failed.Status, TestTexts.En(failed.Error), failed.FinishedUtc, failed.FilesFound));
             var run = await db.FolderScanRuns.AsNoTracking().SingleAsync(run => run.Id == runId, cancellationToken);
             Assert.Equal((FolderScanStatus.Succeeded, 1, 1), (run.Status, run.FilesFound, run.FilesUnreported));
         });
@@ -166,7 +173,7 @@ public sealed class FolderScanWorkerHttpTests : IClassFixture<MediaAcquisitionMa
         _factory.Files.AddFile(InterstellarPath, TestMedia.File(inode: 102));
         var at = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-5);
         var error = status == FolderScanStatus.Failed ? RestartedError : null;
-        var settled = await _runs.Create(status, _owner.User, at, filesFound: 7, filesUnreported: status == FolderScanStatus.Succeeded ? 1 : null, error: error);
+        var settled = await _runs.Create(status, _owner.User, at, filesFound: 7, filesUnreported: status == FolderScanStatus.Succeeded ? 1 : null, error: error is null ? null : Restarted);
         // Its id still waits in the queue: taken by another pass, or settled before the worker reached it.
         _factory.Resolve<FolderScanQueue>().TryEnqueue(settled.Id);
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
@@ -180,7 +187,7 @@ public sealed class FolderScanWorkerHttpTests : IClassFixture<MediaAcquisitionMa
         await _factory.WithDbAsync(async db =>
         {
             var run = await db.FolderScanRuns.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal((status, at, error, 7), (run.Status, run.StartedUtc, run.Error, run.FilesFound));
+            Assert.Equal((status, at, error, 7), (run.Status, run.StartedUtc, TestTexts.En(run.Error), run.FilesFound));
             Assert.Equal(settled.FinishedUtc, run.FinishedUtc);
             Assert.Equal((gone.Id, gone.ObservedUtc), Assert.Single((await db.PhysicalFiles.AsNoTracking().ToListAsync(cancellationToken)).Select(file => (file.Id, file.ObservedUtc))));
             Assert.Equal(0, await db.FileInspectionRuns.CountAsync(cancellationToken));
@@ -299,7 +306,7 @@ public sealed class FolderScanWorkerHttpTests : IClassFixture<MediaAcquisitionMa
         var run = await RunRowAsync(runId, cancellationToken);
         Assert.Equal(
             (FolderScanStatus.Failed, AppErrorMessage, now, 2, null),
-            (run.Status, run.Error, run.FinishedUtc, run.FilesFound, run.FilesUnreported));
+            (run.Status, TestTexts.En(run.Error), run.FinishedUtc, run.FilesFound, run.FilesUnreported));
         // Nothing new was stored, so nothing waits for an inspection.
         await _factory.WithDbAsync(async db =>
             Assert.Equal(0, await db.FileInspectionRuns.CountAsync(cancellationToken)));
@@ -316,7 +323,7 @@ public sealed class FolderScanWorkerHttpTests : IClassFixture<MediaAcquisitionMa
         await _roots.Allow(MediaRoot);
         var earlier = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-10);
         var succeeded = await _runs.Create(FolderScanStatus.Succeeded, _owner.User, earlier, filesFound: 4, filesUnreported: 1);
-        var failed = await _runs.Create(FolderScanStatus.Failed, _owner.User, earlier.AddMinutes(1), error: AppErrorMessage);
+        var failed = await _runs.Create(FolderScanStatus.Failed, _owner.User, earlier.AddMinutes(1), error: AppError);
         var running = await _runs.Create(FolderScanStatus.Running, _owner.User, earlier.AddMinutes(2), filesFound: 50);
         // Queued before the stop: the row survived, its id in the memory queue didn't.
         var queued = await _runs.Create(FolderScanStatus.Queued, _owner.User, earlier.AddMinutes(3));
@@ -336,10 +343,10 @@ public sealed class FolderScanWorkerHttpTests : IClassFixture<MediaAcquisitionMa
             // Died with the process: failed, its progress kept as the record of how far it got.
             Assert.Equal(
                 (FolderScanStatus.Failed, RestartedError, now, 50, null),
-                (rows[running.Id].Status, rows[running.Id].Error, rows[running.Id].FinishedUtc, rows[running.Id].FilesFound, rows[running.Id].FilesUnreported));
+                (rows[running.Id].Status, TestTexts.En(rows[running.Id].Error), rows[running.Id].FinishedUtc, rows[running.Id].FilesFound, rows[running.Id].FilesUnreported));
             // Finished scans are history: their outcome stays as it was.
             Assert.Equal((FolderScanStatus.Succeeded, null, succeeded.FinishedUtc), (rows[succeeded.Id].Status, rows[succeeded.Id].Error, rows[succeeded.Id].FinishedUtc));
-            Assert.Equal((FolderScanStatus.Failed, AppErrorMessage, failed.FinishedUtc), (rows[failed.Id].Status, rows[failed.Id].Error, rows[failed.Id].FinishedUtc));
+            Assert.Equal((FolderScanStatus.Failed, AppErrorMessage, failed.FinishedUtc), (rows[failed.Id].Status, TestTexts.En(rows[failed.Id].Error), rows[failed.Id].FinishedUtc));
             Assert.Equal(
                 (FolderScanStatus.Queued, _owner.User.Id, null),
                 (rows[queued.Id].Status, rows[queued.Id].RequestedByUserId!.Value, rows[queued.Id].StartedUtc));
@@ -420,7 +427,7 @@ public sealed class FolderScanWorkerHttpTests : IClassFixture<MediaAcquisitionMa
         // start: failed instead, with the sentence a refused request gets.
         Assert.DoesNotContain(queued.Id, DrainQueue());
         var run = await RunRowAsync(queued.Id, cancellationToken);
-        Assert.Equal((FolderScanStatus.Failed, QueueFullError, now), (run.Status, run.Error, run.FinishedUtc));
+        Assert.Equal((FolderScanStatus.Failed, QueueFullError, now), (run.Status, TestTexts.En(run.Error), run.FinishedUtc));
     }
 
     // The owner's request over HTTP; the queued (or joined) scan's id.

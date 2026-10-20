@@ -22,12 +22,13 @@ public sealed class UsersTokensHttpTests : IClassFixture<MediaAcquisitionManager
 {
     private const string BaseUrl = "/api/settings/users";
     private const string DownloadsUrl = "/api/downloads";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
 
     // Spelled out rather than read from PersonalAccessTokenErrors: this is what a script's author reads.
-    private const string NotForTokensBody =
-        """{"error":"An access token can't do this. A token reads, and with “Read and download” access also sends downloads, cancels following and marks Not interested; everything else is done in the web app. See “Scripts and the API” in the README."}""";
+    private static readonly string NotForTokensBody = ErrorBody.Json(
+        "An access token can't do this. A token reads, and with “Read and download” access also sends downloads, cancels following and marks Not interested; everything else is done in the web app. See “Scripts and the API” in the README.",
+        "account.token.not-for-tokens");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IUserSeeder _users = null!;

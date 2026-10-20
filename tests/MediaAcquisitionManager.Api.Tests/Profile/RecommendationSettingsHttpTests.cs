@@ -19,8 +19,9 @@ namespace MediaAcquisitionManager.Api.Tests.Profile;
 public sealed class RecommendationSettingsHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/profile/recommendations";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
     private const string LimitError = "The daily search limit is a whole number from 0 to 500.";
+    private const string LimitCode = "recommendations.settings.daily-search-limit-invalid";
     private const string UnreadableBodyError =
         "Send the settings as JSON: movies, series, cartoons and documentaries true or false, and dailySearchLimit a whole number from 0 to 500.";
 
@@ -130,16 +131,16 @@ public sealed class RecommendationSettingsHttpTests : IClassFixture<MediaAcquisi
     }
 
     [Theory]
-    [InlineData("""{"series":true,"cartoons":true,"documentaries":true,"dailySearchLimit":60}""", "Say whether the Movies tab is on.")]
-    [InlineData("""{"movies":true,"cartoons":true,"documentaries":true,"dailySearchLimit":60}""", "Say whether the Series tab is on.")]
-    [InlineData("""{"movies":true,"series":true,"documentaries":true,"dailySearchLimit":60}""", "Say whether the Cartoons tab is on.")]
-    [InlineData("""{"movies":true,"series":true,"cartoons":true,"dailySearchLimit":60}""", "Say whether the Documentaries tab is on.")]
-    [InlineData("""{"movies":true,"series":true,"cartoons":true,"documentaries":true}""", LimitError)]
-    [InlineData("""{"movies":null,"series":true,"cartoons":true,"documentaries":true,"dailySearchLimit":60}""", "Say whether the Movies tab is on.")]
-    [InlineData("""{}""", "Say whether the Movies tab is on.")]
-    [InlineData("null", "Say whether the Movies tab is on.")]
-    [InlineData("", "Say whether the Movies tab is on.")]
-    public async Task Update_with_a_field_missing_is_400_with_its_sentence_and_saves_nothing(string json, string expected)
+    [InlineData("""{"series":true,"cartoons":true,"documentaries":true,"dailySearchLimit":60}""", "Say whether the Movies tab is on.", "recommendations.settings.movies-missing")]
+    [InlineData("""{"movies":true,"cartoons":true,"documentaries":true,"dailySearchLimit":60}""", "Say whether the Series tab is on.", "recommendations.settings.series-missing")]
+    [InlineData("""{"movies":true,"series":true,"documentaries":true,"dailySearchLimit":60}""", "Say whether the Cartoons tab is on.", "recommendations.settings.cartoons-missing")]
+    [InlineData("""{"movies":true,"series":true,"cartoons":true,"dailySearchLimit":60}""", "Say whether the Documentaries tab is on.", "recommendations.settings.documentaries-missing")]
+    [InlineData("""{"movies":true,"series":true,"cartoons":true,"documentaries":true}""", LimitError, LimitCode)]
+    [InlineData("""{"movies":null,"series":true,"cartoons":true,"documentaries":true,"dailySearchLimit":60}""", "Say whether the Movies tab is on.", "recommendations.settings.movies-missing")]
+    [InlineData("""{}""", "Say whether the Movies tab is on.", "recommendations.settings.movies-missing")]
+    [InlineData("null", "Say whether the Movies tab is on.", "recommendations.settings.movies-missing")]
+    [InlineData("", "Say whether the Movies tab is on.", "recommendations.settings.movies-missing")]
+    public async Task Update_with_a_field_missing_is_400_with_its_sentence_and_saves_nothing(string json, string expected, string code)
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -150,7 +151,7 @@ public sealed class RecommendationSettingsHttpTests : IClassFixture<MediaAcquisi
         //Assert
         // A missing tab is never read as off: that would hide a list nobody asked to hide.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(expected, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal((expected, code), await response.ReadErrorBodyAsync(cancellationToken));
         await AssertNothingSavedAsync(cancellationToken);
     }
 
@@ -168,7 +169,7 @@ public sealed class RecommendationSettingsHttpTests : IClassFixture<MediaAcquisi
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(LimitError, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal((LimitError, LimitCode), await response.ReadErrorBodyAsync(cancellationToken));
         await AssertNothingSavedAsync(cancellationToken);
     }
 
@@ -208,7 +209,7 @@ public sealed class RecommendationSettingsHttpTests : IClassFixture<MediaAcquisi
         // The { error } shape the Profile page shows: never [ApiController]'s problem details.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(UnreadableBodyError, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal((UnreadableBodyError, "recommendations.settings.unreadable-body"), await response.ReadErrorBodyAsync(cancellationToken));
         await AssertNothingSavedAsync(cancellationToken);
     }
 

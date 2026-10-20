@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Downloads;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Downloads;
 
@@ -37,7 +38,7 @@ public sealed class DestinationRulesTests
         var error = DestinationRules.ValidateName(name);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -53,7 +54,7 @@ public sealed class DestinationRulesTests
         var error = DestinationRules.ValidateName(name);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -119,7 +120,7 @@ public sealed class DestinationRulesTests
         var error = DestinationRules.ValidateClientDestinationKey(key);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -137,7 +138,7 @@ public sealed class DestinationRulesTests
         var errors = missing.Select(key => DestinationRules.ValidateClientDestinationKey(key, kind, "Transmission"));
 
         //Assert
-        Assert.All(errors, error => Assert.Equal(expected, error));
+        Assert.All(errors, error => Assert.Equal(expected, TestTexts.En(error)));
     }
 
     [Theory]
@@ -153,7 +154,7 @@ public sealed class DestinationRulesTests
         var errors = keys.Select(key => DestinationRules.ValidateClientDestinationKey(key, kind, "Transmission"));
 
         //Assert
-        Assert.Equal<string?>([null, KeyTooLongError, KeyControlCharacterError], errors);
+        Assert.Equal<string?>([null, KeyTooLongError, KeyControlCharacterError], errors.Select(TestTexts.En));
     }
 
     [Theory]
@@ -172,7 +173,7 @@ public sealed class DestinationRulesTests
         var error = DestinationRules.ValidateClientDestinationKey(key);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -235,7 +236,7 @@ public sealed class DestinationRulesTests
 
         //Assert
         // Transmission keeps a torrent's labels as one comma-separated text: the comma would make two labels.
-        Assert.Equal(LabelCommaError, error);
+        Assert.Equal(LabelCommaError, TestTexts.En(error));
     }
 
     [Theory]

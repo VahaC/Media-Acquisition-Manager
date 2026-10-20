@@ -5,11 +5,13 @@ using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mcp.Results;
 using MediaAcquisitionManager.Api.Services.Search;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paging;
 using MediaAcquisitionManager.Core.Search;
+using MediaAcquisitionManager.Core.Texts;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -32,7 +34,7 @@ namespace MediaAcquisitionManager.Api.Mcp.Tools;
 /// </para>
 /// </remarks>
 [McpServerToolType]
-public sealed class ReleaseTools(ISearchService searches, McpToolResults results)
+public sealed class ReleaseTools(ISearchService searches, IRequestTexts texts, McpToolResults results)
 {
     /// <summary>The page <c>search_releases</c> answers with; <c>list_search_releases</c> reads the others.</summary>
     private const int FirstPage = 1;
@@ -92,13 +94,13 @@ public sealed class ReleaseTools(ISearchService searches, McpToolResults results
                 ?? SearchReleaseListRules.Validate(null, Name(kind), language, quality, Text(minSizeBytes), Text(maxSizeBytes), Name(sort), out _))
             is { } listError)
         {
-            return McpToolResults.Error(listError);
+            return McpToolResults.Error(texts.Render(listError));
         }
 
         var userId = user.GetUserId();
         var created = await searches.CreateAsync(text, Text(year), imdbId, tmdbId, Text(season), userId, cancellationToken);
         if (created.Status != SearchCreateStatus.Created)
-            return McpToolResults.Error(created.Error!);
+            return McpToolResults.Error(texts.Render(created.Error!));
 
         var search = created.Search!;
         var listed = await ListAsync(
@@ -108,7 +110,7 @@ public sealed class ReleaseTools(ISearchService searches, McpToolResults results
 
         var releases = listed.List!;
         var filtered = IsFiltered(null, kind, language, quality, minSizeBytes, maxSizeBytes);
-        return results.Success(SearchSummary(search, releases, filtered), new ReleaseSearchToolResult(search, releases));
+        return results.Success(texts.Render(SearchSummary(search, releases, filtered)), new ReleaseSearchToolResult(search, releases));
     }
 
     [McpServerTool(
@@ -159,9 +161,9 @@ public sealed class ReleaseTools(ISearchService searches, McpToolResults results
 
         var list = listed.List!;
         var held = IsFiltered(sourceId, kind, language, quality, minSizeBytes, maxSizeBytes)
-            ? $"{Releases(list.TotalCount)} of this search pass the filters"
-            : $"This search holds {Releases(list.TotalCount)}";
-        return results.Success($"{held}; page {list.Page} lists {list.Items.Count}.", list);
+            ? Message.Of("releases.mcp.list.filtered", ("count", list.TotalCount), ("page", list.Page), ("shown", list.Items.Count))
+            : Message.Of("releases.mcp.list.held", ("count", list.TotalCount), ("page", list.Page), ("shown", list.Items.Count));
+        return results.Success(texts.Render(held), list);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -200,8 +202,8 @@ public sealed class ReleaseTools(ISearchService searches, McpToolResults results
     /// sentence the HTTP API's bare 404 stands for, so none confirms that the search exists; a value the list doesn't
     /// take gets the service's own sentence.
     /// </summary>
-    private static CallToolResult Refusal(SearchReleaseListResult listed) =>
-        McpToolResults.Error(listed.Status == SearchReleaseListStatus.Invalid ? listed.Error! : McpToolErrors.SearchNotFound);
+    private CallToolResult Refusal(SearchReleaseListResult listed) =>
+        McpToolResults.Error(texts.Render(listed.Status == SearchReleaseListStatus.Invalid ? listed.Error! : McpToolErrors.SearchNotFound));
 
     /// <summary>
     /// What the search found, in a sentence: how many releases in how many sources, how many pass the filters, how many
@@ -209,31 +211,48 @@ public sealed class ReleaseTools(ISearchService searches, McpToolResults results
     /// data — and how many of the library's works it matched; those listed only for holding the title's words don't
     /// count (ADR 0012: not a match).
     /// </summary>
-    private static string SearchSummary(SearchResponse search, SearchReleaseListResponse releases, bool filtered)
+    /// <remarks>MAM-47 (ADR 0042) — a sentence per shape (filtered or not, with sources that didn't answer or not, matched
+    /// works counted or none); the counts of releases and sources are counted nouns of their own, nested, and each
+    /// unanswered source a clause naming it by its name and its API status.</remarks>
+    private static Message SearchSummary(SearchResponse search, SearchReleaseListResponse releases, bool filtered)
     {
         var found = search.Sources.Sum(source => source.ReleaseCount);
-        var summary = $"Found {Releases(found)} for “{search.Text}” in {Count(search.Sources.Count, "release source")}";
-        if (filtered)
-            summary += $", {releases.TotalCount} of them passing the filters";
-        summary += $"; the first page lists {releases.Items.Count}";
-
-        var unanswered = search.Sources
-            .Where(source => source.Status != IntegrationCallStatus.Succeeded)
-            .Select(source => source.NotSearchedReason is { } reason
-                ? $"{source.Name} was not searched ({reason})"
-                : $"{source.Name} failed ({source.Status})")
-            .ToList();
-        if (unanswered.Count > 0)
-            summary += "; " + string.Join(", ", unanswered);
-
+        List<MessageValue> unanswered =
+        [
+            .. search.Sources
+                .Where(source => source.Status != IntegrationCallStatus.Succeeded)
+                .Select(source => source.NotSearchedReason is { } reason
+                    ? Message.Of("releases.mcp.search.not-searched-clause", ("source", source.Name), ("reason", reason.ToString()))
+                    : Message.Of("releases.mcp.search.failed-clause", ("source", source.Name), ("status", source.Status.ToString()!))),
+        ];
         var matches = search.Library.Count(match => match.Evidence != MatchEvidence.Words);
-        var library = matches switch
+
+        List<(string Name, MessageValue Value)> values =
+        [
+            ("releases", Message.Of("releases.mcp.tally.releases", ("count", found))),
+            ("text", search.Text),
+            ("sources", Message.Of("releases.mcp.tally.sources", ("count", search.Sources.Count))),
+            ("shown", releases.Items.Count),
+        ];
+        if (filtered)
+            values.Add(("passing", releases.TotalCount));
+        if (unanswered.Count > 0)
+            values.Add(("unanswered", new ListValue(unanswered)));
+        if (matches > 0)
+            values.Add(("count", matches));
+
+        var key = (filtered, unanswered.Count > 0, matches > 0) switch
         {
-            0 => "no matching work",
-            1 => "1 matching work",
-            _ => $"{matches} matching works",
+            (false, false, true) => "releases.mcp.search.found",
+            (false, false, false) => "releases.mcp.search.found-none",
+            (true, false, true) => "releases.mcp.search.found-filtered",
+            (true, false, false) => "releases.mcp.search.found-filtered-none",
+            (false, true, true) => "releases.mcp.search.found-unanswered",
+            (false, true, false) => "releases.mcp.search.found-unanswered-none",
+            (true, true, true) => "releases.mcp.search.found-filtered-unanswered",
+            (true, true, false) => "releases.mcp.search.found-filtered-unanswered-none",
         };
-        return $"{summary}; the library holds {library}.";
+        return Message.Of(key, [.. values]);
     }
 
     /// <summary>Whether a filter narrows the list, so its count is of what passes rather than of the whole search; the
@@ -254,8 +273,4 @@ public sealed class ReleaseTools(ISearchService searches, McpToolResults results
     /// <summary>A number as the service's text, in the invariant culture: a negative one keeps its sign, so the rules'
     /// sentence quotes it as it was asked.</summary>
     private static string? Text(long? value) => value?.ToString(CultureInfo.InvariantCulture);
-
-    private static string Releases(int count) => Count(count, "release");
-
-    private static string Count(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 }

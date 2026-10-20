@@ -1,9 +1,9 @@
-using System.Globalization;
 using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Api.Services.Releases;
 using MediaAcquisitionManager.Api.Services.Search;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -29,20 +29,18 @@ public sealed class ReplacementPlanner(
     ILibraryLinkReader links,
     ILogger<ReplacementPlanner> logger) : IReplacementPlanner
 {
-    private const string ReadAgain = " The list was read again: check the ticks and send again.";
+    // MAM-47 (ADR 0042) — the refusals are messages the controller renders in the request's language. The "read again"
+    // sentence that ends a refusal of the ticks is part of each such key: a whole sentence per shape, never a fragment.
 
-    private const string SwitchedOffError =
-        "Replacement is switched off, so no copy can be replaced. Switch it on, and tick the folders it may touch, on the Media folders page, or pick Keep both.";
+    private static readonly Message SwitchedOffError = Message.Of("replacements.plan.switched-off");
 
-    private const string MagnetError =
-        "This release is a magnet link, whose files the app can't check before sending, so it can't replace a copy. Pick Keep both to download it.";
+    private static readonly Message MagnetError = Message.Of("replacements.plan.magnet");
 
-    private const string NoMatchedWorkError =
-        "This release matches no film or held episode of yours any more, so it can't replace a copy. Pick Keep both to download it.";
+    private static readonly Message NoMatchedWorkError = Message.Of("replacements.plan.no-matched-work");
 
-    private const string NotACopyError = "One of the ticked copies isn't a copy of a work this release matched." + ReadAgain;
+    private static readonly Message NotACopyError = Message.Of("replacements.plan.not-a-copy");
 
-    private const string NotConfirmableError = "One of the ticked confirmations isn't one this release needs." + ReadAgain;
+    private static readonly Message NotConfirmableError = Message.Of("replacements.plan.not-confirmable");
 
     public async Task<ReplacementPlanResult> PlanAsync(CallerRelease found, ReplacementRequest request, CancellationToken cancellationToken = default)
     {
@@ -88,11 +86,19 @@ public sealed class ReplacementPlanner(
         }
 
         // ADR 0032 — a match by title and year is replaced only on the owner's tick, each work's own, whichever work's
-        // listing of a shared file he ticked it under.
+        // listing of a shared file he ticked it under. MAM-47 — the consent words nested whole in the sentence that asks
+        // for the tick (a clause of their own keys).
         var confirmed = request.ConfirmedWorkIds.ToHashSet();
         if (tickedListings.Select(listing => listing.Work).FirstOrDefault(work => work.NeedsConfirmation && !confirmed.Contains(work.WorkId))
             is { } unconfirmed)
-            return Refused(release.Id, ReplacementPlanStatus.Invalid, "NotConfirmed", $"Tick “{unconfirmed.ConfirmationText}” to replace a copy of it.{ReadAgain}");
+        {
+            return Refused(
+                release.Id,
+                ReplacementPlanStatus.Invalid,
+                "NotConfirmed",
+                Message.Of("replacements.plan.not-confirmed", ("confirmation", unconfirmed.ConfirmationText)));
+        }
+
         // R4 — every confirmation kept is one a ticked copy needs: a retry's ticks must be the job's to be answered with it.
         var tickedWorkIds = tickedListings.Select(listing => listing.Work.WorkId).ToHashSet();
         if (works.FirstOrDefault(work => confirmed.Contains(work.WorkId) && !tickedWorkIds.Contains(work.WorkId)) is { } untickedWork)
@@ -101,7 +107,9 @@ public sealed class ReplacementPlanner(
                 release.Id,
                 ReplacementPlanStatus.Invalid,
                 "ConfirmedWithoutCopy",
-                $"Tick a copy of {NameOf(untickedWork)} or untick “{untickedWork.ConfirmationText}”.{ReadAgain}");
+                NameOf(untickedWork) is { } name
+                    ? Message.Of("replacements.plan.confirmed-without-copy", ("work", name), ("confirmation", untickedWork.ConfirmationText))
+                    : Message.Of("replacements.plan.confirmed-without-copy-untitled", ("confirmation", untickedWork.ConfirmationText)));
         }
 
         List<ReplacementPlanFile> files = [.. tickedListings.Select(listing => listing.Copy).DistinctBy(copy => copy.Id).Select(FileOf)];
@@ -155,62 +163,54 @@ public sealed class ReplacementPlanner(
             : throw new InvalidOperationException("A copy that can be ticked came without its path or the identity read from the disk.");
 
     /// <summary>Logs a refused plan — the release and a word for why, never a path or a title — and answers it.</summary>
-    private ReplacementPlanResult Refused(Guid releaseId, ReplacementPlanStatus status, string why, string error)
+    private ReplacementPlanResult Refused(Guid releaseId, ReplacementPlanStatus status, string why, Message error)
     {
         logger.LogInformation("The replacement planned with release {ReleaseId} was refused ({Status}): {Why}.", releaseId, status, why);
         return status == ReplacementPlanStatus.Invalid ? ReplacementPlanResult.Invalid(error) : ReplacementPlanResult.Unavailable(error);
     }
 
-    /// <summary>A work as the sentences name it: "Alien (1979)", "Alien" without a year.</summary>
-    private static string NameOf(ReplacementCandidateWork work)
-    {
-        var title = work.Title ?? "a work with no title";
-        return work.Year is { } year ? string.Create(CultureInfo.InvariantCulture, $"{title} ({year})") : title;
-    }
+    /// <summary>A work as the sentences name it: "Alien (1979)", "Alien" without a year — its title and year as data —;
+    /// <c>null</c> for a work with no title, which each sentence names by a key of its own words (MAM-47).</summary>
+    private static string? NameOf(ReplacementCandidateWork work) => ReplacementConfirmation.NameOf(work.Title, work.Year);
 
     /// <summary>Why a ticked copy of <paramref name="work"/> can't be replaced, by the work's reason, naming the
     /// file.</summary>
-    private static string WorkReasonError(ReplacementWorkUnavailableReason reason, ReplacementCandidateWork work, ReplacementCandidateCopy copy)
+    private static Message WorkReasonError(ReplacementWorkUnavailableReason reason, ReplacementCandidateWork work, ReplacementCandidateCopy copy)
     {
         var file = FileNameOf(copy);
-        var name = NameOf(work);
-        return reason switch
+        // A work with no title is named by words of the key's own (design §1.3: a fragment filling the frame is a shape).
+        return (reason, NameOf(work)) switch
         {
-            ReplacementWorkUnavailableReason.TitleOnly =>
-                $"This release matched {name} by its title alone, which never allows a replacement, so “{file}” can't be replaced. Pick Keep both to download it.",
-            ReplacementWorkUnavailableReason.ConflictingIds =>
-                $"The ids of {name} and of this release conflict, so “{file}” can't be replaced. Pick Keep both to download it.",
-            ReplacementWorkUnavailableReason.NoClaimedSeason =>
-                $"This release's title names no season of {name}, so the app can't tell which episodes it would replace, and “{file}” can't be replaced. Pick Keep both to download it.",
-            _ => $"You hold none of the episodes this release claims of {name}, so “{file}” can't be replaced. Pick Keep both to download it.",
+            (ReplacementWorkUnavailableReason.TitleOnly, { } name) =>
+                Message.Of("replacements.plan.work.title-only", ("work", name), ("file", file)),
+            (ReplacementWorkUnavailableReason.TitleOnly, null) => Message.Of("replacements.plan.work.title-only-untitled", ("file", file)),
+            (ReplacementWorkUnavailableReason.ConflictingIds, { } name) =>
+                Message.Of("replacements.plan.work.conflicting-ids", ("work", name), ("file", file)),
+            (ReplacementWorkUnavailableReason.ConflictingIds, null) => Message.Of("replacements.plan.work.conflicting-ids-untitled", ("file", file)),
+            (ReplacementWorkUnavailableReason.NoClaimedSeason, { } name) =>
+                Message.Of("replacements.plan.work.no-claimed-season", ("work", name), ("file", file)),
+            (ReplacementWorkUnavailableReason.NoClaimedSeason, null) => Message.Of("replacements.plan.work.no-claimed-season-untitled", ("file", file)),
+            (_, { } name) => Message.Of("replacements.plan.work.no-claimed-episodes", ("work", name), ("file", file)),
+            (_, null) => Message.Of("replacements.plan.work.no-claimed-episodes-untitled", ("file", file)),
         };
     }
 
     /// <summary>Why a ticked copy can't be replaced, by its own reason, naming the file.</summary>
-    private static string CopyReasonError(ReplacementCopyUnavailableReason reason, ReplacementCandidateCopy copy)
+    private static Message CopyReasonError(ReplacementCopyUnavailableReason reason, ReplacementCandidateCopy copy)
     {
         var file = FileNameOf(copy);
         return reason switch
         {
-            ReplacementCopyUnavailableReason.NoAppPath =>
-                $"The app can't reach “{file}” inside the Media folders, so it can't be replaced. Pick Keep both to download the release.",
-            ReplacementCopyUnavailableReason.FolderNotTicked =>
-                $"“{file}” isn't in a folder ticked for replacement on the Media folders page, so it can't be replaced. Tick its folder there, or pick Keep both.",
-            ReplacementCopyUnavailableReason.OutsideTheClaim =>
-                $"Its library places “{file}” outside the episodes this release claims, so it can't be replaced. Pick Keep both to download the release.",
-            ReplacementCopyUnavailableReason.AlreadyScheduled =>
-                $"“{file}” is already scheduled for replacement by another download, so it can't be replaced again. Pick Keep both to download the release.",
-            ReplacementCopyUnavailableReason.HeldByRemoval =>
-                $"A removal under Removed copies on the Duplicates page holds “{file}”, so it can't be replaced. Pick Keep both to download the release.",
-            ReplacementCopyUnavailableReason.NotInspected =>
-                $"The app hasn't inspected “{file}” yet, so it can't be replaced. Inspect the library first, or pick Keep both.",
-            ReplacementCopyUnavailableReason.SharedWithUnavailableWork =>
-                $"“{file}” is also a copy of another work this release matched, which can't be replaced, so it can't be replaced either. Pick Keep both to download the release.",
-            ReplacementCopyUnavailableReason.Missing =>
-                $"“{file}” isn't there any more, so it can't be replaced. Pick Keep both to download the release.",
-            ReplacementCopyUnavailableReason.Unreadable =>
-                $"The app can't read “{file}” now, so it can't be replaced. Pick Keep both to download the release.",
-            _ => $"“{file}” changed since the app inspected it, so it can't be replaced. Inspect the library again, or pick Keep both.",
+            ReplacementCopyUnavailableReason.NoAppPath => Message.Of("replacements.plan.copy.no-app-path", ("file", file)),
+            ReplacementCopyUnavailableReason.FolderNotTicked => Message.Of("replacements.plan.copy.folder-not-ticked", ("file", file)),
+            ReplacementCopyUnavailableReason.OutsideTheClaim => Message.Of("replacements.plan.copy.outside-the-claim", ("file", file)),
+            ReplacementCopyUnavailableReason.AlreadyScheduled => Message.Of("replacements.plan.copy.already-scheduled", ("file", file)),
+            ReplacementCopyUnavailableReason.HeldByRemoval => Message.Of("replacements.plan.copy.held-by-removal", ("file", file)),
+            ReplacementCopyUnavailableReason.NotInspected => Message.Of("replacements.plan.copy.not-inspected", ("file", file)),
+            ReplacementCopyUnavailableReason.SharedWithUnavailableWork => Message.Of("replacements.plan.copy.shared-with-unavailable-work", ("file", file)),
+            ReplacementCopyUnavailableReason.Missing => Message.Of("replacements.plan.copy.missing", ("file", file)),
+            ReplacementCopyUnavailableReason.Unreadable => Message.Of("replacements.plan.copy.unreadable", ("file", file)),
+            _ => Message.Of("replacements.plan.copy.changed", ("file", file)),
         };
     }
 

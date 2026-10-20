@@ -834,12 +834,24 @@ function episodeNumbers(seasonNumber: number, episodeNumber: number | null): str
  * Whether a link kept in the app, as a save answered it, has a sentence the item didn't carry before the
  * save: the editor has to stay open for the owner to read it. A reason the item already showed (its
  * library is switched off, it is an episode of no series) was read before the click.
+ *
+ * MAM-47 — compared by the sentences' codes when the server sends both: a kind of reason, the same
+ * across a renamed library and the UI language the page ran in when the item was read. By the words
+ * otherwise (a server before MAM-47).
  */
 function keptReasonUnseen(saved: LibraryLinkItem, before: LibraryLinkItem[]): boolean {
-  const reason = saved.cannotWriteReason ?? saved.writeError
-  if (reason === null) return false
+  const reason = keptReasonOf(saved)
+  if (reason.text === null) return false
   const earlier = before.find((item) => item.sourceItemId === saved.sourceItemId)
-  return reason !== (earlier?.cannotWriteReason ?? earlier?.writeError ?? null)
+  const shown = earlier === undefined ? { text: null, code: null } : keptReasonOf(earlier)
+  return reason.code != null && shown.code != null ? reason.code !== shown.code : reason.text !== shown.text
+}
+
+/** The sentence an item says why under, with its code: its own reason, else its link's error. */
+function keptReasonOf(item: LibraryLinkItem): { text: string | null; code?: string | null } {
+  return item.cannotWriteReason !== null
+    ? { text: item.cannotWriteReason, code: item.cannotWriteReasonCode }
+    : { text: item.writeError, code: item.writeErrorCode }
 }
 
 /**

@@ -6,12 +6,14 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -137,10 +139,10 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(0x8000_0000_0000_0803UL, unchecked((ulong)takenReading.DeviceId));
         Assert.Equal(
             (null, 5_604_672L, 40_781_887L, ranUtc),
-            ((string?)takenReading.Error, takenReading.DurationMilliseconds, takenReading.BitRate, takenReading.CreatedUtc));
+            (TestTexts.En(takenReading.Error), takenReading.DurationMilliseconds, takenReading.BitRate, takenReading.CreatedUtc));
         Assert.Equal(
             (null, 5_179_168L, 6_011_343L, ranUtc),
-            ((string?)continentalReading.Error, continentalReading.DurationMilliseconds, continentalReading.BitRate, continentalReading.CreatedUtc));
+            (TestTexts.En(continentalReading.Error), continentalReading.DurationMilliseconds, continentalReading.BitRate, continentalReading.CreatedUtc));
 
         // Every track in the file's own order, every field as the inspector read it.
         var tracks = await TracksAsync(cancellationToken);
@@ -286,7 +288,7 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(ReadingKey.Of(TestMedia.File(TakenInode, TakenSizeBytes)), ReadingKey.Of(reading));
         Assert.Equal(
             (MediaUnreadableError, (long?)null, (long?)null, now),
-            (reading.Error, reading.DurationMilliseconds, reading.BitRate, reading.CreatedUtc));
+            (TestTexts.En(reading.Error), reading.DurationMilliseconds, reading.BitRate, reading.CreatedUtc));
         Assert.Empty(await TracksAsync(cancellationToken));
         Assert.Equal(
             new FileState(FileInspectionStatus.MediaUnreadable, MediaUnreadableError, now, reading.Id, TestMedia.DeviceId, TakenInode, 1),
@@ -407,7 +409,7 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
             _factory.Files.AddFile(
                 path,
                 TestMedia.File(TakenInode + index),
-                read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.InspectorUnavailable, null, InspectorUnavailableError));
+                read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.InspectorUnavailable, null, Message.Legacy(InspectorUnavailableError)));
         }
 
         // The first two reads both under way before either answers, so the two the bound allows are known to
@@ -442,7 +444,7 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         _factory.Files.AddFile(
             TakenPath,
             TestMedia.File(TakenInode, TakenSizeBytes),
-            read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.ChangedWhileReading, null, ChangedWhileReadingError));
+            read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.ChangedWhileReading, null, Message.Legacy(ChangedWhileReadingError)));
         var now = Now();
 
         //Act
@@ -457,6 +459,32 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(
             new FileState(FileInspectionStatus.MediaUnreadable, ChangedWhileReadingError, now, null, TestMedia.DeviceId, TakenInode, 1),
             (await FileStatesAsync(cancellationToken))[taken.Id]);
+    }
+
+    [Theory]
+    [InlineData(FileInventoryStatus.MediaUnreadable, FileInspectionStatus.MediaUnreadable, "The media inspector couldn't read the file.")]
+    [InlineData(FileInventoryStatus.InspectorUnavailable, FileInspectionStatus.InspectorUnavailable, "The media inspector couldn't be started.")]
+    [InlineData(FileInventoryStatus.ChangedWhileReading, FileInspectionStatus.MediaUnreadable, "The file changed while it was being read; the next inspection reads it again.")]
+    public async Task Inspect_of_a_read_the_inventory_gives_no_reason_for_writes_the_apps_own(
+        FileInventoryStatus answer, FileInspectionStatus status, string reason)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(Root);
+        var taken = await PlantFileAsync(TakenPath);
+        _factory.Files.AddFile(
+            TakenPath,
+            TestMedia.File(TakenInode, TakenSizeBytes),
+            read: new FileInventoryResult<MediaInspection>(answer, null, null));
+
+        //Act
+        var run = await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
+
+        //Assert
+        // The file still gets a reason the owner can read, never an empty one.
+        Assert.Equal(FileInspectionRunStatus.Succeeded, run.Status);
+        var state = (await FileStatesAsync(cancellationToken))[taken.Id];
+        Assert.Equal((status, reason), (state.Status, state.Error));
     }
 
     [Fact]
@@ -597,7 +625,7 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         _factory.Files.AddFile(
             TakenPath,
             TestMedia.File(TakenInode, TakenSizeBytes),
-            read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.NotFound, null, NotFoundError));
+            read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.NotFound, null, Message.Legacy(NotFoundError)));
         var now = Now();
 
         //Act
@@ -628,7 +656,7 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
             status,
             requestedBy: _owner.User,
             createdUtc: Now().AddMinutes(-5),
-            error: status == FileInspectionRunStatus.Failed ? NoAllowedRootsError : null,
+            error: status == FileInspectionRunStatus.Failed ? Message.Of("files.inspection.no-allowed-roots-any-more") : null,
             filesTotal: 1,
             filesChecked: 1,
             filesProbed: 1);
@@ -664,8 +692,7 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         _factory.Files.AddFile(
             TakenPath,
             TestMedia.File(TakenInode, TakenSizeBytes),
-            read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.MediaUnreadable, null, sentence));
-        var cut = string.Concat(sentence.AsSpan(0, MediaInspectionEntity.ErrorMaximumLength - 1), "…");
+            read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.MediaUnreadable, null, Message.Legacy(sentence)));
 
         //Act
         var run = await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
@@ -673,13 +700,24 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         //Assert
         Assert.Equal(FileInspectionRunStatus.Succeeded, run.Status);
         Assert.True(sentence.Length > MediaInspectionEntity.ErrorMaximumLength);
-        Assert.Equal(1_000, cut.Length);
-        // Cut where it is stored, both on the reading and on the name, so the reader sees it was cut.
+        // MAM-47 (ADR 0042) — stored as key and values: the column's converter fits the message into its 1,000
+        // characters by cutting its longest value, which ends with an ellipsis, so the reader sees it was cut. Both
+        // on the reading and on the name.
         var reading = Assert.Single(await ReadingsAsync(cancellationToken));
-        Assert.Equal(cut, reading.Error);
+        var shown = TestTexts.En(reading.Error)!;
+        Assert.EndsWith("…", shown, StringComparison.Ordinal);
+        Assert.StartsWith(shown[..^1], sentence, StringComparison.Ordinal);
+        Assert.True(shown.Length < sentence.Length);
         Assert.Equal(
-            new FileState(FileInspectionStatus.MediaUnreadable, cut, Now(), reading.Id, TestMedia.DeviceId, TakenInode, 1),
+            new FileState(FileInspectionStatus.MediaUnreadable, shown, Now(), reading.Id, TestMedia.DeviceId, TakenInode, 1),
             (await FileStatesAsync(cancellationToken))[taken.Id]);
+        await _factory.WithDbAsync(async db =>
+        {
+            var storedReading = await db.Database.SqlQueryRaw<string>("SELECT \"Error\" AS \"Value\" FROM \"MediaInspections\"").SingleAsync(cancellationToken);
+            var storedName = await db.Database.SqlQueryRaw<string>("SELECT \"InspectionError\" AS \"Value\" FROM \"PhysicalFiles\"").SingleAsync(cancellationToken);
+            Assert.True(storedReading.Length <= MediaInspectionEntity.ErrorMaximumLength, $"{storedReading.Length} characters stored");
+            Assert.Equal(storedReading, storedName);
+        });
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -757,7 +795,7 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         FileInspectionStatus? Status, string? Error, DateTime? InspectedUtc, Guid? MediaInspectionId, long? DeviceId, long? Inode, int? LinkCount)
     {
         public static FileState Of(PhysicalFileEntity file) =>
-            new(file.InspectionStatus, file.InspectionError, file.InspectedUtc, file.MediaInspectionId, file.DeviceId, file.Inode, file.LinkCount);
+            new(file.InspectionStatus, TestTexts.En(file.InspectionError), file.InspectedUtc, file.MediaInspectionId, file.DeviceId, file.Inode, file.LinkCount);
     }
 
     /// <summary>A reading's cache key, the modification time in ticks so a lost tick shows.</summary>

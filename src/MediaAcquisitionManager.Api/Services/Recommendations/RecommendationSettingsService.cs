@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Recommendations;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,11 +19,10 @@ public sealed class RecommendationSettingsService(
     ILogger<RecommendationSettingsService> logger) : IRecommendationSettingsService
 {
     /// <summary>
-    /// The sentence a body that can't be read as the settings gets — not JSON, or a field of the wrong type, such as a
-    /// limit of 1.5 — instead of the validation body MVC would send: it names every field and what it takes.
+    /// The key of the sentence a body that can't be read as the settings gets — not JSON, or a field of the wrong type,
+    /// such as a limit of 1.5 — instead of the validation body MVC would send: it names every field and what it takes.
     /// </summary>
-    public const string UnreadableBodyError =
-        "Send the settings as JSON: movies, series, cartoons and documentaries true or false, and dailySearchLimit a whole number from 0 to 500.";
+    public const string UnreadableBodyError = "recommendations.settings.unreadable-body";
 
     public async Task<RecommendationSettingsDto> GetAsync(Guid userId, CancellationToken cancellationToken = default) =>
         mapper.ToDto(await reader.ReadAsync(userId, cancellationToken), await CountSearchesAsync(userId, cancellationToken));
@@ -47,29 +47,28 @@ public sealed class RecommendationSettingsService(
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// The sentence for the first field missing — the tabs in the page's order, then the limit — or the limit out of
-    /// range; <c>null</c> with the settings in <paramref name="settings"/>. A missing tab is never read as off: a save
-    /// that quietly switched a tab off would hide a list without anyone asking.
+    /// Why the save is refused: the first field missing — the tabs in the page's order, then the limit — or the limit
+    /// out of range; <c>null</c> with the settings in <paramref name="settings"/>. A missing tab is never read as off: a
+    /// save that quietly switched a tab off would hide a list without anyone asking. MAM-47 (ADR 0042) — a key per tab,
+    /// so a translation names each tab as the web app labels it.
     /// </summary>
-    private static string? Validate(RecommendationSettingsRequest? request, out RecommendationSettings? settings)
+    private static Message? Validate(RecommendationSettingsRequest? request, out RecommendationSettings? settings)
     {
         settings = null;
         if (request?.Movies is not { } movies)
-            return TabMissing(RecommendationTab.Movies);
+            return Message.Of("recommendations.settings.movies-missing");
         if (request.Series is not { } series)
-            return TabMissing(RecommendationTab.Series);
+            return Message.Of("recommendations.settings.series-missing");
         if (request.Cartoons is not { } cartoons)
-            return TabMissing(RecommendationTab.Cartoons);
+            return Message.Of("recommendations.settings.cartoons-missing");
         if (request.Documentaries is not { } documentaries)
-            return TabMissing(RecommendationTab.Documentaries);
+            return Message.Of("recommendations.settings.documentaries-missing");
         if (RecommendationSettingsRules.ValidateDailySearchLimit(request.DailySearchLimit) is { } limitError)
             return limitError;
 
         settings = new RecommendationSettings(movies, series, cartoons, documentaries, request.DailySearchLimit!.Value);
         return null;
     }
-
-    private static string TabMissing(RecommendationTab tab) => $"Say whether the {tab} tab is on.";
 
     /// <summary>Writes <paramref name="settings"/> to <paramref name="userId"/>'s row, adding it on their first save.</summary>
     private async Task UpsertAsync(Guid userId, RecommendationSettings settings, CancellationToken cancellationToken)

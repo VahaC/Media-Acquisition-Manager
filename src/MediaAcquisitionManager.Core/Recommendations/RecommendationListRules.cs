@@ -1,13 +1,14 @@
 using System.Globalization;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paging;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Recommendations;
 
 /// <summary>
 /// MAM-33 — what a page of a recommendation tab may be asked for: the tab, its filters and the page. The rule
-/// answers one readable sentence, or <c>null</c> with every value read into a <see cref="RecommendationListFilter"/>
-/// — the MAM-4 rules-class pattern.
+/// answers why a value is refused, as a message the Api renders (ADR 0042), or <c>null</c> with every value read into a
+/// <see cref="RecommendationListFilter"/> — the MAM-4 rules-class pattern.
 /// </summary>
 /// <remarks>
 /// Every value comes as text, the way a query string carries it, so a wrong one reaches the page as this sentence
@@ -21,8 +22,8 @@ public static class RecommendationListRules
     /// <summary>The page size when none is asked for: the Recommendations page's own.</summary>
     public const int DefaultPageSize = 25;
 
-    /// <summary>The sentence a tab the caller switched off in their Profile gets (Vasyl's decision 5).</summary>
-    public const string TabSwitchedOffError = "This tab is switched off in your profile.";
+    /// <summary>What a tab the caller switched off in their Profile gets (Vasyl's decision 5).</summary>
+    public static readonly Message TabSwitchedOffError = Message.Of("recommendations.list.tab-switched-off");
 
     /// <summary>How much of a value that isn't one a sentence repeats, as the other list rules do.</summary>
     private const int EchoLength = 32;
@@ -30,16 +31,12 @@ public static class RecommendationListRules
     /// <summary>The latest decade a filter takes: its first year has four digits, as a year's does.</summary>
     private const int LatestDecade = 9990;
 
-    private const string TabMissingError = "Choose a tab: Movies, Series, Cartoons or Documentaries.";
-
-    // PagingRules' own sentences, for a page that isn't a number at all.
-    private const string PageError = "Page must be 1 or more.";
-    private const string PageSizeError = "Page size must be between 1 and 100.";
+    private static readonly Message TabMissingError = Message.Of("recommendations.list.tab-missing");
 
     /// <summary>
-    /// The sentence saying what is wrong with the first value that is wrong — the tab, the reason, the availability,
+    /// Why the first value that is wrong is refused — the tab, the reason, the availability,
     /// the genre, the decade, the kind, the sort, then the page — or <c>null</c> with every value read into
-    /// <paramref name="filter"/> (<c>null</c> when there is a sentence).
+    /// <paramref name="filter"/> (<c>null</c> when there is a message).
     /// </summary>
     /// <param name="tab"><c>Movies</c>, <c>Series</c>, <c>Cartoons</c> or <c>Documentaries</c>; required.</param>
     /// <param name="reason">A reason kind by name (<c>Collection</c>).</param>
@@ -53,7 +50,7 @@ public static class RecommendationListRules
     /// <param name="page">The page, from 1; 1 when blank.</param>
     /// <param name="pageSize">The works per page, 1 to 100; <see cref="DefaultPageSize"/> when blank.</param>
     /// <param name="filter">What the values say, when every one is acceptable.</param>
-    public static string? Validate(
+    public static Message? Validate(
         string? tab,
         string? reason,
         string? available,
@@ -70,14 +67,14 @@ public static class RecommendationListRules
         if (Trimmed(tab) is not { } tabText)
             return TabMissingError;
         if (ByName<RecommendationTab>(tabText) is not { } listedTab)
-            return $"“{Echo(tabText)}” is not a recommendation tab. Use Movies, Series, Cartoons or Documentaries.";
+            return Message.Of("recommendations.list.tab-unknown", ("value", Echo(tabText)));
 
         RecommendationReasonKind? reasonKind = null;
         if (Trimmed(reason) is { } reasonText)
         {
             reasonKind = ByName<RecommendationReasonKind>(reasonText);
             if (reasonKind is null)
-                return $"“{Echo(reasonText)}” is not a recommendation reason. Use Collection, Director, Creator, Recommended, MissingSeasons, TopRated or NewAtSource.";
+                return Message.Of("recommendations.list.reason-unknown", ("value", Echo(reasonText)));
         }
 
         var availableOnly = false;
@@ -86,14 +83,14 @@ public static class RecommendationListRules
             if (string.Equals(availableText, bool.TrueString, StringComparison.OrdinalIgnoreCase))
                 availableOnly = true;
             else if (!string.Equals(availableText, bool.FalseString, StringComparison.OrdinalIgnoreCase))
-                return $"“{Echo(availableText)}” is not an availability filter. Use true or false.";
+                return Message.Of("recommendations.list.availability-invalid", ("value", Echo(availableText)));
         }
 
         int? genre = null;
         if (Trimmed(genreId) is { } genreText)
         {
             if (!int.TryParse(genreText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedGenre))
-                return $"“{Echo(genreText)}” is not a genre id, which is a number such as 18.";
+                return Message.Of("recommendations.list.genre-invalid", ("value", Echo(genreText)));
             genre = parsedGenre;
         }
 
@@ -103,7 +100,7 @@ public static class RecommendationListRules
             if (!int.TryParse(decadeText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedDecade)
                 || parsedDecade % 10 != 0
                 || parsedDecade > LatestDecade)
-                return $"“{Echo(decadeText)}” is not a decade. Use its first year, such as 1990.";
+                return Message.Of("recommendations.list.decade-invalid", ("value", Echo(decadeText)));
             firstYear = parsedDecade;
         }
 
@@ -119,16 +116,17 @@ public static class RecommendationListRules
         if (Trimmed(sort) is { } sortText)
         {
             if (ByName<RecommendationSort>(sortText) is not { } parsedSort)
-                return $"“{Echo(sortText)}” is not a sort. Use Score, Rating, Votes, Newest, Oldest, Title or Releases.";
+                return Message.Of("recommendations.list.sort-unknown", ("value", Echo(sortText)));
             order = parsedSort;
         }
 
         var pageNumber = 1;
+        // PagingRules' own messages, for a page that isn't a number at all.
         if (Trimmed(page) is { } pageText && !int.TryParse(pageText, NumberStyles.None, CultureInfo.InvariantCulture, out pageNumber))
-            return PageError;
+            return PagingRules.PageError;
         var size = DefaultPageSize;
         if (Trimmed(pageSize) is { } sizeText && !int.TryParse(sizeText, NumberStyles.None, CultureInfo.InvariantCulture, out size))
-            return PageSizeError;
+            return PagingRules.PageSizeError;
         if (PagingRules.Validate(pageNumber, size) is { } pagingError)
             return pagingError;
 
@@ -137,12 +135,12 @@ public static class RecommendationListRules
     }
 
     /// <summary>
-    /// The sentence saying <paramref name="kind"/> is not <c>Movie</c> or <c>Series</c> (in any letter case), or
+    /// Why <paramref name="kind"/> is not <c>Movie</c> or <c>Series</c> (in any letter case), or
     /// <c>null</c> with the kind it names in <paramref name="value"/>. A recommended work is one of the two, never an
     /// episode, so <see cref="MediaWorkKind.Episode"/> is no kind here. Blank is refused: a caller with an optional
     /// kind checks for blank first.
     /// </summary>
-    public static string? ValidateKind(string? kind, out MediaWorkKind? value)
+    public static Message? ValidateKind(string? kind, out MediaWorkKind? value)
     {
         value = null;
         var text = kind?.Trim() ?? "";
@@ -151,7 +149,7 @@ public static class RecommendationListRules
         else if (string.Equals(text, nameof(MediaWorkKind.Series), StringComparison.OrdinalIgnoreCase))
             value = MediaWorkKind.Series;
         else
-            return $"“{Echo(text)}” is not a kind of work. Use Movie or Series.";
+            return Message.Of("recommendations.list.kind-unknown", ("value", Echo(text)));
         return null;
     }
 

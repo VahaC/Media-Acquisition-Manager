@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.Api.Services.Files;
@@ -19,7 +20,7 @@ public sealed class FileInspectionWorker(
     TimeProvider time,
     ILogger<FileInspectionWorker> logger) : BackgroundService
 {
-    internal const string AppErrorMessage = "The inspection stopped because of an error in the app. Its log says more.";
+    internal static readonly Message AppErrorMessage = Message.Of("files.inspection.app-error");
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

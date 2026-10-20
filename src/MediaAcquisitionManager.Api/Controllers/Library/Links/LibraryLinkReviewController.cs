@@ -30,7 +30,7 @@ public class LibraryLinkReviewController(
     public async Task<ActionResult<LibraryLinkQueueResponse>> Queue([FromQuery] LibraryLinkQueueRequest request, CancellationToken cancellationToken)
     {
         var result = await suggestions.ReadQueueAsync(request.Index, cancellationToken);
-        return result.Status == LibraryLinkStatus.Succeeded ? Ok(result.Queue) : this.BadRequestError(result.Error);
+        return result.Status == LibraryLinkStatus.Succeeded ? Ok(result.Queue) : this.BadRequestError(result.Error!);
     }
 
     /// <summary>One page of the works whose suggestion is confident, by title, of one library or all, with each library's
@@ -40,7 +40,7 @@ public class LibraryLinkReviewController(
         [FromQuery] ConfidentSuggestionListRequest request, CancellationToken cancellationToken)
     {
         var result = await suggestions.ListConfidentAsync(request.LocationId, request.Page, request.PageSize, cancellationToken);
-        return result.Status == LibraryLinkStatus.Succeeded ? Ok(result.List) : this.BadRequestError(result.Error);
+        return result.Status == LibraryLinkStatus.Succeeded ? Ok(result.List) : this.BadRequestError(result.Error!);
     }
 
     /// <summary>
@@ -57,8 +57,8 @@ public class LibraryLinkReviewController(
         return result.Status switch
         {
             LibraryLinkStatus.Succeeded => Accepted(result.Batch),
-            LibraryLinkStatus.Conflict => this.ConflictError(result.Error),
-            _ => this.BadRequestError(result.Error),
+            LibraryLinkStatus.Conflict => this.ConflictError(result.Error!),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -78,8 +78,8 @@ public class LibraryLinkReviewController(
             // Named: with a bare null the (action, controller, route values) overload wins, and the run would go out as
             // route values behind an empty body.
             LibraryLinkSuggestionRunStartStatus.Queued => AcceptedAtAction(nameof(LatestRun), routeValues: null, value: result.Run),
-            LibraryLinkSuggestionRunStartStatus.NoCatalog => this.ConflictError(result.Error),
-            _ => this.UnavailableError(result.Error),
+            LibraryLinkSuggestionRunStartStatus.NoCatalog => this.ConflictError(result.Error!),
+            _ => this.UnavailableError(result.Error!),
         };
     }
 }

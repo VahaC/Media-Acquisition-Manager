@@ -19,7 +19,7 @@ public sealed class RecommendationDismissalsHttpTests : IClassFixture<MediaAcqui
 {
     private const string BaseUrl = "/api/recommendations/dismissals";
     private const string ListUrl = "/api/recommendations";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private AuthorizedUser _anna = null!;

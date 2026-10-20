@@ -6,6 +6,8 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
+using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -201,9 +203,9 @@ public sealed class ReplacementHoldingReader(
 
         // The order a destination's listing is refused in (DestinationChecker).
         if (!client.IsEnabled)
-            return NotAsked(client, "switched off", $"“{client.Name}” is switched off.");
+            return NotAsked(client, "switched off", Message.Of("replacements.holdings.switched-off", ("client", client.Name)));
         if (adapters.Find<IDownloadClient>(client.AdapterType) is not { } downloadClient)
-            return NotAsked(client, "type unavailable", $"This version of the app can't read “{client.AdapterType}”.");
+            return NotAsked(client, "type unavailable", Message.Of("replacements.holdings.type-unavailable", ("type", client.AdapterType)));
 
         var settingsResult = settingsFactory.Create(client);
         if (settingsResult.Settings is not { } settings)
@@ -218,8 +220,8 @@ public sealed class ReplacementHoldingReader(
             // Information: the status only — never the address or the sentence (the connection test's rule).
             logger.LogInformation(
                 "Holdings listing of integration {IntegrationId} ({AdapterType}) failed: {Status}.", client.Id, client.AdapterType, listed.Status);
-            // Masked again after the adapter (ADR 0007's second pass).
-            return new ClientAnswer(null, SecretRedaction.Redact(listed.Error!, settings.Secrets), null);
+            // Masked again after the adapter (ADR 0007's second pass), value by value (MAM-47).
+            return new ClientAnswer(null, listed.Error!.Redacted(settings.Secrets), null);
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -232,11 +234,11 @@ public sealed class ReplacementHoldingReader(
                 client.AdapterType,
                 exception.GetType().FullName,
                 exception.StackTrace);
-            return new ClientAnswer(null, $"The app couldn't read what “{client.Name}” answered.", null);
+            return new ClientAnswer(null, IntegrationAdapterMessages.UnreadableAnswer(client.Name), null);
         }
     }
 
-    private ClientAnswer NotAsked(IntegrationConnectionEntity client, string why, string error)
+    private ClientAnswer NotAsked(IntegrationConnectionEntity client, string why, Message error)
     {
         logger.LogInformation(
             "Holdings listing of integration {IntegrationId} ({AdapterType}) did not ask it: {Reason}.", client.Id, client.AdapterType, why);
@@ -378,5 +380,5 @@ public sealed class ReplacementHoldingReader(
 
     /// <summary>What one client's listing gave: its jobs, or the sentence why there are none — MAM-30, and the suffix its
     /// unfinished files carry, if any. Its <c>ToString</c> prints the list as its type name; the error is masked.</summary>
-    private sealed record ClientAnswer(IReadOnlyList<ClientJobWithFiles>? Jobs, string? Error, string? PartialFileSuffix);
+    private sealed record ClientAnswer(IReadOnlyList<ClientJobWithFiles>? Jobs, Message? Error, string? PartialFileSuffix);
 }

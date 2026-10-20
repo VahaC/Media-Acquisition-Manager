@@ -41,6 +41,9 @@ const statusOf = (name: string) => within(rowOf(name)).getByRole('status')
 /** The status line of the source named `name`, once the sources have arrived. */
 const findStatusOf = async (name: string) => within((await screen.findByText(name)).closest('li')!).getByRole('status')
 
+/** MAM-47 — an example of a path mapper's sentence code: no mapping covers the file. */
+const notCoveredCode = 'integrations.path-mapper.not-covered'
+
 const failedRun = runOf({
   id: '5e000000-0000-4000-8000-000000000002',
   status: 'Failed',
@@ -195,6 +198,67 @@ describe('LibrarySyncPanel', () => {
     expect(await screen.findByText('Some files have no path in this app. Ask the owner to check the path mappings.'))
       .toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  // MAM-47 — the server names each sentence's kind by its code, the same whatever file it names and
+  // whatever language it is worded in.
+  it('does not quote an unreadable file\'s problem of the same code as the path problem, though it names another file', async () => {
+    // Arrange
+    serve(sourceOf({
+      filesWithoutAppPathCount: 2,
+      pathProblem: 'No path mapping of “Home Jellyfin” covers /srv/other/untitled.mkv.',
+      pathProblemCode: notCoveredCode,
+      inspection: {
+        inspectedCount: 868,
+        problemCount: 2,
+        notInspectedCount: 0,
+        problem: 'No path mapping of “Home Jellyfin” covers /srv/other/extras.mkv.',
+        problemCode: notCoveredCode,
+      },
+    }))
+
+    // Act
+    await renderPanel()
+
+    // Assert
+    expect(await screen.findByText(/2 files have no path in this app/)).toHaveTextContent('/srv/other/untitled.mkv')
+    expect(screen.getByText('2 files couldn\'t be read.').closest('p')).toHaveClass('library-source-warning')
+    expect(screen.queryByText(/extras\.mkv/)).not.toBeInTheDocument()
+  })
+
+  it('quotes an unreadable file\'s problem whose code differs from the path problem\'s', async () => {
+    // Arrange
+    const problem = 'ffprobe couldn\'t read “/media/movies/Alien (1979).mkv”: Invalid data found when processing input.'
+    serve(sourceOf({
+      filesWithoutAppPathCount: 1,
+      pathProblem: 'No path mapping of “Home Jellyfin” covers /srv/other/untitled.mkv.',
+      pathProblemCode: notCoveredCode,
+      inspection: { inspectedCount: 868, problemCount: 2, notInspectedCount: 0, problem, problemCode: 'files.probe.unreadable' },
+    }))
+
+    // Act
+    await renderPanel()
+
+    // Assert
+    const line = (await screen.findByText(`2 files couldn't be read: ${problem}`)).closest('p')!
+    expect(line).toHaveClass('library-source-warning')
+  })
+
+  it('compares the words when the server sends no codes, quoting another file\'s problem as before', async () => {
+    // Arrange — a server older than MAM-47 leaves the codes out.
+    const problem = 'No path mapping of “Home Jellyfin” covers /srv/other/extras.mkv.'
+    serve(sourceOf({
+      filesWithoutAppPathCount: 2,
+      pathProblem: 'No path mapping of “Home Jellyfin” covers /srv/other/untitled.mkv.',
+      pathProblemCode: undefined,
+      inspection: { inspectedCount: 868, problemCount: 2, notInspectedCount: 0, problem },
+    }))
+
+    // Act
+    await renderPanel()
+
+    // Assert
+    expect(await screen.findByText(`2 files couldn't be read: ${problem}`)).toBeInTheDocument()
   })
 
   it('starts a sync for the owner and shows it queued at once', async () => {

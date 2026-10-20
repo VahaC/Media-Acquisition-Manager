@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Destinations;
 using MediaAcquisitionManager.Api.Services.Releases;
 using MediaAcquisitionManager.Api.Services.Replacements;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Search;
@@ -15,6 +16,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paging;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,30 +47,27 @@ public sealed class DownloadService(
     IReplacementGates gates,
     IAuditTrail auditTrail,
     IDownloadMapper mapper,
+    IRequestTexts texts,
     TimeProvider time,
     ILogger<DownloadService> logger) : IDownloadService
 {
-    private const string ClientGoneError = "The download client you picked no longer exists. Reload the page and pick one again.";
+    private static readonly Message RequestIdReusedError = Message.Of("downloads.send.request-id-reused");
 
-    private const string RequestIdReusedError =
-        "This request id was already used to send a different download. Reload the page and try again.";
-
-    private const string SourceRemovedError =
-        "The source that listed this release has been removed, so the release can't be fetched. Search again.";
+    private static readonly Message SourceRemovedError = Message.Of("downloads.send.source-removed");
 
     // MAM-14 — a cancel of a job that already ended, one sentence per way it ends.
-    private const string AlreadyDownloadedError = "This download is already finished, so there's nothing to stop following.";
+    private static readonly Message AlreadyDownloadedError = Message.Of("downloads.cancel.already-downloaded");
 
-    private const string AlreadyFailedError = "This download has already failed, so there's nothing to stop following.";
+    private static readonly Message AlreadyFailedError = Message.Of("downloads.cancel.already-failed");
 
-    private const string AlreadyCancelledError = "This download is already cancelled, so there's nothing to stop following.";
+    private static readonly Message AlreadyCancelledError = Message.Of("downloads.cancel.already-cancelled");
 
     // MAM-14 — a cancel of a Created job younger than DownloadJobPoller.InterruptedSendAge: its send may still be
     // under way, and only an interrupted one can be cancelled.
-    private const string StillBeingSentError = "This download is still being sent, so it can't be cancelled yet. Try again in a few minutes.";
+    private static readonly Message StillBeingSentError = Message.Of("downloads.cancel.still-being-sent");
 
-    // MAM-24 — why a replacement ends when its download is cancelled from the Jobs page (R6).
-    private const string ReplacementCancelledReason = "You cancelled the download, so nothing will be replaced.";
+    // MAM-24 — why a replacement ends when its download is cancelled from the Jobs page (R6). MAM-47 — a message (WP9).
+    private static readonly Message ReplacementCancelledReason = Message.Of("replacements.following.download-cancelled-by-you");
 
     /// <summary>
     /// MAM-26 — the states of a name that moved into the quarantine at some point: in it, on its way back or out, back, or
@@ -146,7 +145,7 @@ public sealed class DownloadService(
         // Transmission and read "has no path in the app, or its download client can't say where it is" instead.
         CheckedClientDestination? listed = null;
         DownloadFolderUnknownCause? cause = null;
-        string? clientError = null;
+        Message? clientError = null;
         var client = await FindDownloadClientAsync(destination.DownloadClientConnectionId, cancellationToken);
         if (client is not null)
         {
@@ -169,9 +168,10 @@ public sealed class DownloadService(
             return DownloadOverwriteCheckResult.Answered(new DownloadOverwriteCheckResponse(reason));
 
         // The client's own sentence can name its address: the owner's alone (MAM-10's rule), as on the Jobs page.
+        // MAM-47 — rendered here, the one place this answer is built, in the request's language (ADR 0042).
         var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
         return DownloadOverwriteCheckResult.Answered(new DownloadOverwriteCheckResponse(
-            reason, cause, client!.Name, forOwner ? clientError : null));
+            reason, cause, client!.Name, forOwner ? texts.Render(clientError) : null));
     }
 
     public Task<DownloadSendResult> SendAsync(SendDownloadRequest request, Guid callerUserId, CancellationToken cancellationToken = default)
@@ -225,7 +225,7 @@ public sealed class DownloadService(
             return DownloadSendResult.Refused(DownloadSendStatus.ReleaseMissing, DownloadErrors.ReleaseMissing);
         var release = found.Release;
         if (await FindDownloadClientAsync(request.DownloadClientId!.Value, cancellationToken) is not { } client)
-            return DownloadSendResult.Refused(DownloadSendStatus.ClientMissing, ClientGoneError);
+            return DownloadSendResult.Refused(DownloadSendStatus.ClientMissing, DownloadErrors.ClientGone);
         if (await db.DestinationMappings.AsNoTracking().SingleOrDefaultAsync(row => row.Id == request.DestinationId, cancellationToken)
             is not { } destination)
             return DownloadSendResult.Refused(DownloadSendStatus.DestinationMissing, DownloadErrors.DestinationGone);
@@ -233,7 +233,7 @@ public sealed class DownloadService(
         {
             return DownloadSendResult.Refused(
                 DownloadSendStatus.Invalid,
-                $"“{destination.Name}” is a destination of another download client. Pick one of “{client.Name}”’s.");
+                Message.Of("downloads.send.destination-of-other-client", ("destination", destination.Name), ("client", client.Name)));
         }
 
         if (ClientRefusal(client, release.PayloadKind) is { } clientRefusal)
@@ -256,7 +256,7 @@ public sealed class DownloadService(
             // Decision 3 — the release is recognised by its source's id for it (or its info hash), not by
             // the row: every search stores its own copy of a listing (ADR 0006, MAM-10).
             return DownloadSendResult.Refused(
-                DownloadSendStatus.AlreadySent, $"This release was already sent to “{client.Name}”, so it isn't sent twice.");
+                DownloadSendStatus.AlreadySent, Message.Of("downloads.send.already-sent", ("client", client.Name)));
         }
 
         // MAM-24, R1 — the replacement planned from the database and the disk alone, the ticks read against the works and
@@ -299,9 +299,20 @@ public sealed class DownloadService(
 
     // Another user's job answers as none, like their searches: nothing confirms it exists.
     public async Task<DownloadJobDto?> GetAsync(Guid jobId, Guid callerUserId, CancellationToken cancellationToken = default) =>
-        await JobRows(job => job.Id == jobId && job.RequestedByUserId == callerUserId).SingleOrDefaultAsync(cancellationToken) is { } row
-            ? await ToDtoAsync(row, await db.IsInstallationOwnerAsync(callerUserId, cancellationToken), cancellationToken)
-            : null;
+        (await ReadAsync(jobId, callerUserId, cancellationToken))?.Job;
+
+    public async Task<DownloadJobRead?> ReadAsync(Guid jobId, Guid callerUserId, CancellationToken cancellationToken = default)
+    {
+        if (await JobRows(job => job.Id == jobId && job.RequestedByUserId == callerUserId).SingleOrDefaultAsync(cancellationToken) is not { } row)
+            return null;
+
+        var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
+        var sourceName = row.SourceName ?? "";
+        return new DownloadJobRead(
+            await ToDtoAsync(row, forOwner, cancellationToken),
+            mapper.ErrorOf(row.Job, sourceName, forOwner),
+            mapper.BlockReasonOf(row.Job, forOwner));
+    }
 
     public async Task<DownloadJobListResult> ListAsync(
         string? status, string? view, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default)
@@ -473,18 +484,19 @@ public sealed class DownloadService(
         if (!client.IsEnabled)
         {
             return DownloadSendResult.Refused(
-                DownloadSendStatus.ClientUnusable, $"“{client.Name}” is switched off. The owner can switch it on under Integrations.");
+                DownloadSendStatus.ClientUnusable, Message.Of("downloads.send.client-switched-off", ("client", client.Name)));
         }
 
+        // MAM-47 — the Destinations page's own sentence, word for word: one key (destinations.client.*).
         if (adapters.Find<IDownloadClient>(client.AdapterType) is not { } downloadClient)
         {
             return DownloadSendResult.Refused(
-                DownloadSendStatus.ClientUnusable, $"This version of the app can't send downloads to “{client.AdapterType}”.");
+                DownloadSendStatus.ClientUnusable, Message.Of("destinations.client.type-unavailable", ("type", client.AdapterType)));
         }
 
         return Takes(downloadClient.Capabilities, kind)
             ? null
-            : DownloadSendResult.Refused(DownloadSendStatus.Invalid, $"“{client.Name}” can't take {KindsOf(kind)}, which this release is.");
+            : DownloadSendResult.Refused(DownloadSendStatus.Invalid, CannotTakeError(client, kind));
     }
 
     /// <summary>Why the release can't be fetched from <paramref name="source"/>, or <c>null</c> when it can.
@@ -496,22 +508,23 @@ public sealed class DownloadService(
         if (!source.IsEnabled)
         {
             return DownloadSendResult.Refused(
-                DownloadSendStatus.SourceUnusable,
-                $"“{source.Name}” is switched off, so its releases can't be fetched. The owner can switch it on under Integrations.");
+                DownloadSendStatus.SourceUnusable, Message.Of("downloads.send.source-switched-off", ("source", source.Name)));
         }
 
         return adapters.Find<IReleaseSearchProvider>(source.AdapterType) is null
             ? DownloadSendResult.Refused(
-                DownloadSendStatus.SourceUnusable, $"This version of the app can't fetch releases from “{source.AdapterType}”.")
+                DownloadSendStatus.SourceUnusable, Message.Of("downloads.send.source-type-unavailable", ("type", source.AdapterType)))
             : null;
     }
 
-    private static string KindsOf(ReleasePayloadKind? kind) => kind switch
+    /// <summary>A client that can't take what the release is. MAM-47 — a sentence per kind, as the kind is the object of
+    /// "take" (design §1.3); a kind the listing didn't state is "torrents".</summary>
+    private static Message CannotTakeError(IntegrationConnectionEntity client, ReleasePayloadKind? kind) => kind switch
     {
-        ReleasePayloadKind.TorrentFile => ".torrent files",
-        ReleasePayloadKind.Magnet => "magnet links",
-        ReleasePayloadKind.Nzb => "NZB files",
-        _ => "torrents",
+        ReleasePayloadKind.TorrentFile => Message.Of("downloads.send.cannot-take.torrent-files", ("client", client.Name)),
+        ReleasePayloadKind.Magnet => Message.Of("downloads.send.cannot-take.magnet-links", ("client", client.Name)),
+        ReleasePayloadKind.Nzb => Message.Of("downloads.send.cannot-take.nzb-files", ("client", client.Name)),
+        _ => Message.Of("downloads.send.cannot-take.torrents", ("client", client.Name)),
     };
 
     /// <summary>
@@ -730,7 +743,7 @@ public sealed class DownloadService(
     }
 
     /// <summary>MAM-14 — why a job of <paramref name="status"/>, which ended, can't be cancelled.</summary>
-    private static string NothingToStopError(DownloadJobStatus status) => status switch
+    private static Message NothingToStopError(DownloadJobStatus status) => status switch
     {
         DownloadJobStatus.Downloaded => AlreadyDownloadedError,
         DownloadJobStatus.Failed => AlreadyFailedError,
@@ -824,7 +837,8 @@ public sealed class DownloadService(
     /// MAM-24 — adds the replacement <paramref name="plan"/> describes to <paramref name="job"/>'s save, unsaved: the
     /// replacement, still <see cref="ReplacementJobState.Scheduled"/>, with the edition the release claims; each ticked
     /// copy as the plan read it from the disk; each matched work with its ids then; and its audit rows — the schedule's,
-    /// named by the release, and one per work the owner confirmed, named by the words he ticked (ADR 0032's consent).
+    /// named by the release, and one per work the owner confirmed, named by what he ticked (ADR 0032's consent; MAM-47 —
+    /// the claim's label, design §5.5).
     /// </summary>
     private ReplacementJobEntity AddReplacement(DownloadJobEntity job, ReplacementPlan plan, AuditActor actor, string releaseTitle, DateTime now)
     {
@@ -884,7 +898,7 @@ public sealed class DownloadService(
 
         auditTrail.Record(AuditAction.ReplacementScheduled, actor, AuditTarget.ReplacementJob(scheduled, releaseTitle));
         foreach (var work in plan.Works.Where(work => work.ConfirmedByOwner))
-            auditTrail.Record(AuditAction.ReplacementWorkConfirmed, actor, AuditTarget.ReplacementJob(scheduled, work.ConfirmationText));
+            auditTrail.Record(AuditAction.ReplacementWorkConfirmed, actor, AuditTarget.ReplacementConfirmation(scheduled, work.ConfirmationText));
         return scheduled;
     }
 
@@ -940,7 +954,7 @@ public sealed class DownloadService(
         if (!await db.Releases.AnyAsync(row => row.Id == release.Id, cancellationToken))
             return DownloadSendResult.Refused(DownloadSendStatus.ReleaseMissing, DownloadErrors.ReleaseMissing);
         if (!await db.IntegrationConnections.AnyAsync(row => row.Id == client.Id, cancellationToken))
-            return DownloadSendResult.Refused(DownloadSendStatus.ClientMissing, ClientGoneError);
+            return DownloadSendResult.Refused(DownloadSendStatus.ClientMissing, DownloadErrors.ClientGone);
         if (!await db.DestinationMappings.AnyAsync(row => row.Id == destination.Id, cancellationToken))
             return DownloadSendResult.Refused(DownloadSendStatus.DestinationMissing, DownloadErrors.DestinationGone);
         return null;

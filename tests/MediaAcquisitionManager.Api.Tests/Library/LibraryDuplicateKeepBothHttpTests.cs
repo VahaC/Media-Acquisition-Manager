@@ -59,7 +59,7 @@ public sealed class LibraryDuplicateKeepBothHttpTests : IClassFixture<MediaAcqui
     private const long TakenSizeBytes = 30_870_249_472;
 
     // Spelled out rather than read from the product code: these are what the owner reads on the page.
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
     private const string CopiesAreNotConfirmedError =
         "These files are copies by their bytes or registry ids, which no one has to confirm: keep them as they are, or remove a copy.";
     private const string OneFileError =

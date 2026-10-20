@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
@@ -81,7 +82,7 @@ public sealed partial class CopyRemovalService
     /// rename expects; waiting, or staying where it is when <paramref name="heldBy"/> says a torrent holds it.
     /// </summary>
     private static CopyRemovalNameEntity NameRow(
-        Guid copyRemovalId, PlannedRemoval planned, NormalizedPath appPath, FileFacts facts, ReplacementNameKind kind, string? heldBy, int position) =>
+        Guid copyRemovalId, PlannedRemoval planned, NormalizedPath appPath, FileFacts facts, ReplacementNameKind kind, Message? heldBy, int position) =>
         new()
         {
             CopyRemovalId = copyRemovalId,
@@ -96,7 +97,7 @@ public sealed partial class CopyRemovalService
             ModifiedUtc = facts.ModifiedUtc,
             LinkCount = facts.LinkCount,
             State = heldBy is null ? ReplacementNameState.Planned : ReplacementNameState.Stayed,
-            Problem = heldBy is null ? null : FileInspectionRunUpdates.Cut(heldBy, QuarantinedNameEntity.ProblemMaximumLength),
+            Problem = heldBy,
         };
 
     /// <summary>
@@ -109,7 +110,7 @@ public sealed partial class CopyRemovalService
     private async Task<RemovalEnd> MoveNamesAsync(CopyRemovalEntity removal, IReadOnlyList<CopyRemovalNameEntity> names, AuditActor actor)
     {
         var moved = 0;
-        string? reason = null;
+        Message? reason = null;
         foreach (var name in names.Where(name => name.State == ReplacementNameState.Planned))
         {
             var (intent, gate) = await IntendAsync(removal, name, actor);
@@ -203,7 +204,7 @@ public sealed partial class CopyRemovalService
     /// <summary>The outcome of <paramref name="name"/>'s rename that wasn't done — <c>Stayed</c> where it was — or that
     /// moved another file — <c>Lost</c> —, committed after it with <paramref name="problem"/>, and a
     /// <c>CopyRemovalNameNotMoved</c> row.</summary>
-    private async Task RecordNotMovedAsync(CopyRemovalNameEntity name, ReplacementNameState state, string problem, AuditActor actor)
+    private async Task RecordNotMovedAsync(CopyRemovalNameEntity name, ReplacementNameState state, Message problem, AuditActor actor)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(CancellationToken.None);
         if (await db.CopyRemovalNames.RecordNameNotMovedAsync(name.Id, state, problem) == 0)
@@ -221,7 +222,7 @@ public sealed partial class CopyRemovalService
     /// the video's rename was refused with nothing in the quarantine, which ends it. A library notice owed from then when
     /// <paramref name="noticeDue"/>, and the end's audit row.
     /// </summary>
-    private async Task<RemovalEnd> SettleAsync(CopyRemovalEntity removal, string? reason, bool noticeDue, AuditActor actor)
+    private async Task<RemovalEnd> SettleAsync(CopyRemovalEntity removal, Message? reason, bool noticeDue, AuditActor actor)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(CancellationToken.None);
         var now = time.GetUtcNow().UtcDateTime;
@@ -268,7 +269,7 @@ public sealed partial class CopyRemovalService
 
     /// <summary>How a Remove ended: the removal, why the owner is refused — it moved nothing, or changed under it — and
     /// whether the library is owed a notice.</summary>
-    private sealed record RemovalEnd(Guid CopyRemovalId, string? Refusal, bool NoticeDue);
+    private sealed record RemovalEnd(Guid CopyRemovalId, Message? Refusal, bool NoticeDue);
 
     /// <summary>What a name's intent came to: written, or not — the removal moved on, or the gates read under its lock closed
     /// on it.</summary>

@@ -6,6 +6,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Api.Tests.Downloads;
 
@@ -235,7 +236,7 @@ public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquis
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("""{"error":"Pick the destination to send it to."}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(ErrorBody.Json("Pick the destination to send it to.", "downloads.request.destination-missing"), await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
     [Fact]
@@ -250,7 +251,7 @@ public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquis
         //Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal(
-            """{"error":"The destination you picked no longer exists. Reload the page and pick one again."}""",
+            ErrorBody.Json("The destination you picked no longer exists. Reload the page and pick one again.", "downloads.destination-gone"),
             await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
@@ -286,6 +287,12 @@ public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquis
     {
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         var root = document.RootElement;
-        return (root.GetProperty("folderUnknownCause").GetString(), root.GetProperty("clientName").GetString(), root.GetProperty("clientError").GetString());
+        // MAM-47 — the client's sentence read as written: in the pseudo pass it must be one wrapped message, which proves it
+        // came through the renderer, and is compared as its English.
+        var error = root.GetProperty("clientError").GetString();
+        return (
+            root.GetProperty("folderUnknownCause").GetString(),
+            root.GetProperty("clientName").GetString(),
+            error is not null && AcceptLanguageHandler.AskedForPseudo(response.RequestMessage) ? PseudoText.Unwrap(error, "the client's error") : error);
     }
 }

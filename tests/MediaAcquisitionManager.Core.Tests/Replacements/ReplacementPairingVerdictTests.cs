@@ -1,5 +1,7 @@
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using static MediaAcquisitionManager.TestInfrastructure.Replacements.ReplacementPairingInputs;
 
 namespace MediaAcquisitionManager.Core.Tests.Replacements;
@@ -32,11 +34,11 @@ public sealed class ReplacementPairingVerdictTests
         //Assert
         // An unavailable library never leads to a pass; the copy left without a file is no problem of its own meanwhile.
         const string reason = "“Jellyfin” didn't list “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” within an hour of being asked to look.";
-        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (waiting.Verdict, waiting.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, null)], waiting.NewFiles);
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (stopped.Verdict, stopped.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, reason)], stopped.NewFiles);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, null)], stopped.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (waiting.Verdict, TestTexts.En(waiting.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, null)], waiting.NewFiles.InEnglish());
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (stopped.Verdict, TestTexts.En(stopped.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, reason)], stopped.NewFiles.InEnglish());
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, null)], stopped.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -55,7 +57,7 @@ public sealed class ReplacementPairingVerdictTests
         Assert.Equal((ReplacementPairingVerdict.Wait, (Guid?)null), (waiting.Verdict, Assert.Single(waiting.NewFiles).WorkId));
         Assert.Equal(
             (ReplacementPairingVerdict.Review, "“Jellyfin” hadn't finished reading “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” within an hour."),
-            (stopped.Verdict, stopped.Reason));
+            (stopped.Verdict, TestTexts.En(stopped.Reason)));
     }
 
     [Fact]
@@ -75,9 +77,9 @@ public sealed class ReplacementPairingVerdictTests
             "“Jellyfin” no longer lists the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv”, so its episode numbers can't be read.";
         Assert.Equal(ReplacementPairingVerdict.Wait, waiting.Verdict);
         // Its pair is found meanwhile, and shown.
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, null)], waiting.OldCopies);
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (stopped.Verdict, stopped.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason)], stopped.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, null)], waiting.OldCopies.InEnglish());
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (stopped.Verdict, TestTexts.En(stopped.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, reason)], stopped.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -95,7 +97,7 @@ public sealed class ReplacementPairingVerdictTests
         Assert.Equal(ReplacementPairingVerdict.Wait, waiting.Verdict);
         Assert.Equal(
             "“Jellyfin” hadn't finished reading the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” within an hour, so its episode numbers can't be read.",
-            stopped.Reason);
+            TestTexts.En(stopped.Reason));
     }
 
     [Fact]
@@ -131,10 +133,10 @@ public sealed class ReplacementPairingVerdictTests
         const string wrongReason =
             "“Jellyfin” identified “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” as another work (IMDb tt0090605, TMDb 679), not Alien (1979).";
         const string unreadReason = "“Jellyfin” didn't list “/media/movies/Aliens (1986)/Aliens.1986.2160p.mkv” within an hour of being asked to look.";
-        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (waiting.Verdict, waiting.Reason));
-        Assert.Equal([wrongReason, null], waiting.NewFiles.Select(outcome => outcome.Problem));
-        Assert.Equal((ReplacementPairingVerdict.Review, unreadReason), (stopped.Verdict, stopped.Reason));
-        Assert.Equal([wrongReason, unreadReason], stopped.NewFiles.Select(outcome => outcome.Problem));
+        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (waiting.Verdict, TestTexts.En(waiting.Reason)));
+        Assert.Equal([wrongReason, null], waiting.NewFiles.Select(outcome => TestTexts.En(outcome.Problem)));
+        Assert.Equal((ReplacementPairingVerdict.Review, unreadReason), (stopped.Verdict, TestTexts.En(stopped.Reason)));
+        Assert.Equal([wrongReason, unreadReason], stopped.NewFiles.Select(outcome => TestTexts.En(outcome.Problem)));
     }
 
     [Fact]
@@ -152,9 +154,9 @@ public sealed class ReplacementPairingVerdictTests
         //Assert
         Assert.Equal(
             (ReplacementPairingVerdict.Review, "“/media/movies/Alien (1979)/Alien.1979.Extended.mkv” claims Extended cut, while the release claimed none."),
-            (result.Verdict, result.Reason));
+            (result.Verdict, TestTexts.En(result.Reason)));
         // The copy without a file yet waits on the file without an id: no problem of its own.
-        Assert.Equal([new ReplacementOldCopyOutcome(aliensCopy.Id, null, null)], result.OldCopies.Where(outcome => outcome.OldCopyId == aliensCopy.Id));
+        Assert.Equal([new EnglishOldCopyOutcome(aliensCopy.Id, null, null)], result.OldCopies.InEnglish().Where(outcome => outcome.OldCopyId == aliensCopy.Id));
     }
 
     [Fact]
@@ -170,8 +172,8 @@ public sealed class ReplacementPairingVerdictTests
         //Assert
         const string reason =
             "“/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.Extended.mkv” claims Extended cut, while the release claimed none.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, extended.Id, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, extended.Id, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -189,9 +191,9 @@ public sealed class ReplacementPairingVerdictTests
             "“Jellyfin” gave the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” no series with a TMDb, TVDB or IMDb id within an hour, so it can't be told to be an episode of The Penguins of Madagascar.";
         const string fileReason =
             "“Jellyfin” gave “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.mkv” no series with a TMDb, TVDB or IMDb id within an hour, so it can't be told to be an episode of The Penguins of Madagascar.";
-        Assert.Equal((ReplacementPairingVerdict.Review, copyReason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, copyReason)], result.OldCopies);
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, fileReason)], result.NewFiles);
+        Assert.Equal((ReplacementPairingVerdict.Review, copyReason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, copyReason)], result.OldCopies.InEnglish());
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, fileReason)], result.NewFiles.InEnglish());
     }
 
     [Fact]
@@ -208,7 +210,7 @@ public sealed class ReplacementPairingVerdictTests
         //Assert
         Assert.Equal(
             "“/media/tv-shows/Penguins/Season 02/Penguins.S02E05a.mkv” is one half of an episode (its name gives the episode the letter “a”), so it can't be replaced on its own.",
-            result.Reason);
+            TestTexts.En(result.Reason));
         Assert.Equal([first.Id, second.Id], result.OldCopies.Select(outcome => outcome.OldCopyId));
         Assert.All([.. result.OldCopies.Select(outcome => outcome.Problem), Assert.Single(result.NewFiles).Problem], problem => Assert.NotNull(problem));
     }
@@ -241,7 +243,7 @@ public sealed class ReplacementPairingVerdictTests
         //Assert
         // The owner fixing that file's item may pair the copy: the file is the reason, not "no new file".
         Assert.Equal(
-            "“Jellyfin” identified “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” as another work (TMDb 679), not Alien (1979).", result.Reason);
+            "“Jellyfin” identified “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” as another work (TMDb 679), not Alien (1979).", TestTexts.En(result.Reason));
         Assert.Null(Assert.Single(result.OldCopies).Problem);
     }
 
@@ -273,7 +275,7 @@ public sealed class ReplacementPairingVerdictTests
         var result = ReplacementPairing.Pair([Alien], [copy], [file], [], "Living room", libraryWaitPassed: true);
 
         //Assert
-        Assert.StartsWith("“Living room” didn't list", result.Reason, StringComparison.Ordinal);
+        Assert.StartsWith("“Living room” didn't list", TestTexts.En(result.Reason), StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Replacements;
 
@@ -23,7 +24,7 @@ public sealed class NewFileCompletenessTests
         //Assert
         Assert.Equal(
             (NewFileCompletenessStatus.Review, "“qBittorrent” no longer has this download, so the app can't confirm its files are complete."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
         Assert.Empty(result.NewFiles);
     }
 
@@ -40,7 +41,7 @@ public sealed class NewFileCompletenessTests
         // Retry in MAM-27 reads the client again, so an error is the owner's to look at, not a failure.
         Assert.Equal(
             (NewFileCompletenessStatus.Review, "“qBittorrent” reports an error for this download, so the app can't confirm its files are complete."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Theory]
@@ -61,7 +62,7 @@ public sealed class NewFileCompletenessTests
         //Assert
         Assert.Equal(
             (NewFileCompletenessStatus.Wait, "“qBittorrent” doesn't report this download as finished, so its files can't be checked."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -91,7 +92,7 @@ public sealed class NewFileCompletenessTests
         Assert.Equal(
             (NewFileCompletenessStatus.Wait,
                 "“qBittorrent” reports this download in a state the app doesn't know, such as moving its files, so its files can't be checked."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -106,7 +107,7 @@ public sealed class NewFileCompletenessTests
         //Assert
         Assert.Equal(
             (NewFileCompletenessStatus.Wait, "“qBittorrent” still keeps this download's files outside its save folder, so they can't be checked where they will stay."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Theory]
@@ -127,7 +128,7 @@ public sealed class NewFileCompletenessTests
         var result = NewFileCompleteness.OfJob(job, Client);
 
         //Assert
-        Assert.Equal((NewFileCompletenessStatus.Complete, (string?)null), (result.Status, result.Problem));
+        Assert.Equal((NewFileCompletenessStatus.Complete, (string?)null), (result.Status, TestTexts.En(result.Problem)));
         Assert.Empty(result.NewFiles);
     }
 
@@ -152,7 +153,7 @@ public sealed class NewFileCompletenessTests
         // Subtitles, an .nfo and an audio track are no new copies; a skipped sample is not downloaded at all.
         Assert.Equal(NewFileCompletenessStatus.Complete, result.Status);
         Assert.Equal([(0, "Show S02/Show.S02E01.mkv"), (3, "Show S02/Show.S02E02.MKV")], result.NewFiles.Select(file => (file.Position, file.File.RelativePath)));
-        Assert.Null(result.Problem);
+        Assert.Null(TestTexts.En(result.Problem));
     }
 
     [Fact]
@@ -173,7 +174,7 @@ public sealed class NewFileCompletenessTests
         // 100 % for the whole download doesn't say which file of a pack is complete; rounded down, never up to 100.
         Assert.Equal(
             (NewFileCompletenessStatus.Review, "“qBittorrent” hasn't finished “Pack/Aliens.1986.mkv” (73 % done)."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
         Assert.Empty(result.NewFiles);
     }
 
@@ -187,7 +188,7 @@ public sealed class NewFileCompletenessTests
         var result = NewFileCompleteness.OfFiles(files, Client);
 
         //Assert
-        Assert.Equal("“qBittorrent” hasn't finished “Alien.1979.mkv” (99 % done).", result.Problem);
+        Assert.Equal("“qBittorrent” hasn't finished “Alien.1979.mkv” (99 % done).", TestTexts.En(result.Problem));
     }
 
     [Fact]
@@ -202,7 +203,7 @@ public sealed class NewFileCompletenessTests
         //Assert
         Assert.Equal(
             (NewFileCompletenessStatus.Review, "“qBittorrent” doesn't say whether it downloads “Alien.1979.mkv”, so the app can't confirm the file is complete."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -218,7 +219,7 @@ public sealed class NewFileCompletenessTests
         Assert.Equal(
             (NewFileCompletenessStatus.Review,
                 "“qBittorrent” doesn't say how much of “Alien.1979.mkv” it has downloaded, so the app can't confirm the file is complete."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -253,7 +254,7 @@ public sealed class NewFileCompletenessTests
         //Assert
         Assert.Equal(
             (NewFileCompletenessStatus.Review, "The download holds no video file that “qBittorrent” downloads, so nothing can replace the old copies."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -268,7 +269,7 @@ public sealed class NewFileCompletenessTests
         // A magnet's metadata still being fetched: the client lists no file yet.
         Assert.Equal(
             (NewFileCompletenessStatus.Wait, "“qBittorrent” hasn't listed this download's files, so they can't be checked."),
-            (result.Status, result.Problem));
+            (result.Status, TestTexts.En(result.Problem)));
     }
 
     [Fact]
@@ -282,7 +283,7 @@ public sealed class NewFileCompletenessTests
         var result = NewFileCompleteness.OfJob(null, name);
 
         //Assert
-        Assert.Equal("“NAS client” no longer has this download, so the app can't confirm its files are complete.", result.Problem);
+        Assert.Equal("“NAS client” no longer has this download, so the app can't confirm its files are complete.", TestTexts.En(result.Problem));
     }
 
     private static ClientJob Job(

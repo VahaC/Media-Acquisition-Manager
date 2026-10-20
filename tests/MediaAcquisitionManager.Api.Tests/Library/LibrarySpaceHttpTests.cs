@@ -294,7 +294,7 @@ public sealed class LibrarySpaceHttpTests : IClassFixture<MediaAcquisitionManage
         string[] space = ["sizeBytes", "fileCount", "nameCount", "unmeasuredCount"];
         var source = body["items"]![0]!.AsObject();
         Assert.Equal(
-            ["integrationId", "name", "adapterDisplayName", "isEnabled", "canReadLibrary", "latestRun", "lastSucceededRun", "filesWithoutAppPathCount", "pathProblem", "inspection", "space"],
+            ["integrationId", "name", "adapterDisplayName", "isEnabled", "canReadLibrary", "latestRun", "lastSucceededRun", "filesWithoutAppPathCount", "pathProblem", "pathProblemCode", "inspection", "space"],
             source.Select(property => property.Key));
         Assert.Equal(space, source["space"]!.AsObject().Select(property => property.Key));
         Assert.Equal(space, body["scan"]!["space"]!.AsObject().Select(property => property.Key));

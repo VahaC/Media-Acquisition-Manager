@@ -9,6 +9,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -335,7 +336,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(expectedError, result.Error);
+        Assert.Equal(expectedError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Single(_qbittorrent.Torrents);
         Assert.Single(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == AddPath);
@@ -353,7 +354,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(UnreadableTorrentError, result.Error);
+        Assert.Equal(UnreadableTorrentError, TestTexts.En(result.Error));
         Assert.Empty(_qbittorrent.Torrents);
     }
 
@@ -411,7 +412,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedError, result.Error);
+        Assert.Equal(expectedError, TestTexts.En(result.Error));
         Assert.Equal(expectedStatus == IntegrationCallStatus.Succeeded ? new SubmissionReceipt(null) : null, result.Value);
     }
 
@@ -430,7 +431,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
         //Assert
         // Maybe sent: the caller looks the hash up rather than taking it as added or as refused.
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotAnAddAnswerError, result.Error);
+        Assert.Equal(NotAnAddAnswerError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -449,7 +450,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedError, result.Error);
+        Assert.Equal(expectedError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Equal(
             [$"POST {SignInPath}", $"GET {VersionPath}", $"POST {AddPath}"],
@@ -476,7 +477,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
         // Never signed in for and sent again: a write sent twice may act twice (house rule 8). The refused
         // session is dropped, so the next call signs in rather than sending it again.
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(SessionRefusedError, result.Error);
+        Assert.Equal(SessionRefusedError, TestTexts.En(result.Error));
         Assert.True(next.IsSuccess);
         Assert.Equal(
             [
@@ -503,7 +504,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(SessionRefusedError, result.Error);
+        Assert.Equal(SessionRefusedError, TestTexts.En(result.Error));
         Assert.Equal(
             ["POST /api/v2/auth/login", "GET /api/v2/app/version with session 1", "POST /api/v2/torrents/add with session 1"],
             Describe(_harness.QBittorrentHttp.Requests));
@@ -526,7 +527,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(SignInNeededError, result.Error);
+        Assert.Equal(SignInNeededError, TestTexts.En(result.Error));
         Assert.Equal(["GET /api/v2/app/version", "POST /api/v2/torrents/add"], Describe(_harness.QBittorrentHttp.Requests));
     }
 
@@ -590,7 +591,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
-        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", result.Error);
+        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", TestTexts.En(result.Error));
         Assert.DoesNotContain(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == AddPath);
         Assert.Empty(_qbittorrent.Torrents);
     }
@@ -611,7 +612,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("The service at this address answered, but not with a qBittorrent version.", result.Error);
+        Assert.Equal("The service at this address answered, but not with a qBittorrent version.", TestTexts.En(result.Error));
         Assert.DoesNotContain(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == AddPath);
     }
 
@@ -626,7 +627,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("qBittorrent refused the user name or password.", result.Error);
+        Assert.Equal("qBittorrent refused the user name or password.", TestTexts.En(result.Error));
         Assert.Equal(["POST /api/v2/auth/login"], Describe(_harness.QBittorrentHttp.Requests));
     }
 
@@ -647,7 +648,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
         // Maybe sent (the connection may have failed after qBittorrent took it): never sent again here, the
         // caller looks the hash up.
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Single(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == AddPath);
     }
 
@@ -669,7 +670,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("qBittorrent at http://qbittorrent.test:8080 didn't answer within 0.1 seconds.", result.Error);
+        Assert.Equal("qBittorrent at http://qbittorrent.test:8080 didn't answer within 0.1 seconds.", TestTexts.En(result.Error));
         Assert.Single(harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == AddPath);
     }
 
@@ -712,7 +713,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to http://qbittorrent.test:8080/session/***/***/. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -731,7 +732,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to ***. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -758,8 +759,8 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.False(result.IsSuccess);
-        Assert.DoesNotContain(Magnet, result.Error!, StringComparison.Ordinal);
-        Assert.DoesNotContain(Passkey, result.Error!, StringComparison.Ordinal);
+        Assert.DoesNotContain(Magnet, TestTexts.En(result.Error!), StringComparison.Ordinal);
+        Assert.DoesNotContain(Passkey, TestTexts.En(result.Error!), StringComparison.Ordinal);
     }
 
     [Theory]
@@ -809,7 +810,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
 
         //Assert
         Assert.Single(results, result => result.Status == IntegrationCallStatus.Succeeded && result.Value!.ClientJobId == SampleHash);
-        Assert.Single(results, result => result.Status == IntegrationCallStatus.Refused && result.Error == AddedNothingError);
+        Assert.Single(results, result => result.Status == IntegrationCallStatus.Refused && TestTexts.En(result.Error) == AddedNothingError);
         Assert.Single(_qbittorrent.Torrents);
         Assert.Equal(2, _qbittorrent.AddRequests.Count);
     }

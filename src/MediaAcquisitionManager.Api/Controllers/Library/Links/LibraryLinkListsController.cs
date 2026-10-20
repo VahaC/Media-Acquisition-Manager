@@ -30,7 +30,7 @@ public class LibraryLinkListsController(ILibraryLinkService links) : ControllerB
         return result.Status switch
         {
             LibraryLinkStatus.Succeeded => Ok(result.List),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -59,7 +59,7 @@ public class LibraryLinkListsController(ILibraryLinkService links) : ControllerB
     {
         LibraryLinkStatus.Succeeded => Ok(result.Dialog),
         LibraryLinkStatus.NotFound => NotFound(),
-        LibraryLinkStatus.Conflict => this.ConflictError(result.Error),
-        _ => this.BadGatewayError(result.Error),
+        LibraryLinkStatus.Conflict => this.ConflictError(result.Error!),
+        _ => this.BadGatewayError(result.Error!),
     };
 }

@@ -4,12 +4,14 @@ using System.Text.Json;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -32,6 +34,9 @@ public sealed class DownloadsListHttpTests : IClassFixture<MediaAcquisitionManag
     private const string PageSizeError = "Page size must be between 1 and 100.";
     private const string MissingReason =
         "“qBittorrent” doesn't list this download any more. It is still followed in case it comes back; to send the release again, cancel this job first.";
+
+    /// <summary>MAM-47 — <see cref="MissingReason"/> as the poller stores it: its key and the client's name (ADR 0042).</summary>
+    private static readonly Message Missing = Message.Of("downloads.follow.missing", ("client", "qBittorrent"));
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IReleaseSeeder _releases = null!;
@@ -69,7 +74,7 @@ public sealed class DownloadsListHttpTests : IClassFixture<MediaAcquisitionManag
         var cancellationToken = TestContext.Current.CancellationToken;
         var oldest = await PlantAsync(_member, "Alien (1979)", DownloadJobStatus.Downloaded, progress: 1);
         await PlantAsync(_otherMember, "Another's (2001)", DownloadJobStatus.Downloading);
-        var middle = await PlantAsync(_member, "Blade Runner (1982)", DownloadJobStatus.Downloading, progress: 0.42, blockReason: MissingReason);
+        var middle = await PlantAsync(_member, "Blade Runner (1982)", DownloadJobStatus.Downloading, progress: 0.42, blockReason: Missing);
         await PlantAsync(_owner, "Owner's (2002)", DownloadJobStatus.Submitted);
         var newest = await PlantAsync(_member, "Contact (1997)", DownloadJobStatus.Submitted);
         var before = await SnapshotAsync(cancellationToken);
@@ -324,7 +329,7 @@ public sealed class DownloadsListHttpTests : IClassFixture<MediaAcquisitionManag
     /// <c>false</c>. Its client id is a hash of its own (<see cref="Hash"/>).
     /// </summary>
     private async Task<DownloadJobEntity> PlantAsync(
-        AuthorizedUser user, string title, DownloadJobStatus status, double? progress = null, string? blockReason = null, bool advance = true)
+        AuthorizedUser user, string title, DownloadJobStatus status, double? progress = null, Message? blockReason = null, bool advance = true)
     {
         if (advance)
             _factory.Time.Advance(TimeSpan.FromSeconds(1));

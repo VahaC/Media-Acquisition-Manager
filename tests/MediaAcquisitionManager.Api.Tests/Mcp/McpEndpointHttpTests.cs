@@ -31,7 +31,7 @@ public sealed class McpEndpointHttpTests : IClassFixture<MediaAcquisitionManager
     private const string Ping = """{"jsonrpc":"2.0","id":3,"method":"ping"}""";
 
     // Spelled out rather than read from product code: what a script's author and an assistant's user read.
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
 
     private const string SessionNotAcceptedError =
         "The MCP endpoint takes a personal access token, not a web app sign-in. Create a token on your Profile page and connect with it; see “Connect an AI assistant (MCP)” in the README.";
@@ -163,7 +163,7 @@ public sealed class McpEndpointHttpTests : IClassFixture<MediaAcquisitionManager
         //Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(SessionNotAcceptedError, await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal((SessionNotAcceptedError, "account.token.session-not-accepted"), await response.ReadErrorBodyAsync(cancellationToken));
         await _factory.WithDbAsync(async db =>
             Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken)));
     }
@@ -246,7 +246,7 @@ public sealed class McpEndpointHttpTests : IClassFixture<MediaAcquisitionManager
         //Assert
         Assert.All(allowed, status => Assert.Equal(HttpStatusCode.OK, status));
         Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
-        Assert.Equal(TooManyRequestsError, await limited.ReadErrorAsync(cancellationToken));
+        Assert.Equal((TooManyRequestsError, "account.token.too-many-requests"), await limited.ReadErrorBodyAsync(cancellationToken));
         Assert.Equal(TimeSpan.FromSeconds(60), limited.Headers.RetryAfter?.Delta);
         // Per token: the same user's other assistant isn't held up by the one in a loop.
         Assert.Equal(HttpStatusCode.OK, otherToken.StatusCode);

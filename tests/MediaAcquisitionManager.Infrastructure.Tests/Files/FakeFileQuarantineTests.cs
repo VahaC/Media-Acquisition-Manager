@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -65,7 +66,7 @@ public sealed class FakeFileQuarantineTests
 
         //Assert
         Assert.Equal(
-            (FileQuarantineStatus.Changed, $"“{VideoPath}” changed since the app checked it."), (moved.Status, moved.Error));
+            (FileQuarantineStatus.Changed, $"“{VideoPath}” changed since the app checked it."), (moved.Status, TestTexts.En(moved.Error)));
         await AssertNothingMovedAsync(cancellationToken);
     }
 
@@ -83,7 +84,7 @@ public sealed class FakeFileQuarantineTests
         //Assert
         Assert.Equal(
             (FileQuarantineStatus.NameTaken, $"Something is already at “{QuarantinedVideoPath}”, and the app never renames over it."),
-            (moved.Status, moved.Error));
+            (moved.Status, TestTexts.En(moved.Error)));
         Assert.Equal((long?)99, (await _files.DescribeAsync(QuarantinedVideoPath, Roots, cancellationToken)).Value!.Inode);
         await AssertNothingMovedAsync(cancellationToken);
     }
@@ -173,7 +174,7 @@ public sealed class FakeFileQuarantineTests
         var moved = await _quarantine.MoveIntoQuarantineAsync(VideoPath, TestMedia.File(inode: 1), QuarantinedVideoPath, Roots, cancellationToken);
 
         //Assert
-        Assert.Equal((FileQuarantineStatus.Failed, (string?)"planted-refusal-0026"), (moved.Status, moved.Error));
+        Assert.Equal((FileQuarantineStatus.Failed, (string?)"planted-refusal-0026"), (moved.Status, TestTexts.En(moved.Error)));
         await AssertNothingMovedAsync(cancellationToken);
     }
 
@@ -199,11 +200,10 @@ public sealed class FakeFileQuarantineTests
 
         //Assert
         Assert.Equal(
-            new FileQuarantineResult<FileFacts>(
+            Refusal<FileFacts>(
                 FileQuarantineStatus.Swapped,
-                null,
                 $"What the app renamed from “{from}” to “{to}” isn't the file it checked: another file was put at that name just before the rename."),
-            swapped);
+            InEnglish(swapped));
         Assert.Equal(other, (await _files.DescribeAsync(to, Roots, cancellationToken)).Value);
         Assert.Equal(FileInventoryStatus.NotFound, (await _files.DescribeAsync(from, Roots, cancellationToken)).Status);
         Assert.Equal((from, to), _quarantine.Renames[^1]);
@@ -227,7 +227,7 @@ public sealed class FakeFileQuarantineTests
 
         //Assert
         Assert.Equal(
-            (FileQuarantineStatus.FolderGone, $"The folder “{Folder}” is gone, and the app creates no folder for it."), (refused.Status, refused.Error));
+            (FileQuarantineStatus.FolderGone, $"The folder “{Folder}” is gone, and the app creates no folder for it."), (refused.Status, TestTexts.En(refused.Error)));
         Assert.Equal(4, foldersAfterRefusal);
         Assert.Equal(new FileQuarantineResult<FileFacts>(FileQuarantineStatus.Done, facts, null), restored);
         Assert.Equal(facts, (await _files.DescribeAsync(VideoPath, Roots, cancellationToken)).Value);
@@ -442,4 +442,12 @@ public sealed class FakeFileQuarantineTests
         Assert.Empty(_quarantine.Renames);
         Assert.Empty(_quarantine.CreatedFolders);
     }
+
+    /// <summary>MAM-47 — a result with its message in English: a refusal compares by the words a reader sees.</summary>
+    private static (FileQuarantineStatus Status, T? Value, string? Error) InEnglish<T>(FileQuarantineResult<T> result) where T : class =>
+        (result.Status, result.Value, TestTexts.En(result.Error));
+
+    /// <summary>MAM-47 — a refusal as <see cref="InEnglish{T}"/> gives it.</summary>
+    private static (FileQuarantineStatus Status, T? Value, string? Error) Refusal<T>(FileQuarantineStatus status, string error) where T : class =>
+        (status, null, error);
 }

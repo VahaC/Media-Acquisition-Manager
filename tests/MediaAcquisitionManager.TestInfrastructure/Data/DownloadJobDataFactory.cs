@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +22,7 @@ public sealed class DownloadJobDataFactory(ApplicationDbContext db, TimeProvider
         string? infoHashV2 = null,
         string? clientJobId = null,
         double? progress = null,
-        string? blockReason = null,
+        Message? blockReason = null,
         DownloadJobErrorOrigin? blockReasonOrigin = null,
         DownloadOverwriteCheck? overwriteCheck = null,
         DownloadDestinationKind? destinationKind = null)

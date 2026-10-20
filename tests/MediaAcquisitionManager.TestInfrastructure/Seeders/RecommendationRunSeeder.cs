@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Seeders;
@@ -16,6 +17,6 @@ public sealed class RecommendationRunSeeder(IServiceProvider services) : SeederB
         DateTime? createdUtc = null,
         int? seedCount = null,
         int? candidateCount = null,
-        string? error = null) =>
+        Message? error = null) =>
         Runs.Create(status, trigger, requestedBy?.Id, requestedBy?.UserName, createdUtc, seedCount, candidateCount, error);
 }

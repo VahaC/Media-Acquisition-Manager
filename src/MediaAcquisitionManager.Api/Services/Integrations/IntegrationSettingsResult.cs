@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Integrations;
 
@@ -9,12 +10,12 @@ namespace MediaAcquisitionManager.Api.Services.Integrations;
 /// </remarks>
 /// <param name="Status">Whether the settings were built.</param>
 /// <param name="Settings">The settings, secrets decrypted, when <see cref="IntegrationSettingsStatus.Built"/>.</param>
-/// <param name="Error">The sentence for the owner otherwise.</param>
-public sealed record IntegrationSettingsResult(IntegrationSettingsStatus Status, IntegrationConnectionSettings? Settings, string? Error)
+/// <param name="Error">The sentence for the owner otherwise, as a message the Api renders (ADR 0042).</param>
+public sealed record IntegrationSettingsResult(IntegrationSettingsStatus Status, IntegrationConnectionSettings? Settings, Message? Error)
 {
     public static IntegrationSettingsResult Built(IntegrationConnectionSettings settings) =>
         new(IntegrationSettingsStatus.Built, settings, null);
 
-    public static IntegrationSettingsResult SecretUnreadable(string error) =>
+    public static IntegrationSettingsResult SecretUnreadable(Message error) =>
         new(IntegrationSettingsStatus.SecretUnreadable, null, error);
 }

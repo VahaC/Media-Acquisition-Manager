@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using MediaAcquisitionManager.Api.Auth;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace MediaAcquisitionManager.Api.RateLimiting;
@@ -39,8 +40,9 @@ public static class McpRateLimitPolicy
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
 
     /// <summary>The refusal's sentence, in place of the sign-in's "Too many attempts": an assistant's requests aren't
-    /// attempts, and the sentence names the limit, so whoever reads it in the assistant's log knows what to change.</summary>
-    public const string TooManyRequests = "Too many requests with this access token: at most 60 a minute. Wait a minute and try again.";
+    /// attempts, and the sentence names the limit, so whoever reads it in the assistant's log knows what to change.
+    /// MAM-47 — the limit is <see cref="PermitLimit"/> itself, where the sentence once spelled 60 out.</summary>
+    public static readonly Message TooManyRequests = Message.Of("account.token.too-many-requests", ("count", PermitLimit));
 
     public static void Add(RateLimiterOptions options) =>
         options.AddPolicy(Name, context => RateLimitPartition.GetFixedWindowLimiter(

@@ -19,7 +19,7 @@ public sealed class RecommendationPostersHttpTests : IClassFixture<MediaAcquisit
 {
     private const string BaseUrl = "/api/recommendations/posters";
     private const string FileName = "r2J02Z2OpNTctfOSN1Ydgii51I3.jpg";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private ICatalogWorkSeeder _works = null!;
@@ -268,7 +268,7 @@ public sealed class RecommendationPostersHttpTests : IClassFixture<MediaAcquisit
         //Assert
         // The catalog's sentence can quote the address the owner saved: the rule of a run's error and a job's.
         Assert.Equal(HttpStatusCode.BadGateway, member.StatusCode);
-        Assert.Equal("The metadata catalog couldn't send this poster.", await member.ReadErrorAsync(cancellationToken));
+        Assert.Equal(("The metadata catalog couldn't send this poster.", "recommendations.poster.fetch-failed"), await member.ReadErrorBodyAsync(cancellationToken));
         Assert.Equal(HttpStatusCode.BadGateway, owner.StatusCode);
         // MAM-33 — the image host the poster was fetched from, never the address the owner saved for the API.
         Assert.StartsWith($"Couldn't reach TMDb at https://{FakeTmdbServer.ImageHost}:", await owner.ReadErrorAsync(cancellationToken), StringComparison.Ordinal);

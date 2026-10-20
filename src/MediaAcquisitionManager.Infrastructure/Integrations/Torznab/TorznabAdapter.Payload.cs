@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 
@@ -15,21 +16,16 @@ internal sealed partial class TorznabAdapter
     /// <summary>The longest scheme a sentence repeats: real ones are a few letters.</summary>
     private const int SchemeMaximumLength = 20;
 
-    private const string NotATorrentError =
-        "The Torznab feed answered the download with something that isn't a .torrent file.";
+    private static readonly Message NotATorrentError = Message.Of("torznab.download.not-a-torrent");
 
-    private const string ElsewhereError =
-        "The release's download link points somewhere other than the Torznab feed's address, so the app didn't fetch it.";
+    private static readonly Message ElsewhereError = Message.Of("torznab.download.elsewhere");
 
-    private const string KeyMissingError =
-        "The release's download link needs the Torznab feed's API key, and none is saved for the feed. Enter its API key.";
+    private static readonly Message KeyMissingError = Message.Of("torznab.download.key-missing");
 
     // Jackett answers every failed download with a bare 404; Prowlarr with an <error> (FeedError).
-    private const string DownloadNotFoundError =
-        "The Torznab feed couldn't hand over this release (404 Not Found): it may be gone, or the feed failed to fetch it; its own log says which.";
+    private static readonly Message DownloadNotFoundError = Message.Of("torznab.download.not-found");
 
-    private const string RedirectWithoutTargetError =
-        "The Torznab feed answered the download with a redirect that doesn't say where to, and the app doesn't follow redirects.";
+    private static readonly Message RedirectWithoutTargetError = Message.Of("torznab.download.redirect-without-target");
 
     /// <inheritdoc/>
     public Task<IntegrationCallResult<ReleasePayload>> FetchPayloadAsync(
@@ -94,10 +90,10 @@ internal sealed partial class TorznabAdapter
                 : IntegrationCallResult<ReleasePayload>.Failed(IntegrationCallStatus.UnexpectedResponse, NotATorrentError),
             // Jackett's answer to a wrong jackett_apikey in a download link, as Prowlarr's to a wrong apikey.
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => IntegrationCallResult<ReleasePayload>.Failed(
-                IntegrationCallStatus.AuthenticationFailed, RefusedKeySentence(StatusText(response))),
+                IntegrationCallStatus.AuthenticationFailed, RefusedKeyByStatus(response)),
             HttpStatusCode.NotFound => IntegrationCallResult<ReleasePayload>.Failed(IntegrationCallStatus.NotFound, DownloadNotFoundError),
             HttpStatusCode.Gone => IntegrationCallResult<ReleasePayload>.Failed(
-                IntegrationCallStatus.NotFound, $"The Torznab feed can't hand over this release any more ({StatusText(response)}). Search again."),
+                IntegrationCallStatus.NotFound, Message.Of("torznab.download.gone-status", ("status", StatusText(response)))),
             HttpStatusCode.TooManyRequests => IntegrationCallResult<ReleasePayload>.Failed(IntegrationCallStatus.Refused, TooManyRequestsError),
             _ => DescribeUnexpectedStatus<ReleasePayload>(response, settings, sessionSecrets),
         };
@@ -125,20 +121,19 @@ internal sealed partial class TorznabAdapter
             && Uri.TryCreate(requestUri, location, out var target)
             && target.Scheme is "http" or "https")
         {
-            var origin = RemoteText.Clean(TorznabLinks.Origin(target), OriginMaximumLength, secrets);
+            var origin = VendorText.Clean(TorznabLinks.Origin(target), OriginMaximumLength, secrets);
             return IntegrationCallResult<ReleasePayload>.Failed(
                 IntegrationCallStatus.UnexpectedResponse,
                 TorznabLinks.SameOrigin(target, feed)
-                    ? $"The Torznab feed sends this download on to another address of its own at {origin} instead of handing it over, and the app doesn't follow redirects."
-                    : $"The Torznab feed sends this download on to {origin} instead of handing it over, and the app doesn't follow it. Switch off the feed's option to redirect downloads to the tracker.");
+                    ? Message.Of("torznab.download.redirect-own-address", ("origin", origin))
+                    : Message.Of("torznab.download.redirect-elsewhere", ("origin", origin)));
         }
 
         if (SchemePattern().Match(location) is { Success: true } scheme)
         {
-            var name = RemoteText.Clean(scheme.Groups[1].Value, SchemeMaximumLength, secrets);
+            var name = VendorText.Clean(scheme.Groups[1].Value, SchemeMaximumLength, secrets);
             return IntegrationCallResult<ReleasePayload>.Failed(
-                IntegrationCallStatus.UnexpectedResponse,
-                $"The Torznab feed sends this download on to a “{name}” link instead of handing it over, and the app doesn't follow it.");
+                IntegrationCallStatus.UnexpectedResponse, Message.Of("torznab.download.redirect-scheme", ("scheme", name)));
         }
 
         return IntegrationCallResult<ReleasePayload>.Failed(IntegrationCallStatus.UnexpectedResponse, RedirectWithoutTargetError);

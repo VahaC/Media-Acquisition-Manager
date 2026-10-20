@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -56,7 +57,7 @@ public sealed class TmdbAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to TMDb.", result.Message);
+        Assert.Equal("Connected to TMDb.", TestTexts.En(result.Message));
         var request = Assert.Single(_harness.TmdbHttp.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
         Assert.Equal($"{BaseUrl}/3/authentication", request.Uri.AbsoluteUri);
@@ -99,7 +100,7 @@ public sealed class TmdbAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
         Assert.Equal(
             "TMDb refused the key (401 Unauthorized). Enter the API Read Access Token from themoviedb.org → Settings → API, not the shorter API key.",
-            result.Message);
+            TestTexts.En(result.Message));
         // One attempt: a refused token is not sent again.
         Assert.Single(_harness.TmdbHttp.Requests);
     }
@@ -141,7 +142,7 @@ public sealed class TmdbAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Message);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Message));
         // Only a 429 is sent again.
         Assert.Single(_harness.TmdbHttp.Requests);
     }
@@ -164,7 +165,7 @@ public sealed class TmdbAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTmdbError, result.Message);
+        Assert.Equal(NotTmdbError, TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -180,7 +181,7 @@ public sealed class TmdbAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to https://www.themoviedb.test/login. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Message);
+            TestTexts.En(result.Message));
         // The token went to the saved address only.
         Assert.Single(_harness.TmdbHttp.Requests);
     }
@@ -197,7 +198,7 @@ public sealed class TmdbAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Unreachable, result.Status);
-        Assert.Equal("Couldn't reach TMDb at https://api.themoviedb.test: the host name can't be found.", result.Message);
+        Assert.Equal("Couldn't reach TMDb at https://api.themoviedb.test: the host name can't be found.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -215,7 +216,7 @@ public sealed class TmdbAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Unreachable, result.Status);
         Assert.Equal(
             "Couldn't reach TMDb at http://127.0.0.1:9: nothing accepted the connection. Check the address and port, and that TMDb is running.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -231,7 +232,7 @@ public sealed class TmdbAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("TMDb at https://api.themoviedb.test didn't answer within 0.1 seconds.", result.Message);
+        Assert.Equal("TMDb at https://api.themoviedb.test didn't answer within 0.1 seconds.", TestTexts.En(result.Message));
     }
 
     [Fact]

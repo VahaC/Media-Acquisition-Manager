@@ -1,0 +1,61 @@
+{
+  "name": {
+    "missing": "A destination needs a name.",
+    "too-long_one": "A destination's name can be at most {{count, number}} character.",
+    "too-long_other": "A destination's name can be at most {{count, number}} characters.",
+    "control-characters": "A destination's name can't contain line breaks or other control characters.",
+    "taken": "“{{client}}” already has a destination named “{{name}}”."
+  },
+  "key": {
+    "missing": "Pick the category or folder of the download client this destination saves to.",
+    "missing-folder": "Pick the folder of “{{client}}” this destination saves to.",
+    "missing-category": "Pick the category of “{{client}}” this destination saves to.",
+    "too-long_one": "A category or folder can be at most {{count, number}} character.",
+    "too-long_other": "A category or folder can be at most {{count, number}} characters.",
+    "control-characters": "A category or folder can't contain line breaks or other control characters."
+  },
+  "label": {
+    "comma": "A label can't contain a comma.",
+    "comma-in-name": "“{{client}}” shows this destination's name as the torrent's label, and a label can't contain a comma. Pick a name without one."
+  },
+  "section": {
+    "source-missing": "Pick the release source of each section.",
+    "name-missing": "A section needs its name.",
+    "name-control-characters": "A section's name can't contain line breaks or other control characters.",
+    "categories-missing": "A section needs at least one category of its release source.",
+    "category-id-invalid": "“{{value}}” is not a category id of a release source.",
+    "source-gone": "A release source you picked sections of no longer exists. Reload the page and pick them again.",
+    "source-switched-off": "“{{source}}” is switched off. Switch it on under Integrations to read its sections."
+  },
+  "path": {
+    "category-missing": "The client has no category “{{category}}” any more.",
+    "save-folder-unknown": "The client doesn't say which folder this category saves to, so automatic replacement stays off for this destination.",
+    "path-unknown-consequence": "{{reason, message:clause}}, so automatic replacement stays off for this destination.",
+    "libraries-unknown": "The app doesn't know the media library folders yet. Sync a library from the Library page, then look again.",
+    "outside-libraries": "“{{path}}” is outside every media library folder, so automatic replacement stays off for this destination.",
+    "folder-not-full-path": "The app can't use the folder “{{folder}}” of this destination: it isn't a full path in the client.",
+    "folder-not-full-path-named": "The app can't use the folder “{{folder}}” of this destination: it isn't a full path in “{{client}}”.",
+    "folder-not-listed": "The app can't use the folder “{{folder}}” of this destination: the client didn't list it.",
+    "folder-not-listed-named": "The app can't use the folder “{{folder}}” of this destination: “{{client}}” didn't list it."
+  },
+  "client": {
+    "switched-off": "“{{client}}” is switched off. Switch it on under Integrations to use it for destinations.",
+    "type-unavailable": "This version of the app can't send downloads to “{{type}}”.",
+    "gone": "The download client of this destination no longer exists.",
+    "not-picked": "Pick the download client this destination belongs to.",
+    "category-missing": "“{{client}}” has no category “{{category}}”. Create it in the client first, or pick one it has.",
+    "folder-not-offered": "“{{client}}” doesn't offer the folder “{{folder}}”. Pick one of the folders it lists."
+  },
+  "edited-invalid": "The destination being edited isn't a valid id. Reload the page and open it again.",
+  "libraries-unmapped": "None of the media library folders maps to a folder of the app through its integration's path mappings. Check those mappings under Integrations, then look again.",
+  "folder-too-long_one": "The folder “{{folder}}” in “{{client}}” is longer than the {{count, number}} character a destination can hold.",
+  "folder-too-long_other": "The folder “{{folder}}” in “{{client}}” is longer than the {{count, number}} characters a destination can hold.",
+  "unplaced": {
+    "not-in-app": "The library “{{library}}” is at “{{path}}” in Jellyfin, which none of its integration's path mappings brings into this app, so the app can't find its folder in “{{client}}”. Check the path mappings of “{{integration}}”.",
+    "not-covered": "“{{client}}” has no folder for the library “{{library}}”: none of its path mappings leads to “{{folder}}”. Add one under Integrations, “{{client}}”, Path mappings (for example /downloads → /media), then look again.",
+    "ambiguous": "“{{client}}”'s path mappings lead to the library “{{library}}” (“{{folder}}”) from different places: “{{first}}” and “{{second}}”. Keep one of those mappings, then look again.",
+    "unwritable": "“{{client}}” has no folder for the library “{{library}}”: {{reason, message}}",
+    "too-long_one": "The folder of the library “{{library}}” in “{{client}}” (“{{folder}}”) is longer than the {{count, number}} character a destination can hold.",
+    "too-long_other": "The folder of the library “{{library}}” in “{{client}}” (“{{folder}}”) is longer than the {{count, number}} characters a destination can hold."
+  }
+}

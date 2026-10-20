@@ -1,13 +1,15 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
 /// <inheritdoc cref="ILibraryLinkMapper"/>
-public sealed class LibraryLinkMapper(ILibraryMapper libraryMapper) : ILibraryLinkMapper
+public sealed class LibraryLinkMapper(ILibraryMapper libraryMapper, IRequestTexts texts) : ILibraryLinkMapper
 {
     public LibraryLinkItemDto ToItemDto(
         string sourceItemId,
@@ -15,7 +17,7 @@ public sealed class LibraryLinkMapper(ILibraryMapper libraryMapper) : ILibraryLi
         string? itemTitle,
         MediaWorkKind itemKind,
         bool canWrite,
-        string? cannotWriteReason,
+        Message? cannotWriteReason,
         LibraryItemLinkEntity? link,
         IReadOnlyList<MediaWorkIdentifierEntity> libraryRows) =>
         new(
@@ -25,7 +27,8 @@ public sealed class LibraryLinkMapper(ILibraryMapper libraryMapper) : ILibraryLi
             itemTitle ?? link?.ItemTitle,
             itemKind,
             canWrite,
-            cannotWriteReason,
+            texts.Render(cannotWriteReason),
+            cannotWriteReason?.Key,
             link?.Target,
             link is null ? null : CatalogKindOf(link.Scheme),
             link?.Value,
@@ -34,7 +37,8 @@ public sealed class LibraryLinkMapper(ILibraryMapper libraryMapper) : ILibraryLi
             link?.EpisodeNumber,
             link?.ImdbId,
             link?.WriteState,
-            link?.WriteError,
+            texts.Render(link?.WriteError),
+            link?.WriteError?.Key,
             link?.WriteStateUtc,
             link?.SetUtc,
             link?.SetByUserName,
@@ -62,7 +66,7 @@ public sealed class LibraryLinkMapper(ILibraryMapper libraryMapper) : ILibraryLi
             link.SeasonNumber,
             link.EpisodeNumber,
             link.WriteState,
-            link.WriteError,
+            texts.Render(link.WriteError),
             link.SetUtc,
             link.SetByUserName,
             ConflictingValue(link, libraryRows),

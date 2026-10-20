@@ -50,6 +50,7 @@ public class Program
 
         builder.Services.AddSectionOptions<StorageOptions>(builder.Configuration);
         builder.Services.AddSectionOptions<EncryptionOptions>(builder.Configuration);
+        builder.Services.AddServerTexts(builder.Configuration);
         builder.Services.AddMediaAcquisitionManagerApi();
         builder.Services.TryAddSingletonTimeProvider();
         builder.Services.AddMediaAcquisitionManagerAuth(builder.Configuration);

@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Audit;
 
@@ -42,13 +43,21 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
         new(AuditTargetKind.DuplicateMatch, Guid.ParseExact(key, "N"), Cut(name));
 
     /// <summary>
-    /// MAM-24 — a scheduled replacement, named by the release whose download brings the new copy, as its download job is
-    /// — or, on the owner's confirmation of a work matched by title and year, by the words he ticked ("This release is
-    /// Alien (1979)"). The job's rows keep which copies and works. Cut to the column with an ellipsis, as a release
-    /// title runs to 1000 characters.
+    /// MAM-24 — a scheduled replacement, named by the release whose download brings the new copy, as its download job is.
+    /// The job's rows keep which copies and works. Cut to the column with an ellipsis, as a release title runs to 1000
+    /// characters.
     /// </summary>
     public static AuditTarget ReplacementJob(ReplacementJobEntity job, string name) =>
         new(AuditTargetKind.ReplacementJob, job.Id, Cut(name));
+
+    /// <summary>
+    /// MAM-24 — a scheduled replacement on the owner's confirmation of a work matched by title and year, named by what he
+    /// ticked. MAM-47 (ADR 0042, design §5.5) — by the claim's label in no language ("Alien (1979)", "Doctor Who (2005)
+    /// S02E01–E05 · Фільми", <see cref="ReplacementConfirmationLabel"/>), as the row keeps no sentence; the job's work row
+    /// keeps the claim itself. Cut to the column with an ellipsis.
+    /// </summary>
+    public static AuditTarget ReplacementConfirmation(ReplacementJobEntity job, Message confirmation) =>
+        new(AuditTargetKind.ReplacementJob, job.Id, Cut(ReplacementConfirmationLabel.Of(confirmation)));
 
     /// <summary>
     /// MAM-26 — one name a replacement moves into the quarantine, restores or deletes, by its row, named by the file's own
@@ -97,9 +106,11 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
         new(AuditTargetKind.PersonalAccessToken, token.Id, Cut(token.Name));
 
     /// <summary>The audit row's <c>TargetName</c> column. MAM-24 — read by the replacement's confirmation words, which keep
-    /// what tells two works apart within it.</summary>
+    /// what tells two works apart within it: MAM-47 — no longer to fit this row, which names the claim by its label, but as
+    /// what reads at a glance in the dialog's checkbox.</summary>
     public const int TargetNameMaximumLength = 200;
 
-    private static string Cut(string name) =>
+    // MAM-47 — internal: the startup converter cuts the label it gives an older build's confirmation row the same way.
+    internal static string Cut(string name) =>
         name.Length <= TargetNameMaximumLength ? name : string.Concat(name.AsSpan(0, TargetNameMaximumLength - 1), "…");
 }

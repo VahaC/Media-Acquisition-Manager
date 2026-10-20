@@ -1,0 +1,26 @@
+{
+  "banned": "qBittorrent has banned this app's address after too many failed sign-ins. Wait for the ban to end (qBittorrent's Web UI options set how long), then try again.",
+  "not-qbittorrent-sign-in": "The service at this address answered the sign-in, but not the way qBittorrent does.",
+  "not-found": "qBittorrent's Web API wasn't found at this address (404 Not Found). Use the address of qBittorrent's Web UI, such as http://192.168.1.10:8080.",
+  "no-cookie": "qBittorrent accepted the sign-in but sent no session cookie.",
+  "unusable-cookie": "qBittorrent sent a session cookie this app can't use.",
+  "not-a-version": "The service at this address answered, but not with a qBittorrent version.",
+  "sign-in-needed": "qBittorrent asks for a user name and password. Enter them, or let this app's address skip authentication in qBittorrent's Web UI options.",
+  "session-refused": "qBittorrent refused the session it had just opened.",
+  "connected-without-sign-in": "Connected to qBittorrent {{version, vendor}} without signing in: it lets this app's address skip authentication.",
+  "version": {
+    "not-comparable": "qBittorrent reported the version “{{version, vendor}}”, which the app can't compare with {{minimum}}, the oldest version it works with.",
+    "too-old": "This is qBittorrent {{version, vendor}}; the app works with qBittorrent {{minimum}} or later. Update qBittorrent, then test again.",
+    "too-old-for-holdings": "This is qBittorrent {{version, vendor}}; telling which torrents hold a library file needs qBittorrent {{minimum}} or later."
+  },
+  "remembered": {
+    "credentials-refused": "qBittorrent refused the user name or password the last time the app signed in, so the app won't try them again: each refused sign-in counts towards qBittorrent's ban of this app's address. Correct them under Integrations, or test the connection there once qBittorrent accepts them.",
+    "ban": "qBittorrent had banned this app's address the last time the app signed in, so the app won't sign in again on its own. Once the ban has ended (qBittorrent's Web UI options set how long), test the connection under Integrations."
+  },
+  "not-categories": "The service at this address answered, but not with qBittorrent's categories.",
+  "add": {
+    "failed": "qBittorrent didn't add the release: it already has this torrent, or it couldn't use what it was sent.",
+    "added-nothing": "qBittorrent added nothing: it already has this torrent, or it couldn't use what it was sent.",
+    "unreadable-torrent": "qBittorrent couldn't read the .torrent file it was sent (415 Unsupported Media Type)."
+  }
+}

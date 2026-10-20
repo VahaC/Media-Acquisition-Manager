@@ -1,19 +1,21 @@
 using System.Globalization;
 using System.Threading.RateLimiting;
+using MediaAcquisitionManager.Api.Http;
 using MediaAcquisitionManager.Api.RateLimiting;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace MediaAcquisitionManager.Api.Extensions;
 
 public static class RateLimitingServiceCollectionExtensions
 {
-    /// <summary>The sentence of every refusal over a limit. MAM-5 — public, as the personal access token handler answers
+    /// <summary>The message of every refusal over a limit. MAM-5 — public, as the personal access token handler answers
     /// with it too while an address's sign-in attempts are used up.</summary>
-    public const string TooManyAttempts = "Too many attempts. Wait a minute and try again.";
+    public static readonly Message TooManyAttempts = Message.Of("account.too-many-attempts");
 
     /// <summary>
     /// The rate-limit policies endpoints opt into, and the answer to a refused request:
-    /// 429 <c>{ "error": "…" }</c> with <c>Retry-After</c>.
+    /// 429 <c>{ "error": "…", "code": "…" }</c> with <c>Retry-After</c>.
     /// </summary>
     public static IServiceCollection AddMediaAcquisitionManagerRateLimiting(this IServiceCollection services)
     {
@@ -42,8 +44,10 @@ public static class RateLimitingServiceCollectionExtensions
                 }
 
                 var policy = context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;
-                var sentence = policy == McpRateLimitPolicy.Name ? McpRateLimitPolicy.TooManyRequests : TooManyAttempts;
-                await context.HttpContext.Response.WriteAsJsonAsync(new { error = sentence }, cancellationToken);
+                var message = policy == McpRateLimitPolicy.Name ? McpRateLimitPolicy.TooManyRequests : TooManyAttempts;
+                // MAM-47 (ADR 0042) — through the one writer of error bodies, in the request's own language: the 429 of a
+                // guessed password or token depends on nothing but the request, as the 401 does.
+                await ApiErrorBody.WriteAsync(context.HttpContext, StatusCodes.Status429TooManyRequests, message);
             };
         });
     }

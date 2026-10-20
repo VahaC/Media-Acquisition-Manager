@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Abstractions.Library;
 
@@ -22,7 +23,7 @@ namespace MediaAcquisitionManager.Core.Abstractions.Library;
 /// All methods return result types and never throw on expected failures (unreachable, refused, the item gone, no
 /// match); only a cancellation by the caller propagates, as <see cref="OperationCanceledException"/>. A caller's mistake
 /// — a kind <see cref="IdentifiableKinds"/> leaves out, a scheme the kind can't take, a malformed value, a blank item
-/// id — throws an <see cref="ArgumentException"/> before anything is sent. Every message is one readable English sentence
+/// id — throws an <see cref="ArgumentException"/> before anything is sent. Every message is a <c>Message</c> the Api renders (ADR 0042),
 /// with the call's secrets already masked. The caller runs <see cref="IIntegrationAdapter.TestConnectionAsync"/> first:
 /// the version gate (MAM-8).
 /// </para>
@@ -43,9 +44,9 @@ public interface IMediaLibraryItemIdentifier
 
     /// <summary>
     /// Why a link on an item of <paramref name="kind"/> — a kind <see cref="IdentifiableKinds"/> leaves out — stays in
-    /// the app: one readable sentence, shown to the owner beside the link.
+    /// the app: a message the Api renders (ADR 0042), shown to the owner beside the link.
     /// </summary>
-    string UnidentifiableKindReason(MediaWorkKind kind);
+    Message UnidentifiableKindReason(MediaWorkKind kind);
 
     /// <summary>
     /// One identification: reads the item, checks what may never be changed, searches the library's own provider for the

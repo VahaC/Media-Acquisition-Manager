@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Accounts;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,11 +10,11 @@ namespace MediaAcquisitionManager.Api.Services.Accounts;
 public sealed class UserLanguageService(ApplicationDbContext db, ILogger<UserLanguageService> logger) : IUserLanguageService
 {
     /// <summary>
-    /// The sentence a body that can't be read as the language gets — not JSON, empty, without the <c>language</c>
-    /// property, or a value that isn't text — instead of the validation body MVC would send: it names the field and what
-    /// it takes.
+    /// The key of the sentence a body that can't be read as the language gets — not JSON, empty, without the
+    /// <c>language</c> property, or a value that isn't text — instead of the validation body MVC would send: it names the
+    /// field and what it takes.
     /// </summary>
-    public const string UnreadableBodyError = "Send the language as JSON: language en, uk, or null to follow the browser.";
+    public const string UnreadableBodyError = "account.language.unreadable-body";
 
     /// <summary>How much of an unknown value the sentence repeats: every real code fits, and a pasted page of text
     /// shouldn't come back whole.</summary>
@@ -25,7 +26,7 @@ public sealed class UserLanguageService(ApplicationDbContext db, ILogger<UserLan
         // Compared exactly, as the web app sends it: "UK" or "uk-UA" is no locale it has, and storing one would leave the
         // app unable to say which language the account means.
         if (request.Language is { } language && !UiLanguages.IsSupported(language))
-            return UserLanguageSaveResult.Invalid($"“{Echo(language)}” is not a language of the app. Use en, uk, or null to follow the browser.");
+            return UserLanguageSaveResult.Invalid(Message.Of("account.language.unsupported", ("value", Echo(language))));
 
         // One statement: the column is the user's alone, and a save of the same value again changes nothing more.
         var saved = await db.Users

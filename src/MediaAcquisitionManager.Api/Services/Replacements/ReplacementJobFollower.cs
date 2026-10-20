@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,14 +24,15 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 public sealed class ReplacementJobFollower(ApplicationDbContext db, TimeProvider time, ILogger<ReplacementJobFollower> logger)
     : IReplacementJobFollower
 {
-    private const string DownloadCancelledReason = "The download was cancelled, so nothing will be replaced.";
+    // MAM-47 (ADR 0042) — the reasons as messages, rendered in the reader's language wherever the job is shown.
 
-    private const string DownloadFailedReason = "The download failed, so nothing will be replaced.";
+    private static readonly Message DownloadCancelledReason = Message.Of("replacements.following.download-cancelled");
 
-    private const string RefusedBeforeSentReason = "The download was refused before it was sent, so nothing will be replaced.";
+    private static readonly Message DownloadFailedReason = Message.Of("replacements.following.download-failed");
 
-    private const string InterruptedReason =
-        "The app stopped while sending this download, before it checked where the new files would land, so nothing will be replaced.";
+    private static readonly Message RefusedBeforeSentReason = Message.Of("replacements.following.refused-before-sent");
+
+    private static readonly Message InterruptedReason = Message.Of("replacements.following.interrupted");
 
     public async Task SyncAsync(CancellationToken cancellationToken = default)
     {
@@ -106,10 +108,10 @@ public sealed class ReplacementJobFollower(ApplicationDbContext db, TimeProvider
     /// before it was sent as <paramref name="check"/>, sent to <paramref name="clientName"/>; <c>null</c> when that is where
     /// it is.
     /// </summary>
-    private static (ReplacementJobState State, string? Reason)? Next(
+    private static (ReplacementJobState State, Message? Reason)? Next(
         ReplacementJobState current, DownloadJobStatus download, DownloadOverwriteCheck? check, string clientName)
     {
-        (ReplacementJobState State, string? Reason) next = download == DownloadJobStatus.Cancelled
+        (ReplacementJobState State, Message? Reason) next = download == DownloadJobStatus.Cancelled
             ? (ReplacementJobState.Cancelled, DownloadCancelledReason)
             : current == ReplacementJobState.NeedsReview
                 ? download == DownloadJobStatus.Failed ? (ReplacementJobState.Failed, DownloadFailedReason) : (current, null)
@@ -120,7 +122,7 @@ public sealed class ReplacementJobFollower(ApplicationDbContext db, TimeProvider
     }
 
     /// <summary>A download the strict check let through: mirrored.</summary>
-    private static (ReplacementJobState State, string? Reason) Checked(DownloadJobStatus download, string clientName) => download switch
+    private static (ReplacementJobState State, Message? Reason) Checked(DownloadJobStatus download, string clientName) => download switch
     {
         DownloadJobStatus.Submitted => (ReplacementJobState.Submitted, null),
         DownloadJobStatus.Downloading => (ReplacementJobState.Downloading, null),
@@ -133,11 +135,10 @@ public sealed class ReplacementJobFollower(ApplicationDbContext db, TimeProvider
     };
 
     /// <summary>MAM-30 — the client the download went to, by the name the job kept: no longer always qBittorrent.</summary>
-    private static string NeedsLinkingReason(string clientName) =>
-        $"“{clientName}”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
+    private static Message NeedsLinkingReason(string clientName) => Message.Of("replacements.following.needs-linking", ("client", clientName));
 
     /// <summary>A download the strict check didn't let through — refused, or never checked at all.</summary>
-    private static (ReplacementJobState State, string? Reason) Unchecked(DownloadJobStatus download) => download switch
+    private static (ReplacementJobState State, Message? Reason) Unchecked(DownloadJobStatus download) => download switch
     {
         // Still being sent: the check may come yet.
         DownloadJobStatus.Created => (ReplacementJobState.Scheduled, null),

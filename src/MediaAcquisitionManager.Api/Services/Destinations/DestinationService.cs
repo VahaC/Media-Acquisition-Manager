@@ -1,12 +1,14 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Audit;
+using MediaAcquisitionManager.Api.Services.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paging;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,11 +29,12 @@ public sealed class DestinationService(
     TimeProvider time,
     ILogger<DestinationService> logger) : IDestinationService
 {
-    private const string DownloadClientMissingError = "Pick the download client this destination belongs to.";
+    private static readonly Message DownloadClientMissingError = Message.Of("destinations.client.not-picked");
 
-    private const string DownloadClientGoneError = "The download client you picked no longer exists. Reload the page and pick one again.";
+    /// <summary>MAM-47 — the send's own sentence, word for word: one key (<see cref="DownloadErrors.ClientGone"/>).</summary>
+    private static readonly Message DownloadClientGoneError = DownloadErrors.ClientGone;
 
-    private const string SourceGoneError = "A release source you picked sections of no longer exists. Reload the page and pick them again.";
+    private static readonly Message SourceGoneError = Message.Of("destinations.section.source-gone");
 
     public async Task<DestinationListResult> ListAsync(string? search, int page, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -337,7 +340,7 @@ public sealed class DestinationService(
 
     // The rules a create and an update share before the client is read, in their order: the name, then the client
     // picked. MAM-31 — the rest wait for the client (the overload below).
-    private static string? Validate(string? name, Guid? downloadClientId)
+    private static Message? Validate(string? name, Guid? downloadClientId)
     {
         if (DestinationRules.ValidateName(name) is { } nameError)
             return nameError;
@@ -348,7 +351,7 @@ public sealed class DestinationService(
     // folder's name, a missing one asked for in the words of what the client's destinations are (the live check showed
     // "Pick the category or folder" with Transmission alone), then (MAM-32) each section picked — the destination's
     // own fields still before its sections.
-    private string? Validate(IntegrationConnectionEntity client, string? clientDestinationKey, IReadOnlyList<DestinationSectionRequest?>? sections)
+    private Message? Validate(IntegrationConnectionEntity client, string? clientDestinationKey, IReadOnlyList<DestinationSectionRequest?>? sections)
     {
         if (DestinationRules.ValidateClientDestinationKey(clientDestinationKey, DestinationKindOf(client.AdapterType), client.Name) is { } keyError)
             return keyError;
@@ -445,12 +448,12 @@ public sealed class DestinationService(
         {
             return confirmed is null
                 ? (null, DestinationChangeResult.CategoryMissing(
-                    $"“{client.Name}” has no category “{key}”. Create it in the client first, or pick one it has."))
+                    Message.Of("destinations.client.category-missing", ("client", client.Name), ("category", key))))
                 : (confirmed, null);
         }
 
         if (confirmed is null)
-            return (null, DestinationChangeResult.CategoryMissing($"“{client.Name}” doesn't offer the folder “{key}”. Pick one of the folders it lists."));
+            return (null, DestinationChangeResult.CategoryMissing(Message.Of("destinations.client.folder-not-offered", ("client", client.Name), ("folder", key))));
         return confirmed.Check.Status == DestinationPathStatus.FolderNotSeen
             ? (null, DestinationChangeResult.CategoryMissing(confirmed.Check.Problem!))
             : (confirmed, null);
@@ -461,9 +464,9 @@ public sealed class DestinationService(
     /// shows it as the torrent's label, and a label can't hold a comma (Transmission refuses the add otherwise, ADR
     /// 0039). <c>null</c> when it can, and for every category client. Asks no client: the type's capabilities say it.
     /// </summary>
-    private string? LabelError(IntegrationConnectionEntity client, string name) =>
+    private Message? LabelError(IntegrationConnectionEntity client, string name) =>
         DestinationKindOf(client.AdapterType) == DownloadDestinationKind.Folder && DestinationRules.ValidateLabel(name.Trim()) is not null
-            ? $"“{client.Name}” shows this destination's name as the torrent's label, and a label can't contain a comma. Pick a name without one."
+            ? Message.Of("destinations.label.comma-in-name", ("client", client.Name))
             : null;
 
     /// <summary>
@@ -629,7 +632,7 @@ public sealed class DestinationService(
             .SingleAsync(cancellationToken);
 
     private static DestinationChangeResult NameTaken(IntegrationConnectionEntity client, string name) =>
-        DestinationChangeResult.NameTaken($"“{client.Name}” already has a destination named “{name}”.");
+        DestinationChangeResult.NameTaken(Message.Of("destinations.name.taken", ("client", client.Name), ("name", name)));
 
     private DestinationDto ToDto(DestinationRow row, DestinationPathCheckResult check) =>
         mapper.ToDto(row.Destination, row.ClientName, check, DestinationKindOf(row.ClientAdapterType));

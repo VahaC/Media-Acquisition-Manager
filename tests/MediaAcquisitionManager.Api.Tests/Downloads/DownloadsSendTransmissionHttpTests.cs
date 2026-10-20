@@ -12,6 +12,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Downloads;
@@ -451,7 +452,7 @@ public sealed class DownloadsSendTransmissionHttpTests : IClassFixture<MediaAcqu
         // Transmission's own sentence names its folder: the member reads the app's, the row keeps Transmission's.
         var job = await ReadJobAsync(response, cancellationToken);
         Assert.Equal((DownloadJobStatus.Failed, (string?)MembersClientError), (job.Status, job.Error));
-        Assert.Equal(DuplicateError, (await JobRowAsync(cancellationToken)).Error);
+        Assert.Equal(DuplicateError, TestTexts.En((await JobRowAsync(cancellationToken)).Error));
     }
 
     [Fact]
@@ -522,7 +523,7 @@ public sealed class DownloadsSendTransmissionHttpTests : IClassFixture<MediaAcqu
         var job = await ReadJobAsync(response, cancellationToken);
         Assert.Equal((DownloadJobStatus.Failed, (string?)error, (string?)null), (job.Status, job.Error, job.ClientJobId));
         var row = await JobRowAsync(cancellationToken);
-        Assert.Equal((DownloadJobStatus.Failed, (string?)error, (DownloadJobErrorOrigin?)origin), (row.Status, row.Error, row.ErrorOrigin));
+        Assert.Equal((DownloadJobStatus.Failed, (string?)error, (DownloadJobErrorOrigin?)origin), (row.Status, TestTexts.En(row.Error), row.ErrorOrigin));
         Assert.DoesNotContain(_transmission.Torrents, torrent => torrent.DownloadDir == MoviesFolder);
     }
 }

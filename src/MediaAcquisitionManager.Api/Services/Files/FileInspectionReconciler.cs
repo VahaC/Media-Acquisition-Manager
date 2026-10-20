@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +27,7 @@ public sealed class FileInspectionReconciler(
     TimeProvider time,
     ILogger<FileInspectionReconciler> logger) : IHostedService
 {
-    private const string RestartedError = "The app restarted before this inspection finished. What it had read is kept.";
+    private static readonly Message RestartedError = Message.Of("files.inspection.restarted");
 
     public Task StartAsync(CancellationToken cancellationToken) => ReconcileAsync(cancellationToken);
 

@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -77,7 +78,7 @@ public sealed class ReplacementQuarantinePartialFileHttpTests : IClassFixture<Fo
                 (TheatricalPath, ReplacementNameKind.Video, ReplacementNameState.Quarantined, (string?)null),
                 (DownloadingPartPath, ReplacementNameKind.Companion, ReplacementNameState.Stayed, HeldProblem),
             ],
-            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.Kind, name.State, name.Problem)));
+            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.Kind, name.State, TestTexts.En(name.Problem))));
         // Only the old copy was renamed; the download in progress is where the client writes it.
         Assert.Equal([(TheatricalPath, ReplacementVerificationHarness.QuarantinePathOf(replacement.Id, TheatricalPath))], _factory.Quarantine.Renames);
         Assert.Equal(

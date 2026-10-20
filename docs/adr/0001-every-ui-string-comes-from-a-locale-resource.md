@@ -183,3 +183,40 @@ and `src/test/plural-probe.ts`'s Ukrainian probes the counted keys MAM-46 change
 `UserLanguageHttpTests` pins the save, and `AuthSignInHttpTests.SignIn_carries_the_language_the_user_saved`,
 `AuthRefreshHttpTests.Refresh_carries_the_language_the_user_saved` and
 `AuthMeHttpTests.Me_carries_the_language_the_user_saved` the answers that carry it.
+
+## Server sentences (added 0.5.0, MAM-47)
+
+MAM-47 brings the server's sentences into the language the page runs in, as
+[ADR 0042](0042-the-server-keeps-a-key-and-values-and-writes-each-sentence-in-the-language-the-request-asks-for.md)
+decides. **Every sentence the server writes — an API error, a job's or a run's reason, a disabled
+action's reason, a connection test's answer, a health description, an MCP tool's answer — reads in
+the language of the request's `Accept-Language`, which the web app sets to its UI locale on every
+request (`lib/api.ts`), and an API error carries `code`, the sentence's key, beside it.** The web app
+shows `error` as it comes (`getApiErrorMessage`) and never translates the server's words by matching
+them, as the Anti-consequence's first half still says. Where it compared two server sentences it
+compares their codes now (`LibrarySyncPanel`, `TmdbLinkEditor`), and a change of the UI language
+fetches again the answers on screen and marks the rest stale (`lib/query-client.ts`), so the
+server's words follow the switch without a reload.
+
+**What still stays English:** console output and errors meant for developers, the server's logs,
+the release notes (Vasyl's decision of 2026-10-14), the `index.html` title before the script runs,
+and the text an AI assistant's model reads — the MCP server's instructions and its tools' titles and
+descriptions. A script, a token or an MCP client that sends no `Accept-Language` gets English. Data
+stays as its source wrote it, a service's own words quoted inside a server sentence included.
+
+**The page test.** `src/test/ukrainian-pages.test.tsx` lets the strings an answer serves through: its
+canned server sentences are fixtures English tests share. The server's Ukrainian is proved by the
+server's own tests, which ADR 0042 names.
+
+**Superseded.** For server text, the Decision's "What stays English" ("API messages … are shown as
+the API sends them: translating them needs stable error codes, decided later") and the MAM-46
+section's "What stays English" as far as it names the server ("Everything the server writes … until
+MAM-47" and "the MCP tools' answers"); the MAM-46 section's "Today the server reads it only for a new
+TMDb integration's default catalog language" under **`Accept-Language`**. The rest of those
+paragraphs stands.
+
+`src/lib/query-client.test.ts`'s "refetches the cached answers on screen when the UI language
+changes, so the server's sentences follow it", "marks a cached answer nothing shows stale without
+fetching it, so it is asked for again when shown" and "asks once more for what is on screen when the
+account's language is switched, and no more" pin the refetch; `src/lib/api.test.ts`'s "sends the UI
+locale as Accept-Language on every request" the header.

@@ -1,26 +1,30 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Replacements;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
 /// <inheritdoc cref="IReplacementMapper"/>
-public sealed class ReplacementMapper : IReplacementMapper
+/// <remarks>MAM-47 (ADR 0042) — the destination's problem, each client's error and each work's confirmation are messages,
+/// rendered in the request's language with <c>texts</c>.</remarks>
+public sealed class ReplacementMapper(IRequestTexts texts) : IReplacementMapper
 {
     public ReplacementOptionsResponse ToResponse(
         ReplacementUnavailableReason? unavailable,
-        string? destinationProblem,
+        Message? destinationProblem,
         IReadOnlyList<MediaEdition> releaseEditions,
         IReadOnlyList<ReplacementCandidateWork> works,
         ReplacementHoldings holdings) =>
         new(
             unavailable,
-            destinationProblem,
+            texts.Render(destinationProblem),
             releaseEditions,
             [.. works.Select(work => ToDto(work, holdings))],
-            [.. holdings.Clients.Select(client => new ReplacementClientCheckDto(client.ClientName, client.Status, client.Error, client.UnplacedTorrents))]);
+            [.. holdings.Clients.Select(client => new ReplacementClientCheckDto(client.ClientName, client.Status, texts.Render(client.Error), client.UnplacedTorrents))]);
 
-    private static ReplacementWorkDto ToDto(ReplacementCandidateWork work, ReplacementHoldings holdings) =>
+    private ReplacementWorkDto ToDto(ReplacementCandidateWork work, ReplacementHoldings holdings) =>
         new(
             work.WorkId,
             work.Kind,
@@ -29,7 +33,7 @@ public sealed class ReplacementMapper : IReplacementMapper
             work.Match.Evidence,
             work.Match.ConflictingSchemes,
             work.NeedsConfirmation,
-            work.ConfirmationText,
+            texts.Render(work.ConfirmationText),
             work.LibraryNames,
             work.Unavailable,
             [.. work.Copies.Select(copy => ToDto(copy, work, holdings))],

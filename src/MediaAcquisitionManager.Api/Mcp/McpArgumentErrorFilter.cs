@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
+using MediaAcquisitionManager.Api.Texts;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -51,7 +52,10 @@ public static class McpArgumentErrorFilter
             }
             catch (Exception exception) when (exception is JsonException or ArgumentException && IsThrownBindingArguments(exception))
             {
-                return McpToolResults.Error(McpToolErrors.ArgumentsDontFit(context.Params?.Name ?? "", exception.Message));
+                // MAM-47 (ADR 0042) — in the MCP request's language; the binder's own words stay .NET's.
+                var texts = (context.Services ?? throw new InvalidOperationException("An MCP tool call carries no services."))
+                    .GetRequiredService<IRequestTexts>();
+                return McpToolResults.Error(texts.Render(McpToolErrors.ArgumentsDontFit(context.Params?.Name ?? "", exception.Message)));
             }
         };
 

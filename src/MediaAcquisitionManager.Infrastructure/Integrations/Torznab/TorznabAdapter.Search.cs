@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 
@@ -18,8 +19,7 @@ internal sealed partial class TorznabAdapter
     /// <summary>The longest category name kept, like a server title.</summary>
     private const int CategoryNameMaximumLength = 100;
 
-    private const string NotSearchResultsError =
-        "The service at this address answered, but not with Torznab search results. Check that the address is the feed's Torznab URL.";
+    private static readonly Message NotSearchResultsError = Message.Of("torznab.not-search-results");
 
     /// <inheritdoc/>
     public Task<IntegrationCallResult<ReleaseSearchCapabilities>> GetCapabilitiesAsync(

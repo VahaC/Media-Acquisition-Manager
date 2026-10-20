@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,8 +35,17 @@ public sealed class LibraryLinkWriteReconciler(
     TimeProvider time,
     ILogger<LibraryLinkWriteReconciler> logger) : IHostedService
 {
-    internal const string RestartedError =
-        "The app restarted while identifying the item in Jellyfin. Jellyfin may still be working on it: Retry in a few minutes checks what it holds before anything is sent.";
+    /// <summary>
+    /// MAM-47 (ADR 0042) — the key of <see cref="RestartedError"/>: the repair (<c>LibraryLinkService.CatchUp</c>) leaves a
+    /// link with this error alone, so the key is what marks an identification a restart cut.
+    /// </summary>
+    internal const string RestartedKey = "library-links.write.restarted";
+
+    /// <summary>
+    /// What an identification a restart cut leaves as the link's error. Value-less, so it is stored as the same JSON every
+    /// time and the repair's query compares the column with it in SQL.
+    /// </summary>
+    internal static readonly Message RestartedError = Message.Of(RestartedKey);
 
     public Task StartAsync(CancellationToken cancellationToken) => ReconcileAsync(cancellationToken);
 
@@ -83,7 +93,7 @@ public sealed class LibraryLinkWriteReconciler(
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(link => link.WriteState, LibraryLinkWriteState.KeptInApp)
-                    .SetProperty(link => link.WriteError, (string?)null)
+                    .SetProperty(link => link.WriteError, (Message?)null)
                     .SetProperty(link => link.WriteStateUtc, now),
                 cancellationToken);
         await transaction.CommitAsync(cancellationToken);

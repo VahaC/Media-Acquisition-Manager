@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Downloads;
@@ -121,7 +122,7 @@ public sealed class DownloadsSendJackettHttpTests : IClassFixture<MediaAcquisiti
         await _factory.WithDbAsync(async db =>
         {
             var row = await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal((DownloadJobStatus.Failed, RefusedKeyError), (row.Status, row.Error));
+            Assert.Equal((DownloadJobStatus.Failed, RefusedKeyError), (row.Status, TestTexts.En(row.Error)));
             Assert.Null(row.InfoHashV1);
         });
         var body = await response.Content.ReadAsStringAsync(cancellationToken);

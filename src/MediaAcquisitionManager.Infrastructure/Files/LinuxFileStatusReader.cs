@@ -137,7 +137,7 @@ internal sealed class LinuxFileStatusReader : IFileStatusReader
         if (LinuxCalls.FactsOf(status) is not { } facts)
         {
             return FileSystemFailure.Refused<FileFacts>(
-                FileInventoryStatus.Unreadable, FileInventoryMessages.CouldNotRead(appPath, "its modification time is outside the years 1 to 9999"));
+                FileInventoryStatus.Unreadable, FileInventoryMessages.TimeOutOfRange(appPath));
         }
 
         return new FileInventoryResult<FileFacts>(FileInventoryStatus.Found, facts, null);

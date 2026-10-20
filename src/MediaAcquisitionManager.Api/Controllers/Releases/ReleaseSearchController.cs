@@ -41,7 +41,7 @@ public class ReleaseSearchController(IReleaseSearchService releases) : Controlle
         return result.Status switch
         {
             ReleaseSearchStatus.Searched => Ok(result.Response),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 }

@@ -10,6 +10,7 @@ using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -137,7 +138,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(ElsewhereError, result.Error);
+        Assert.Equal(ElsewhereError, TestTexts.En(result.Error));
         Assert.Empty(_harness.TorznabHttp.Requests);
     }
 
@@ -180,7 +181,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
         Assert.Equal(
             "The release's download link needs the Torznab feed's API key, and none is saved for the feed. Enter its API key.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Empty(_harness.TorznabHttp.Requests);
     }
 
@@ -260,7 +261,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The Torznab feed sends this download on to a “http” link instead of handing it over, and the app doesn't follow it.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -277,7 +278,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The Torznab feed sends this download on to https://tracker.test instead of handing it over, and the app doesn't follow it. Switch off the feed's option to redirect downloads to the tracker.",
-            result.Error);
+            TestTexts.En(result.Error));
         // Not followed: the key would go along.
         Assert.Single(_harness.TorznabHttp.Requests);
     }
@@ -298,7 +299,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The Torznab feed sends this download on to another address of its own at http://prowlarr.test:9696 instead of handing it over, and the app doesn't follow redirects.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Single(_harness.TorznabHttp.Requests);
     }
 
@@ -317,7 +318,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Single(_harness.TorznabHttp.Requests);
     }
 
@@ -340,7 +341,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(RedirectWithoutTargetError, result.Error);
+        Assert.Equal(RedirectWithoutTargetError, TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -375,7 +376,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -399,7 +400,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -420,7 +421,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotATorrentError, result.Error);
+        Assert.Equal(NotATorrentError, TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -460,7 +461,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
         // feed's own words — but not in the app's sentence around them.
         Assert.Equal(
             "The Torznab feed failed to hand over the release (error 500: Token *** (***) of /1/***?apikey=***&link=***&file=*** with *** failed).",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -473,7 +474,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
         var result = await Search.FetchPayloadAsync(Settings, new ReleasePayloadLocator(Locator), TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal(NotATorrentError, result.Error);
+        Assert.Equal(NotATorrentError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -491,7 +492,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
         //Assert
         // Not read as the feed's <error>: answered by its status alone.
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
-        Assert.Equal("Torznab answered 500 Internal Server Error. Its own log says why.", result.Error);
+        Assert.Equal("Torznab answered 500 Internal Server Error. Its own log says why.", TestTexts.En(result.Error));
         Assert.True(TimeProvider.System.GetElapsedTime(started) < TimeSpan.FromSeconds(5), "Reading a deeply nested answer took seconds.");
     }
 
@@ -507,7 +508,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(ElsewhereError, result.Error);
+        Assert.Equal(ElsewhereError, TestTexts.En(result.Error));
         Assert.Empty(_harness.TorznabHttp.Requests);
     }
 
@@ -524,7 +525,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Unreachable, result.Status);
         Assert.Equal(
             "Couldn't reach Torznab at http://prowlarr.test:9696/1/api: nothing accepted the connection. Check the address and port, and that Torznab is running.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -538,7 +539,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("The answer from http://prowlarr.test:9696/1/api is far larger than anything Torznab sends. Check the address.", result.Error);
+        Assert.Equal("The answer from http://prowlarr.test:9696/1/api is far larger than anything Torznab sends. Check the address.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -554,7 +555,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("Torznab at http://prowlarr.test:9696/1/api didn't answer within 0.1 seconds.", result.Error);
+        Assert.Equal("Torznab at http://prowlarr.test:9696/1/api didn't answer within 0.1 seconds.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -587,7 +588,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", result.Error);
+        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", TestTexts.En(result.Error));
     }
 
     private static HttpResponseMessage Torrent(byte[] body)

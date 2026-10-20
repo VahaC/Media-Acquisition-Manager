@@ -1,4 +1,3 @@
-using System.Globalization;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Media;
@@ -54,7 +53,7 @@ public sealed partial class ReplacementVerifier
             if (await ReplacementNewFileCheck.ChangedAsync(files, row, roots, cancellationToken) is { } changed)
             {
                 ForgetWaitingPass(rows, copies);
-                row.Problem = FileInspectionRunUpdates.Cut(changed, ReplacementJobNewFileEntity.ProblemMaximumLength);
+                row.Problem = changed;
                 await FinishAsync(job, ReplacementJobState.NeedsReview, changed, now, () => Task.CompletedTask);
                 return;
             }
@@ -141,7 +140,7 @@ public sealed partial class ReplacementVerifier
         {
             var row = rows.Single(file => file.Id == outcome.NewFileId);
             row.MediaWorkId = outcome.WorkId;
-            row.Problem = outcome.Problem is { } problem ? FileInspectionRunUpdates.Cut(problem, ReplacementJobNewFileEntity.ProblemMaximumLength) : null;
+            row.Problem = outcome.Problem;
         }
 
         foreach (var outcome in result.OldCopies)
@@ -149,7 +148,7 @@ public sealed partial class ReplacementVerifier
             var copy = copies.Single(file => file.Id == outcome.OldCopyId);
             // A pair is kept once the job is decided: verified, or stopped with the copies that paired before it.
             copy.PairedNewFileId = result.Verdict == ReplacementPairingVerdict.Wait ? null : outcome.PairedNewFileId;
-            copy.Problem = outcome.Problem is { } problem ? FileInspectionRunUpdates.Cut(problem, ReplacementJobFileEntity.ProblemMaximumLength) : null;
+            copy.Problem = outcome.Problem;
             // MAM-27 — beside its problem, whether only a drop settles it: the owner's Retry is withheld while one does.
             copy.OnlyDropSettles = outcome.OnlyDropSettles;
         }
@@ -255,7 +254,7 @@ public sealed partial class ReplacementVerifier
             .. works.Select(work => new ReplacementPairingWork(
                 work.MediaWorkId,
                 work.Kind,
-                NameOf(work),
+                ReplacementPairingWork.NameOf(work.Title, work.Year),
                 titles[work.MediaWorkId].Any() ? [.. titles[work.MediaWorkId]] : work.Title is { } title ? [title] : [],
                 [
                     .. identifiers
@@ -310,11 +309,4 @@ public sealed partial class ReplacementVerifier
             .Select(name => Enum.TryParse<MediaEdition>(name, ignoreCase: false, out var edition) && Enum.IsDefined(edition) ? edition : (MediaEdition?)null)
             .OfType<MediaEdition>(),
     ];
-
-    /// <summary>A work as the sentences name it: "Alien (1979)", "Alien" without a year (the planner's way).</summary>
-    private static string NameOf(ReplacementJobWorkEntity work)
-    {
-        var title = work.Title ?? "a work with no title";
-        return work.Year is { } year ? string.Create(CultureInfo.InvariantCulture, $"{title} ({year})") : title;
-    }
 }

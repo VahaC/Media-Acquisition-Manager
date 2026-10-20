@@ -30,9 +30,9 @@ public sealed partial class LibraryDuplicateService
     /// <summary>
     /// The verdict on removing each of <paramref name="group"/>'s files, by file id, as <paramref name="judge"/> reads the
     /// rules (<see cref="CopyRemovalRules"/>); none for a group of another class — one file's names or a possible match —,
-    /// which offers no removal.
+    /// which offers no removal. MAM-47 — why not rendered in the request's language: the list builds its rows itself.
     /// </summary>
-    private static Dictionary<Guid, CopyRemovalVerdictDto> VerdictsOf(
+    private Dictionary<Guid, CopyRemovalVerdictDto> VerdictsOf(
         DuplicateGroup group, Snapshot library, IReadOnlyDictionary<Guid, DuplicateName> namesById, CopyRemovalJudge? judge)
     {
         if (judge is null || group.Class is not (DuplicateClass.SameWork or DuplicateClass.ByteIdentical))
@@ -42,7 +42,9 @@ public sealed partial class LibraryDuplicateService
         var workIds = group.WorkIds.ToHashSet();
         return files.ToDictionary(
             file => file.FileId,
-            file => judge.ReasonOf(group.Class, workIds, file, files) is { } reason ? new CopyRemovalVerdictDto(false, reason) : new CopyRemovalVerdictDto(true, null));
+            file => judge.ReasonOf(group.Class, workIds, file, files) is { } reason
+                ? new CopyRemovalVerdictDto(false, texts.Render(reason))
+                : new CopyRemovalVerdictDto(true, null));
     }
 
     /// <summary>Each of <paramref name="group"/>'s files as the removal rules read it, in the group's order: its row's app

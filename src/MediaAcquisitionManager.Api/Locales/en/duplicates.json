@@ -1,0 +1,51 @@
+{
+  "decision": {
+    "missing": "A decision is needed: Confirmed or Dismissed.",
+    "unknown": "“{{value}}” is not a decision. Use Confirmed or Dismissed.",
+    "copies-not-confirmed": "These files are copies by their bytes or registry ids, which no one has to confirm: keep them as they are, or remove a copy.",
+    "one-file-not-decided": "These are names of one file, not copies of it: removing a name frees nothing, so there is nothing to keep or remove.",
+    "unreadable-body": "The body must be JSON with a decision, such as { \"decision\": \"Confirmed\" }."
+  },
+  "removal": {
+    "unreadable-body": "The body must be JSON with the group and the file, such as { \"groupKey\": \"<key>\", \"fileId\": \"<id>\" }.",
+    "request-incomplete": "Remove needs the group and the file you pressed it on.",
+    "page-changed": "This copy changed since the page showed it. Reload the page to see it as it is now.",
+    "unsupported": "The app can't rename files on the platform it runs on, so nothing was removed.",
+    "no-other-copy-on-disk": "No other copy of this group is on the disk as the app last read it, so this one stays. Inspect the library's files again to see what is there.",
+    "busy": "This removal is being worked on right now. Try again in a moment.",
+    "changed-meanwhile": "This removal changed while the app was working on it, so it stopped. Reload the page to see where it stands.",
+    "switched-off-midway": "Replacing and removing copies was switched off on the Media folders page.",
+    "restore": {
+      "nothing": "Nothing of this removal is in the quarantine, so there's nothing to put back.",
+      "switched-off": "Replacing and removing copies is switched off on the Media folders page, so nothing can be put back. Turn on “Replace copies after verification”, then press Restore again.",
+      "video-deleted": "This copy's video was deleted permanently, so nothing is put back without it. Delete permanently what the quarantine still holds."
+    },
+    "delete": {
+      "nothing": "This removal holds nothing in the quarantine to delete.",
+      "switched-off": "Replacing and removing copies is switched off on the Media folders page, so nothing can be deleted. Turn on “Replace copies after verification”, then press Delete permanently again."
+    },
+    "rule": {
+      "not-removable-class": "Only a copy in “Exact copies” or “Same film, different files” can be removed.",
+      "switched-off": "Removing copies is switched off. Turn on “Replace copies after verification” under Media folders.",
+      "outside-media-folders": "This file isn't inside the Media folders, so the app can't move it.",
+      "not-ticked": "This file's library folder isn't ticked for replacement under Media folders.",
+      "not-inspected": "The app hasn't inspected this file yet. Press Inspect files on the Library page first.",
+      "not-readable": "The app's last look couldn't read this file as media, so it can't tell what would go.",
+      "disc-clip": "This file is part of a disc folder, which can't be removed one file at a time.",
+      "other-work": "This file also holds a film or an episode outside this group, which would go with it.",
+      "held-by-replacement": "A replacement on the Jobs page holds this file.",
+      "held-by-removal": "A removal under Removed copies holds this file.",
+      "last-readable-copy": "No other copy in this group is one the app has read as media, so this one stays: it may be the only one that plays."
+    }
+  },
+  "list": {
+    "unknown-class": "“{{value}}” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible.",
+    "unknown-sort": "“{{value}}” is not a sort. Use Default or Recoverable."
+  },
+  "mcp": {
+    "list": {
+      "listed_one": "{{count, number}} duplicate group in all; page {{page, number}} lists {{listed, number}}.",
+      "listed_other": "{{count, number}} duplicate groups in all; page {{page, number}} lists {{listed, number}}."
+    }
+  }
+}

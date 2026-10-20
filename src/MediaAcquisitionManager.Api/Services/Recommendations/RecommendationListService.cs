@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Catalog;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
@@ -18,7 +19,8 @@ public sealed partial class RecommendationListService(
     IRecommendationRunService runs,
     ICatalogConnector catalogs,
     RecommendationSourceFailures sourceFailures,
-    IRecommendationMapper mapper) : IRecommendationListService
+    IRecommendationMapper mapper,
+    IRequestTexts texts) : IRecommendationListService
 {
     public async Task<RecommendationListResult> ListAsync(
         RecommendationListRequest request, Guid callerUserId, CancellationToken cancellationToken = default)
@@ -91,8 +93,9 @@ public sealed partial class RecommendationListService(
                 // The normalised name is unique, so the order is total.
                 .OrderBy(source => source.NormalizedName, StringComparer.Ordinal)
                 .Select(source => (source.Name, Failure: failures[source.Id]))
+                // MAM-47 (ADR 0042) — kept as a message, written in the language of the request that reads it.
                 .Select(source => new RecommendationSourceFailureDto(
-                    source.Name, source.Failure.Status, forOwner ? source.Failure.Error : null, source.Failure.FailedUtc)),
+                    source.Name, source.Failure.Status, forOwner ? texts.Render(source.Failure.Error) : null, source.Failure.FailedUtc)),
         ];
     }
 

@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -129,7 +130,7 @@ public sealed class TmdbAdapterEpisodesTests : IDisposable
         //Assert
         Assert.Equal(
             (IntegrationCallStatus.NotFound, "TMDb has no episode 99 of season 9 of the show 91724."),
-            (result.Status, result.Error));
+            (result.Status, TestTexts.En(result.Error)));
         Assert.Single(_harness.TmdbHttp.Requests);
     }
 
@@ -174,7 +175,7 @@ public sealed class TmdbAdapterEpisodesTests : IDisposable
         var result = await Catalog.GetEpisodeAsync(Settings, TmdbSamples.TvEpisodeWwiiShowId, 1, 1, TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal((IntegrationCallStatus.UnexpectedResponse, NotTmdbError), (result.Status, result.Error));
+        Assert.Equal((IntegrationCallStatus.UnexpectedResponse, NotTmdbError), (result.Status, TestTexts.En(result.Error)));
     }
 
     [Theory]

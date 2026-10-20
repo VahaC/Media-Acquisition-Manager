@@ -5,11 +5,13 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Library;
@@ -36,7 +38,7 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
     private const string BedroomBaseUrl = "http://127.0.0.2:9";
 
     /// <summary>MAM-9 — a source whose files the app hasn't looked at, or that has none.</summary>
-    private static readonly LibrarySourceInspectionDto NoInspection = new(0, 0, 0, null);
+    private static readonly LibrarySourceInspectionDto NoInspection = new(0, 0, 0, null, null);
 
     /// <summary>MAM-19 — a run that never reached its hashing step: queued, failed before it, or planted.</summary>
     private static readonly FileHashingDto NotHashed = new(null, 0, 0, 0, null);
@@ -63,7 +65,13 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
 
     private const string AliensTheatricalNotCoveredError = "No path mapping of this integration covers “" + AliensTheatricalPath + "”.";
 
+    /// <summary>MAM-47 — the key of <see cref="AliensTheatricalNotCoveredError"/>'s sentence, the API's code for it.</summary>
+    private const string NotCoveredCode = "integrations.path-map.not-covered";
+
     private const string RestartedError = "The app restarted before this inspection finished. What it had read is kept.";
+
+    /// <summary>MAM-47 — <see cref="RestartedError"/> as the reconciler stores it: key and values (ADR 0042).</summary>
+    private static readonly Message Restarted = Message.Of("files.inspection.restarted");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -123,10 +131,10 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
             [
-                new LibrarySourceDto(attic.Id, "Attic", FakeIntegrationAdapter.DisplayName, true, false, null, null, 0, null, NoInspection, NoSpace),
-                new LibrarySourceDto(basement.Id, "Basement", null, true, false, null, null, 0, null, NoInspection, NoSpace),
-                new LibrarySourceDto(cellar.Id, "Cellar", "Jellyfin", false, true, null, null, 0, null, NoInspection, NoSpace),
-                new LibrarySourceDto(livingRoom.Id, "living room", "Jellyfin", true, true, null, null, 0, null, NoInspection, NoSpace),
+                new LibrarySourceDto(attic.Id, "Attic", FakeIntegrationAdapter.DisplayName, true, false, null, null, 0, null, null, NoInspection, NoSpace),
+                new LibrarySourceDto(basement.Id, "Basement", null, true, false, null, null, 0, null, null, NoInspection, NoSpace),
+                new LibrarySourceDto(cellar.Id, "Cellar", "Jellyfin", false, true, null, null, 0, null, null, NoInspection, NoSpace),
+                new LibrarySourceDto(livingRoom.Id, "living room", "Jellyfin", true, true, null, null, 0, null, null, NoInspection, NoSpace),
             ],
             (await ReadListAsync(response, cancellationToken)).Items);
     }
@@ -143,7 +151,12 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         // Seeded out of order and at explicit times, so "latest" is the clock's answer, not the insert
         // order's or the ids'.
         var lastSucceeded = await runs.Create(synced, LibrarySyncStatus.Succeeded, _owner.User, now.AddMinutes(-2));
-        var latest = await runs.Create(synced, LibrarySyncStatus.Failed, _owner.User, now.AddMinutes(-1), "Jellyfin answered 500 Internal Server Error. Its own log says why.");
+        var latest = await runs.Create(
+            synced,
+            LibrarySyncStatus.Failed,
+            _owner.User,
+            now.AddMinutes(-1),
+            Message.Of("http.status.server-error", ("service", "Jellyfin"), ("status", "500 Internal Server Error")));
         await runs.Create(synced, LibrarySyncStatus.Succeeded, _owner.User, now.AddMinutes(-3));
 
         //Act
@@ -217,12 +230,13 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         //Assert
         // The first problem in path order, so the warning reads the same on every poll.
         var ownersSource = Assert.Single((await ReadListAsync(owners, cancellationToken)).Items);
+        // MAM-47 — with the sentence's key beside it, the same in every language.
         Assert.Equal(
-            (4, $"No path mapping of this integration covers “{AliensTheatricalPath}”."),
-            (ownersSource.FilesWithoutAppPathCount, ownersSource.PathProblem));
+            (4, $"No path mapping of this integration covers “{AliensTheatricalPath}”.", NotCoveredCode),
+            (ownersSource.FilesWithoutAppPathCount, ownersSource.PathProblem, ownersSource.PathProblemCode));
         // The reason quotes a path and the mappings, which are the owner's; the count is everyone's.
         var membersSource = Assert.Single((await ReadListAsync(members, cancellationToken)).Items);
-        Assert.Equal((4, null), (membersSource.FilesWithoutAppPathCount, membersSource.PathProblem));
+        Assert.Equal((4, null, null), (membersSource.FilesWithoutAppPathCount, membersSource.PathProblem, membersSource.PathProblemCode));
     }
 
     [Fact]
@@ -285,11 +299,11 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (owners.StatusCode, members.StatusCode));
         // Every reason the streams weren't read is a problem; the first in path order is the one named.
         Assert.Equal(
-            [("Bedroom", new LibrarySourceInspectionDto(0, 0, 2, null)), ("Living room", new LibrarySourceInspectionDto(1, 3, 0, AliensTheatricalGoneError))],
+            [("Bedroom", new LibrarySourceInspectionDto(0, 0, 2, null, null)), ("Living room", new LibrarySourceInspectionDto(1, 3, 0, AliensTheatricalGoneError, Message.LegacyKey))],
             (await ReadListAsync(owners, cancellationToken)).Items.Select(item => (item.Name, item.Inspection)));
         // The sentence quotes a path inside the app: the owner's, like each file's; the counts are everyone's.
         Assert.Equal(
-            [("Bedroom", new LibrarySourceInspectionDto(0, 0, 2, null)), ("Living room", new LibrarySourceInspectionDto(1, 3, 0, null))],
+            [("Bedroom", new LibrarySourceInspectionDto(0, 0, 2, null, null)), ("Living room", new LibrarySourceInspectionDto(1, 3, 0, null, null))],
             (await ReadListAsync(members, cancellationToken)).Items.Select(item => (item.Name, item.Inspection)));
         await _factory.WithDbAsync(async db =>
         {
@@ -329,8 +343,10 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var source = Assert.Single((await ReadListAsync(response, cancellationToken)).Items);
-        Assert.Equal(new LibrarySourceInspectionDto(0, 4, 0, AliensTheatricalNotCoveredError), source.Inspection);
-        Assert.Equal(4, source.FilesWithoutAppPathCount);
+        Assert.Equal(new LibrarySourceInspectionDto(0, 4, 0, AliensTheatricalNotCoveredError, NotCoveredCode), source.Inspection);
+        // MAM-47 — the path warning's key is the first problem's: the page tells it is the same kind of reason by the
+        // codes (LibrarySyncPanel) and doesn't say it twice, in any language.
+        Assert.Equal((4, NotCoveredCode), (source.FilesWithoutAppPathCount, source.PathProblemCode));
         Assert.Empty(_factory.Files.DescribedPaths);
         await _factory.WithDbAsync(async db =>
             Assert.Equal(
@@ -360,7 +376,7 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         // warning, worked out now, drops at once (ADR 0003).
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var source = Assert.Single((await ReadListAsync(response, cancellationToken)).Items);
-        Assert.Equal((0, new LibrarySourceInspectionDto(0, 0, 4, null)), (source.FilesWithoutAppPathCount, source.Inspection));
+        Assert.Equal((0, new LibrarySourceInspectionDto(0, 0, 4, null, null)), (source.FilesWithoutAppPathCount, source.Inspection));
         await _factory.WithDbAsync(async db =>
             Assert.All(
                 await db.PhysicalFiles.Select(file => file.InspectionStatus).ToListAsync(cancellationToken),
@@ -386,7 +402,7 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         // An inspection reads every library's files; one that has none has nothing to count.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
-            [(bedroom.Id, NoInspection), (livingRoom.Id, new LibrarySourceInspectionDto(1, 3, 0, AliensTheatricalGoneError))],
+            [(bedroom.Id, NoInspection), (livingRoom.Id, new LibrarySourceInspectionDto(1, 3, 0, AliensTheatricalGoneError, Message.LegacyKey))],
             (await ReadListAsync(response, cancellationToken)).Items.Select(item => (item.IntegrationId, item.Inspection)));
         await _factory.WithDbAsync(async db =>
             Assert.Equal(0, await db.PhysicalFiles.CountAsync(file => file.SourceConnectionId == bedroom.Id, cancellationToken)));
@@ -512,10 +528,11 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         var runs = new FileInspectionRunSeeder(_factory.Scope);
         var now = _factory.Time.GetUtcNow().UtcDateTime;
         var latestError = latestStatus == FileInspectionRunStatus.Failed ? RestartedError : null;
+        var latestReason = latestError is null ? null : Restarted;
         // Seeded out of order and at explicit times, so "latest" is the clock's answer, not the insert
         // order's or the ids'; and a newer run still under way is not a finished one.
-        await runs.Create(FileInspectionRunStatus.Failed, FileInspectionTrigger.AppStarted, createdUtc: now.AddMinutes(-2), error: RestartedError, filesTotal: 4, filesChecked: 2);
-        var latest = await runs.Create(latestStatus, FileInspectionTrigger.LibrarySynced, createdUtc: now.AddMinutes(-1), error: latestError, filesTotal: 4, filesChecked: 4, filesProbed: 2);
+        await runs.Create(FileInspectionRunStatus.Failed, FileInspectionTrigger.AppStarted, createdUtc: now.AddMinutes(-2), error: Restarted, filesTotal: 4, filesChecked: 2);
+        var latest = await runs.Create(latestStatus, FileInspectionTrigger.LibrarySynced, createdUtc: now.AddMinutes(-1), error: latestReason, filesTotal: 4, filesChecked: 4, filesProbed: 2);
         await runs.Create(FileInspectionRunStatus.Succeeded, FileInspectionTrigger.Requested, _owner.User, now.AddMinutes(-3), filesTotal: 4, filesChecked: 4, filesProbed: 4);
         var running = await runs.Create(FileInspectionRunStatus.Running, FileInspectionTrigger.AppStarted, createdUtc: now, filesTotal: 4, filesChecked: 1);
 
@@ -545,7 +562,7 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         await new AllowedRootSeeder(_factory.Scope).Allow("/media");
         var runs = new FileInspectionRunSeeder(_factory.Scope);
         var now = _factory.Time.GetUtcNow().UtcDateTime;
-        await runs.Create(FileInspectionRunStatus.Failed, FileInspectionTrigger.Requested, _owner.User, now.AddMinutes(-5), RestartedError, filesTotal: 4, filesChecked: 2);
+        await runs.Create(FileInspectionRunStatus.Failed, FileInspectionTrigger.Requested, _owner.User, now.AddMinutes(-5), Restarted, filesTotal: 4, filesChecked: 2);
         await runs.Create(FileInspectionRunStatus.Running, FileInspectionTrigger.Requested, _owner.User, now.AddMinutes(-1), filesTotal: 4);
 
         //Act
@@ -571,7 +588,7 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         await _factory.WithDbAsync(async db =>
             Assert.Equal(
                 RestartedError,
-                await db.FileInspectionRuns.Where(run => run.Status == FileInspectionRunStatus.Failed).Select(run => run.Error).SingleAsync(cancellationToken)));
+                TestTexts.En(await db.FileInspectionRuns.Where(run => run.Status == FileInspectionRunStatus.Failed).Select(run => run.Error).SingleAsync(cancellationToken))));
     }
 
     private static async Task<LibrarySourceListResponse> ReadListAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>

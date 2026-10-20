@@ -15,7 +15,9 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Logging;
+using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -184,7 +186,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
 
         //Assert
         var row = await ReplacementAsync(cancellationToken, replacement.Id);
-        Assert.Equal((ReplacementJobState.Scheduled, (string?)null, replacement.StateChangedUtc), (row.State, row.Reason, row.StateChangedUtc));
+        Assert.Equal((ReplacementJobState.Scheduled, (string?)null, replacement.StateChangedUtc), (row.State, TestTexts.En(row.Reason), row.StateChangedUtc));
     }
 
     [Theory]
@@ -211,7 +213,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
 
         //Assert
         var row = await ReplacementAsync(cancellationToken, replacement.Id);
-        Assert.Equal((state, (string?)null, replacement.StateChangedUtc), (row.State, row.Reason, row.StateChangedUtc));
+        Assert.Equal((state, (string?)null, replacement.StateChangedUtc), (row.State, TestTexts.En(row.Reason), row.StateChangedUtc));
         await _factory.WithDbAsync(async db => Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken)));
     }
 
@@ -267,7 +269,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
 
         //Assert
         Assert.Empty(errorsAfterPass);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)NeedsLinkingReason), (review.State, review.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)NeedsLinkingReason), (review.State, TestTexts.En(review.Reason)));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var cancelled = (await response.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
         Assert.Equal((ReplacementJobState.Cancelled, YouCancelledReason), (cancelled.Replacement!.State, cancelled.Replacement.Reason));
@@ -293,7 +295,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
         Assert.Equal(
             (ReplacementJobState.NeedsReview,
                 (string?)"“Seedbox”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file."),
-            (row.State, row.Reason));
+            (row.State, TestTexts.En(row.Reason)));
     }
 
     [Fact]
@@ -309,7 +311,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
 
         //Assert
         var row = await ReplacementAsync(cancellationToken, replacement.Id);
-        Assert.Equal((ReplacementJobState.Cancelled, (string?)DownloadCancelledReason), (row.State, row.Reason));
+        Assert.Equal((ReplacementJobState.Cancelled, (string?)DownloadCancelledReason), (row.State, TestTexts.En(row.Reason)));
         await _factory.WithDbAsync(async db => Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken)));
     }
 
@@ -325,7 +327,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
 
         //Assert
         var row = await ReplacementAsync(cancellationToken, replacement.Id);
-        Assert.Equal((ReplacementJobState.Failed, (string?)DownloadFailedReason), (row.State, row.Reason));
+        Assert.Equal((ReplacementJobState.Failed, (string?)DownloadFailedReason), (row.State, TestTexts.En(row.Reason)));
     }
 
     [Fact]
@@ -346,7 +348,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
         // The poller adopts the download as it always has; the replacement won't follow a download nothing checked.
         Assert.Equal(DownloadJobStatus.Downloaded, (await DownloadAsync(download.Id, cancellationToken)).Status);
         var row = await ReplacementAsync(cancellationToken, replacement.Id);
-        Assert.Equal((ReplacementJobState.Failed, (string?)InterruptedReason), (row.State, row.Reason));
+        Assert.Equal((ReplacementJobState.Failed, (string?)InterruptedReason), (row.State, TestTexts.En(row.Reason)));
     }
 
     [Fact]
@@ -363,7 +365,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
         //Assert
         Assert.Equal(DownloadJobStatus.Failed, (await DownloadAsync(download.Id, cancellationToken)).Status);
         var row = await ReplacementAsync(cancellationToken, replacement.Id);
-        Assert.Equal((ReplacementJobState.Failed, (string?)RefusedBeforeSentReason), (row.State, row.Reason));
+        Assert.Equal((ReplacementJobState.Failed, (string?)RefusedBeforeSentReason), (row.State, TestTexts.En(row.Reason)));
     }
 
     // ── what breaks ─────────────────────────────────────────────────────────────────────────────
@@ -512,7 +514,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
             progress: progress,
             overwriteCheck: check);
         var replacements = new ReplacementJobDataFactory(db, _factory.Time);
-        var replacement = await replacements.Create(download.Id, _owner.User.Id, state, reason);
+        var replacement = await replacements.Create(download.Id, _owner.User.Id, state, reason is null ? null : PlantedMessage.Of(reason));
         await replacements.AddFile(replacement.Id, TheatricalPath, TestMedia.File(inode: 1), physicalFileId: _theatrical);
         return (download, replacement);
     }

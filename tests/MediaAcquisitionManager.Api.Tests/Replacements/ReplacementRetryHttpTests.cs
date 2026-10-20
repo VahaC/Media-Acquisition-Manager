@@ -10,6 +10,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -96,7 +97,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         var cancellationToken = TestContext.Current.CancellationToken;
         var checkedUtc = _factory.Time.GetUtcNow().UtcDateTime;
         // Check 6 stopped it before anything moved: no name row was written.
-        var planted = await _planter.PlantAsync(ReplacementJobState.NeedsReview, [], quarantineCheckedUtc: checkedUtc, reason: HeldReason);
+        var planted = await _planter.PlantAsync(ReplacementJobState.NeedsReview, [], quarantineCheckedUtc: checkedUtc, reason: PlantedMessage.Of(HeldReason));
         _factory.Time.Advance(TimeSpan.FromMinutes(5));
         var now = _factory.Time.GetUtcNow().UtcDateTime;
         var sentBefore = (_factory.QBittorrentHttp.Requests.Count, _factory.JellyfinHttp.Requests.Count);
@@ -112,7 +113,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         // The mark of the mover's stage stays: it says when the mover last looked, and the next stop sets it again.
         Assert.Equal(
             (ReplacementJobState.Verified, (string?)null, now, (DateTime?)checkedUtc),
-            (replacement.State, replacement.Reason, replacement.StateChangedUtc, replacement.QuarantineCheckedUtc));
+            (replacement.State, TestTexts.En(replacement.Reason), replacement.StateChangedUtc, replacement.QuarantineCheckedUtc));
         // MAM-27 — every row aimed at the replacement, not a list of actions: the mover's Retry writes its own action alone.
         Assert.Equal(
             [(AuditAction.ReplacementRetried, _harness.Owner.User.Id, AuditTargetKind.ReplacementJob, planted.Replacement.Id, ReplacementQuarantinePlanter.ReleaseTitle)],
@@ -132,7 +133,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
             ReplacementJobState.NeedsReview,
             [new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1))],
             quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime,
-            reason: "The app stopped while moving the old copies: 1 of 1 name is in the quarantine.");
+            reason: PlantedMessage.Of("The app stopped while moving the old copies: 1 of 1 name is in the quarantine."));
 
         //Act
         var response = await RetryAsync(planted.Replacement.Id);
@@ -159,7 +160,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
                 new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: 98_304)),
             ],
             quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime,
-            reason: "The app stopped while moving the old copies: 2 of 2 names are in the quarantine.");
+            reason: PlantedMessage.Of("The app stopped while moving the old copies: 2 of 2 names are in the quarantine."));
         await RetryAsync(planted.Replacement.Id);
         var sentBefore = (_factory.QBittorrentHttp.Requests.Count, _factory.JellyfinHttp.Requests.Count);
 
@@ -170,7 +171,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         // Nothing left to rename: no torrent can hold it, so no client is asked — one that is down can't stop the job — and
         // the library heard of these names when they left.
         var replacement = await JobAsync(planted.Replacement.Id, cancellationToken);
-        Assert.Equal((ReplacementJobState.Quarantined, (string?)null), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Quarantined, (string?)null), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Equal(sentBefore, (_factory.QBittorrentHttp.Requests.Count, _factory.JellyfinHttp.Requests.Count));
         Assert.Empty(_factory.Quarantine.Renames);
         await _factory.WithDbAsync(async db => Assert.All(
@@ -196,7 +197,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
                 new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: 98_304), ReplacementNameState.Deleted),
             ],
             quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime,
-            reason: "The app stopped while deleting the old copies permanently: 2 of 2 names are deleted.");
+            reason: PlantedMessage.Of("The app stopped while deleting the old copies permanently: 2 of 2 names are deleted."));
         await RetryAsync(planted.Replacement.Id);
         var qbittorrentBefore = _factory.QBittorrentHttp.Requests.Count;
 
@@ -206,7 +207,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         //Assert
         // It ends where its Delete for good would have: Completed, the app its actor, nothing offered any more.
         var replacement = await JobAsync(planted.Replacement.Id, cancellationToken);
-        Assert.Equal((ReplacementJobState.Completed, (string?)null, (DateTime?)null), (replacement.State, replacement.Reason, replacement.LibraryNoticeDueUtc));
+        Assert.Equal((ReplacementJobState.Completed, (string?)null, (DateTime?)null), (replacement.State, TestTexts.En(replacement.Reason), replacement.LibraryNoticeDueUtc));
         var line = (await _harness.LineAsync(planted.Download.Id, cancellationToken))!;
         Assert.Equal((ReplacementJobState.Completed, 0, false), (line.State, line.QuarantinedCopyCount, line.CanRetry));
         Assert.Equal(qbittorrentBefore, _factory.QBittorrentHttp.Requests.Count);
@@ -235,12 +236,12 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         var planted = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: TwoNewFilesReason,
+            reason: PlantedMessage.Of(TwoNewFilesReason),
             copies:
             [
-                new PlantedCopy(TheatricalPath, TestMedia.File(inode: 1), Problem: TwoNewFilesReason),
+                new PlantedCopy(TheatricalPath, TestMedia.File(inode: 1), Problem: PlantedMessage.Of(TwoNewFilesReason)),
                 new PlantedCopy(ExtendedPath, TestMedia.File(inode: 2), PairedWithNewFile: 0),
-                new PlantedCopy(WorkprintPath, TestMedia.File(inode: 3), Problem: TooShortProblem, OnlyDropSettles: true, DroppedUtc: droppedUtc, PairedWithNewFile: 1),
+                new PlantedCopy(WorkprintPath, TestMedia.File(inode: 3), Problem: PlantedMessage.Of(TooShortProblem), OnlyDropSettles: true, DroppedUtc: droppedUtc, PairedWithNewFile: 1),
             ],
             newFiles: [IdentifiedNewFile(NewUhdName, NewUhdPath, inode: 7, askedUtc), IdentifiedNewFile(NewHdName, NewHdPath, inode: 8, askedUtc)],
             inspectionStartedUtc: startedUtc,
@@ -260,7 +261,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         // Downloaded, as a finished download's replacement waits for the check: the verifier's next pass claims it afresh.
         Assert.Equal(
             (ReplacementJobState.Downloaded, (string?)null, now, (DateTime?)null),
-            (replacement.State, replacement.Reason, replacement.StateChangedUtc, replacement.QuarantineCheckedUtc));
+            (replacement.State, TestTexts.En(replacement.Reason), replacement.StateChangedUtc, replacement.QuarantineCheckedUtc));
         // The last check's evidence is gone at once: no new file, no id, no pair or problem on a copy still in the job; the
         // dropped workprint keeps its own as its history.
         await _factory.WithDbAsync(async db =>
@@ -274,7 +275,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
                 (ExtendedPath, null, null, false, null),
                 (WorkprintPath, planted.NewFiles[1].Id, TooShortProblem, true, droppedUtc),
             ],
-            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.AppPath, copy.PairedNewFileId, copy.Problem, copy.OnlyDropSettles, copy.DroppedUtc)));
+            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.AppPath, copy.PairedNewFileId, TestTexts.En(copy.Problem), copy.OnlyDropSettles, copy.DroppedUtc)));
         // Its own action, not the mover's ReplacementRetried.
         Assert.Equal(
             [(AuditAction.ReplacementCheckRetried, _harness.Owner.User.Id, AuditTargetKind.ReplacementJob, planted.Replacement.Id, ReplacementQuarantinePlanter.ReleaseTitle)],
@@ -295,8 +296,8 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         var planted = await PlantCheckStopAsync(
             RenumberedProblem,
             [
-                new PlantedCopy(EpisodeFivePath, TestMedia.File(inode: 21), Problem: RenumberedProblem, OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 5),
-                new PlantedCopy(EpisodeSixPath, TestMedia.File(inode: 22), Problem: EpisodeSixRenumberedProblem, OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 6),
+                new PlantedCopy(EpisodeFivePath, TestMedia.File(inode: 21), Problem: PlantedMessage.Of(RenumberedProblem), OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 5),
+                new PlantedCopy(EpisodeSixPath, TestMedia.File(inode: 22), Problem: PlantedMessage.Of(EpisodeSixRenumberedProblem), OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 6),
             ]);
         var before = await SnapshotAsync(cancellationToken);
 
@@ -318,7 +319,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         var planted = await PlantCheckStopAsync(
             RenumberedProblem,
             [
-                new PlantedCopy(EpisodeFivePath, TestMedia.File(inode: 21), Problem: RenumberedProblem, OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 5),
+                new PlantedCopy(EpisodeFivePath, TestMedia.File(inode: 21), Problem: PlantedMessage.Of(RenumberedProblem), OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 5),
                 new PlantedCopy(EpisodeSixPath, TestMedia.File(inode: 22), PairedWithNewFile: 0, SeasonNumber: 2, EpisodeNumber: 6),
             ]);
         var refused = await RetryAsync(planted.Replacement.Id);
@@ -353,7 +354,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         // The following stopped it before any check started: neither the check's nor the mover's mark is set.
-        var planted = await _planter.PlantAsync(ReplacementJobState.NeedsReview, [], reason: NeedsLinkingReason);
+        var planted = await _planter.PlantAsync(ReplacementJobState.NeedsReview, [], reason: PlantedMessage.Of(NeedsLinkingReason));
         var before = await SnapshotAsync(cancellationToken);
 
         //Act
@@ -413,7 +414,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        var planted = await _planter.PlantAsync(ReplacementJobState.NeedsReview, [], quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime, reason: HeldReason);
+        var planted = await _planter.PlantAsync(ReplacementJobState.NeedsReview, [], quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime, reason: PlantedMessage.Of(HeldReason));
         var before = await SnapshotAsync(cancellationToken);
         var inHand = _factory.Resolve<ReplacementJobsInHand>();
         var taken = inHand.TryTake(planted.Replacement.Id);
@@ -449,7 +450,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
             _ => _factory.WithDbAsync(db => db.ReplacementJobs
                 .Where(job => job.Id == id)
                 .ExecuteUpdateAsync(
-                    setters => setters.SetProperty(job => job.State, ReplacementJobState.Failed).SetProperty(job => job.Reason, FailedReason),
+                    setters => setters.SetProperty(job => job.State, ReplacementJobState.Failed).SetProperty(job => job.Reason, PlantedMessage.Of(FailedReason)),
                     CancellationToken.None)));
 
         //Act
@@ -459,7 +460,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(ChangedMeanwhileError, await response.ReadErrorAsync(cancellationToken));
         var replacement = await JobAsync(id, cancellationToken);
-        Assert.Equal((ReplacementJobState.Failed, (string?)FailedReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Failed, (string?)FailedReason), (replacement.State, TestTexts.En(replacement.Reason)));
         // The evidence of the check that stopped stays with the failed job; nothing is recorded for a Retry that wrote nothing.
         await _factory.WithDbAsync(async db => Assert.Equal(1, await db.ReplacementJobNewFiles.CountAsync(cancellationToken)));
         Assert.Empty(await _harness.ReplacementAuditsAsync(cancellationToken));
@@ -474,10 +475,10 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         var planted = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [
-                new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1), ReplacementNameState.Stayed, HeldReason),
+                new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1), ReplacementNameState.Stayed, PlantedMessage.Of(HeldReason)),
             ],
             quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime,
-            reason: HeldReason);
+            reason: PlantedMessage.Of(HeldReason));
         var id = planted.Replacement.Id;
         // The follower ends the review — its download failed — once the Retry passed its checks, just before it writes: never
         // back to the mover's queue.
@@ -486,7 +487,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
             _ => _factory.WithDbAsync(db => db.ReplacementJobs
                 .Where(job => job.Id == id)
                 .ExecuteUpdateAsync(
-                    setters => setters.SetProperty(job => job.State, ReplacementJobState.Failed).SetProperty(job => job.Reason, FailedReason),
+                    setters => setters.SetProperty(job => job.State, ReplacementJobState.Failed).SetProperty(job => job.Reason, PlantedMessage.Of(FailedReason)),
                     CancellationToken.None)));
 
         //Act
@@ -496,7 +497,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(ChangedMeanwhileError, await response.ReadErrorAsync(cancellationToken));
         var replacement = await JobAsync(id, cancellationToken);
-        Assert.Equal((ReplacementJobState.Failed, (string?)FailedReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Failed, (string?)FailedReason), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Empty(await _harness.ReplacementAuditsAsync(cancellationToken));
         Assert.False(_factory.Resolve<ReplacementJobsInHand>().Holds(id));
     }
@@ -515,7 +516,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         var planted = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: CheckReason,
+            reason: PlantedMessage.Of(CheckReason),
             requestedByUserId: member.User.Id,
             copies: [new PlantedCopy(TheatricalPath, TestMedia.File(inode: 1))],
             inspectionStartedUtc: _factory.Time.GetUtcNow().UtcDateTime);
@@ -547,7 +548,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
         return _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: reason,
+            reason: PlantedMessage.Of(reason),
             copies: copies,
             newFiles: [IdentifiedNewFile(NewUhdName, NewUhdPath, inode: 7, startedUtc)],
             inspectionStartedUtc: startedUtc,

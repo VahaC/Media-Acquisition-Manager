@@ -51,10 +51,10 @@ public class LibraryLinkSuggestionsController(ILibraryLinkSuggestionService sugg
     {
         LibraryLinkStatus.Succeeded => Ok(result.List),
         LibraryLinkStatus.NotFound => NotFound(),
-        LibraryLinkStatus.Invalid => this.BadRequestError(result.Error),
-        LibraryLinkStatus.CatalogWorkNotFound => this.NotFoundError(result.Error),
+        LibraryLinkStatus.Invalid => this.BadRequestError(result.Error!),
+        LibraryLinkStatus.CatalogWorkNotFound => this.NotFoundError(result.Error!),
         // Nothing to search without a catalog: a state the owner changes under Integrations, not a bad request.
-        LibraryLinkStatus.Conflict => this.ConflictError(result.Error),
-        _ => this.BadGatewayError(result.Error),
+        LibraryLinkStatus.Conflict => this.ConflictError(result.Error!),
+        _ => this.BadGatewayError(result.Error!),
     };
 }

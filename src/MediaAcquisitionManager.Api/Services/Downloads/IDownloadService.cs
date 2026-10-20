@@ -66,6 +66,13 @@ public interface IDownloadService
     Task<DownloadJobDto?> GetAsync(Guid jobId, Guid callerUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// MAM-47 — the caller's job <paramref name="jobId"/> as <see cref="GetAsync"/> answers it, with the two sentences its
+    /// answer renders as messages, picked by the same rule for the caller (ADR 0042): an MCP summary nests them, so one
+    /// request language writes the summary and them. <c>null</c> when there is none or it is another user's.
+    /// </summary>
+    Task<DownloadJobRead?> ReadAsync(Guid jobId, Guid callerUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// MAM-14 — one page of the caller's jobs, newest first, with <paramref name="status"/> (a status by name, in
     /// any letter case; blank for every one) applied by the server. The caller's own only — the owner's too
     /// (MAM-14's decision 1). <see cref="DownloadJobListStatus.Invalid"/> with the sentence for a page, a page

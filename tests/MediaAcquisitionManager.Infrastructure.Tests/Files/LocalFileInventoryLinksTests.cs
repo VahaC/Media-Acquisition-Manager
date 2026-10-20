@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -80,7 +81,7 @@ public sealed class LocalFileInventoryLinksTests : IDisposable
         Assert.Null(result.Value);
         Assert.Equal(
             $"“{throughLink}” leads through a link to “{secret}”, outside the media folders the app may read.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -97,7 +98,7 @@ public sealed class LocalFileInventoryLinksTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.OutsideAllowedRoots, result.Status);
-        Assert.Equal($"“{link}” leads through a link to “{secret}”, outside the media folders the app may read.", result.Error);
+        Assert.Equal($"“{link}” leads through a link to “{secret}”, outside the media folders the app may read.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -151,7 +152,7 @@ public sealed class LocalFileInventoryLinksTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.Unreadable, result.Status);
-        Assert.Equal($"“{path}” leads through more than 40 links, likely a loop, so the app doesn't follow them.", result.Error);
+        Assert.Equal($"“{path}” leads through more than 40 links, likely a loop, so the app doesn't follow them.", TestTexts.En(result.Error));
     }
 
     [Fact]

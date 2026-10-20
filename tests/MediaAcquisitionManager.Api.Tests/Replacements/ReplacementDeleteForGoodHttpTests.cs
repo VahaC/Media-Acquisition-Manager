@@ -11,6 +11,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -100,11 +101,11 @@ public sealed class ReplacementDeleteForGoodHttpTests : IClassFixture<MediaAcqui
         // ADR 0030 — the library heard the names leave at the move: no notice owed, none sent.
         Assert.Equal(
             (ReplacementJobState.Completed, (string?)null, now, (DateTime?)null),
-            (replacement.State, replacement.Reason, replacement.StateChangedUtc, replacement.LibraryNoticeDueUtc));
+            (replacement.State, TestTexts.En(replacement.Reason), replacement.StateChangedUtc, replacement.LibraryNoticeDueUtc));
         Assert.Equal(jellyfinBefore, _factory.JellyfinHttp.Requests.Count);
         Assert.Equal(
             [(ReplacementNameState.Deleted, (DateTime?)now, (string?)null), (ReplacementNameState.Deleted, now, null)],
-            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, name.DeletedUtc, name.Problem)));
+            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, name.DeletedUtc, TestTexts.En(name.Problem))));
         Assert.Equal(
             [
                 JobRow(AuditAction.ReplacementDeleteStarted, id),
@@ -283,10 +284,10 @@ public sealed class ReplacementDeleteForGoodHttpTests : IClassFixture<MediaAcqui
         var replacement = await JobAsync(id, cancellationToken);
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)reason, (DateTime?)now, (DateTime?)null),
-            (replacement.State, replacement.Reason, replacement.QuarantineCheckedUtc, replacement.LibraryNoticeDueUtc));
+            (replacement.State, TestTexts.En(replacement.Reason), replacement.QuarantineCheckedUtc, replacement.LibraryNoticeDueUtc));
         Assert.Equal(
             [(ReplacementNameState.Deleted, (string?)null), (ReplacementNameState.Quarantined, string.Format(NotAllowedProblem, subtitleInQuarantine))],
-            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, name.Problem)));
+            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, TestTexts.En(name.Problem))));
         Assert.Equal(
             [
                 JobRow(AuditAction.ReplacementDeleteStarted, id),
@@ -382,7 +383,7 @@ public sealed class ReplacementDeleteForGoodHttpTests : IClassFixture<MediaAcqui
         var stopped = await JobAsync(id, cancellationToken);
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)CutDeletionReason, (DateTime?)null),
-            (stopped.State, stopped.Reason, stopped.LibraryNoticeDueUtc));
+            (stopped.State, TestTexts.En(stopped.Reason), stopped.LibraryNoticeDueUtc));
         Assert.Equal(
             [ReplacementNameState.Deleted, ReplacementNameState.Quarantined],
             (await NamesAsync(id, cancellationToken)).Select(name => name.State));

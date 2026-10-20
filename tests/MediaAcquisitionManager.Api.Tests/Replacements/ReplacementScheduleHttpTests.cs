@@ -13,6 +13,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -95,7 +96,7 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
         "Its library places “Yellowstone S01E05.mkv” outside the episodes this release claims, so it can't be replaced. Pick Keep both to download the release.";
     private const string SharedWithUnavailableWorkError =
         "“Alien (1979) Theatrical Cut.mkv” is also a copy of another work this release matched, which can't be replaced, so it can't be replaced either. Pick Keep both to download the release.";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IMediaWorkSeeder _works = null!;
@@ -201,7 +202,7 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             var replacement = await db.ReplacementJobs.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
                 (job.Id, (Guid?)_owner.User.Id, "owner", ReplacementJobState.Submitted, (string?)null, "DirectorsCut", now),
-                (replacement.DownloadJobId, replacement.RequestedByUserId, replacement.RequestedByUserName, replacement.State, replacement.Reason,
+                (replacement.DownloadJobId, replacement.RequestedByUserId, replacement.RequestedByUserName, replacement.State, TestTexts.En(replacement.Reason),
                     replacement.ReleaseEditions, replacement.CreatedUtc));
             var file = await db.ReplacementJobFiles.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
@@ -216,7 +217,7 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             var work = await db.ReplacementJobWorks.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
                 (replacement.Id, alien.Id, MediaWorkKind.Movie, (string?)"Alien", (int?)1979, MatchEvidence.Identifier, false, "This release is Alien (1979)"),
-                (work.ReplacementJobId, work.MediaWorkId, work.Kind, work.Title, work.Year, work.Evidence, work.ConfirmedByOwner, work.ConfirmationText));
+                (work.ReplacementJobId, work.MediaWorkId, work.Kind, work.Title, work.Year, work.Evidence, work.ConfirmedByOwner, TestTexts.En(work.ConfirmationText)));
             Assert.Equal(
                 [(MediaIdentifierScheme.Imdb, AlienImdbId, false)],
                 await db.ReplacementJobWorkIdentifiers.AsNoTracking()
@@ -279,11 +280,12 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             var work = await db.ReplacementJobWorks.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
                 (alien.Id, MatchEvidence.TitleAndYear, true, "This release is Alien (1979)"),
-                (work.MediaWorkId, work.Evidence, work.ConfirmedByOwner, work.ConfirmationText));
-            // ADR 0032's consent: its own row, named by the words the owner ticked.
+                (work.MediaWorkId, work.Evidence, work.ConfirmedByOwner, TestTexts.En(work.ConfirmationText)));
+            // ADR 0032's consent: its own row, named by what the owner ticked — MAM-47 (ADR 0042, design §5.5): the label in no
+            // language, as the row keeps no sentence.
             var confirmed = await db.AuditEvents.AsNoTracking().SingleAsync(audit => audit.Action == AuditAction.ReplacementWorkConfirmed, cancellationToken);
             Assert.Equal(
-                ((Guid?)_owner.User.Id, (AuditTargetKind?)AuditTargetKind.ReplacementJob, (Guid?)replacement.Id, (string?)"This release is Alien (1979)"),
+                ((Guid?)_owner.User.Id, (AuditTargetKind?)AuditTargetKind.ReplacementJob, (Guid?)replacement.Id, (string?)"Alien (1979)"),
                 (confirmed.ActorUserId, confirmed.TargetKind, confirmed.TargetId, confirmed.TargetName));
             Assert.Equal(3, await db.AuditEvents.CountAsync(cancellationToken));
         });
@@ -320,7 +322,7 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             var work = await db.ReplacementJobWorks.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
                 (yellowstone.Id, MediaWorkKind.Series, (string?)"Yellowstone", (int?)2018, MatchEvidence.Identifier, "This release is Yellowstone (2018), season 2, episode 2"),
-                (work.MediaWorkId, work.Kind, work.Title, work.Year, work.Evidence, work.ConfirmationText));
+                (work.MediaWorkId, work.Kind, work.Title, work.Year, work.Evidence, TestTexts.En(work.ConfirmationText)));
             // A series' own ids: what MAM-25 compares the new episode's series with.
             Assert.Equal(
                 [(MediaIdentifierScheme.Imdb, YellowstoneImdbId)],
@@ -870,10 +872,11 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
                     (other.Id, true, "This release is Alien (1979) in “Кіно”"),
                 ],
                 (await db.ReplacementJobWorks.AsNoTracking().ToListAsync(cancellationToken))
-                    .Select(work => (work.MediaWorkId, work.ConfirmedByOwner, work.ConfirmationText))
+                    .Select(work => (work.MediaWorkId, work.ConfirmedByOwner, TestTexts.En(work.ConfirmationText)))
                     .OrderBy(work => work.MediaWorkId == living.Id ? 0 : 1));
+            // MAM-47 (ADR 0042, design §5.5) — each row's label keeps the library that tells the two apart.
             Assert.Equal(
-                ["This release is Alien (1979) in “Кіно”", "This release is Alien (1979) in “Фільми”"],
+                ["Alien (1979) · Кіно", "Alien (1979) · Фільми"],
                 (await db.AuditEvents.AsNoTracking()
                     .Where(audit => audit.Action == AuditAction.ReplacementWorkConfirmed)
                     .Select(audit => audit.TargetName!)
@@ -924,11 +927,12 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             Assert.Equal(
                 [(identified.Id, identifiedWords), (unidentified.Id, unidentifiedWords)],
                 (await db.ReplacementJobWorks.AsNoTracking().ToListAsync(cancellationToken))
-                    .Select(work => (work.MediaWorkId, work.ConfirmationText))
-                    .OrderBy(work => work.ConfirmationText, StringComparer.Ordinal));
-            // ADR 0032's consent: each work's own row says which one the owner confirmed.
+                    .Select(work => (work.MediaWorkId, TestTexts.En(work.ConfirmationText)))
+                    .OrderBy(work => work.Item2, StringComparer.Ordinal));
+            // ADR 0032's consent: each work's own row says which one the owner confirmed — MAM-47 (ADR 0042, design §5.5):
+            // by its label, which keeps the library and the copy that tell the two apart.
             Assert.Equal(
-                [identifiedWords, unidentifiedWords],
+                ["Halloween (2018) · Фільми · Halloween.2018.1080p.mkv", "Halloween (2018) · Фільми · Halloween.2018.2160p.mkv"],
                 (await db.AuditEvents.AsNoTracking()
                     .Where(audit => audit.Action == AuditAction.ReplacementWorkConfirmed)
                     .Select(audit => audit.TargetName!)

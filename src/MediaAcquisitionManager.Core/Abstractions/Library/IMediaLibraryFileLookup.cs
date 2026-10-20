@@ -24,7 +24,7 @@ namespace MediaAcquisitionManager.Core.Abstractions.Library;
 /// cancellation by the caller propagates, as <see cref="OperationCanceledException"/>. A caller's mistake — no paths, more
 /// than <see cref="MaximumPaths"/> at once, a path that is blank, not absolute, longer than 4096 characters or holding a
 /// control character, a change no <see cref="LibraryFileChange"/> names — throws an <see cref="ArgumentException"/>
-/// before anything is sent. Every message is one readable English sentence with the call's secrets already masked. The caller runs
+/// before anything is sent. Every message is a <c>Message</c> the Api renders (ADR 0042), with the call's secrets already masked. The caller runs
 /// <see cref="IIntegrationAdapter.TestConnectionAsync"/> first: the version gate (MAM-8).
 /// </para>
 /// <para>

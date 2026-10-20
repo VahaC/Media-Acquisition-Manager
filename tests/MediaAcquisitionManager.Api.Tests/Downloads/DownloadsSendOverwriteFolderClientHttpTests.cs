@@ -6,11 +6,13 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Downloads;
@@ -236,7 +238,7 @@ public sealed class DownloadsSendOverwriteFolderClientHttpTests : IClassFixture<
         var cancellationToken = TestContext.Current.CancellationToken;
         _feed.TorrentFile = TestTorrent.V1("Film.2001.mkv", TestTorrent.Bytes(100, seed: 1));
         _factory.FolderClient.DestinationJobsFailure = IntegrationCallResult<IReadOnlyList<ClientJob>>.Failed(
-            IntegrationCallStatus.TimedOut, "Transmission didn't answer in time.");
+            IntegrationCallStatus.TimedOut, Message.Legacy("Transmission didn't answer in time."));
         var release = await FindReleaseAsync(_owner);
 
         //Act
@@ -265,7 +267,7 @@ public sealed class DownloadsSendOverwriteFolderClientHttpTests : IClassFixture<
             var row = await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
                 (DownloadJobStatus.Failed, error, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App),
-                (row.Status, row.Error, row.ErrorOrigin));
+                (row.Status, TestTexts.En(row.Error), row.ErrorOrigin));
         });
         Assert.Empty(_factory.FolderClient.Submissions);
     }

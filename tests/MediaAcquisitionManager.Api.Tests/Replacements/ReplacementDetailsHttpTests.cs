@@ -81,7 +81,8 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
     private const string TwoNewFilesReason =
         "Two new files are Alien (1979): “/media/movies/Alien.1979.Directors.Cut/Alien.1979.Directors.Cut.2160p.mkv” and "
         + "“/media/movies/Alien.1979.Directors.Cut/Alien.1979.Directors.Cut.1080p.mkv”; the app can't tell which one replaces the old copy.";
-    private const string NotAlienReason = "The new file isn't Alien (1979).";
+    private const string NotAlienReason =
+        "“Living room” identified “/media/movies/Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).";
     private const string NeedsLinkingReason =
         "“qBittorrent”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
     private const string CancelledReason = "You cancelled the replacement, so nothing will be replaced.";
@@ -125,7 +126,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             [
                 new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1, sizeBytes: TheatricalSize)),
                 new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: SubtitleSize)),
-                new PlantedName(ReplacementNameKind.Companion, NfoPath, TestMedia.File(inode: 3, sizeBytes: NfoSize), ReplacementNameState.Stayed, HeldProblem),
+                new PlantedName(ReplacementNameKind.Companion, NfoPath, TestMedia.File(inode: 3, sizeBytes: NfoSize), ReplacementNameState.Stayed, PlantedMessage.Of(HeldProblem)),
                 new PlantedName(ReplacementNameKind.Video, AliensPath, TestMedia.File(inode: 4, sizeBytes: AliensSize, linkCount: 2)),
             ]);
         var id = planted.Replacement.Id;
@@ -210,7 +211,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             ReplacementJobState.NeedsReview,
             [new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1))],
             quarantineCheckedUtc: Now(),
-            reason: HeldReason);
+            reason: PlantedMessage.Of(HeldReason));
 
         //Act
         var details = await GetAsync(planted.Replacement.Id, cancellationToken);
@@ -230,7 +231,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
         // MAM-25's review: no name moved, and the mover never looked at it.
         var startedUtc = Now().AddHours(-2);
         var planted = await _planter.PlantAsync(
-            ReplacementJobState.NeedsReview, [], reason: NotAlienReason, inspectionStartedUtc: startedUtc, libraryAskedUtc: startedUtc);
+            ReplacementJobState.NeedsReview, [], reason: PlantedMessage.Of(NotAlienReason), inspectionStartedUtc: startedUtc, libraryAskedUtc: startedUtc);
 
         //Act
         var details = await GetAsync(planted.Replacement.Id, cancellationToken);
@@ -257,7 +258,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
         var planted = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: NeedsLinkingReason,
+            reason: PlantedMessage.Of(NeedsLinkingReason),
             copies: [new PlantedCopy(TheatricalPath, TestMedia.File(inode: 1)), new PlantedCopy(AliensPath, TestMedia.File(inode: 4, sizeBytes: AliensSize))]);
 
         //Act
@@ -329,10 +330,10 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             [
                 new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1), videoState),
                 new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: SubtitleSize), subtitleState),
-                new PlantedName(ReplacementNameKind.Video, AliensPath, TestMedia.File(inode: 4, sizeBytes: AliensSize), ReplacementNameState.Stayed, HeldProblem),
+                new PlantedName(ReplacementNameKind.Video, AliensPath, TestMedia.File(inode: 4, sizeBytes: AliensSize), ReplacementNameState.Stayed, PlantedMessage.Of(HeldProblem)),
             ],
             quarantineCheckedUtc: Now(),
-            reason: HeldReason);
+            reason: PlantedMessage.Of(HeldReason));
         await StopCopyAsync(planted.Copies[1].Id, HeldReason, cancellationToken);
 
         //Act
@@ -357,15 +358,15 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
         var planted = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: RenumberedProblem,
+            reason: PlantedMessage.Of(RenumberedProblem),
             copies:
             [
                 new PlantedCopy(EpisodePath(1), TestMedia.File(inode: 11, sizeBytes: EpisodeSize), PairedWithNewFile: 0, SeasonNumber: 2, EpisodeNumber: 1),
-                new PlantedCopy(EpisodePath(5), TestMedia.File(inode: 15, sizeBytes: EpisodeSize), RenumberedProblem, OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 5),
+                new PlantedCopy(EpisodePath(5), TestMedia.File(inode: 15, sizeBytes: EpisodeSize), PlantedMessage.Of(RenumberedProblem), OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 5),
                 new PlantedCopy(
-                    EpisodePath(7), TestMedia.File(inode: 17, sizeBytes: EpisodeSize), TooShortProblem, OnlyDropSettles: true, DroppedUtc: droppedUtc, PairedWithNewFile: 1,
+                    EpisodePath(7), TestMedia.File(inode: 17, sizeBytes: EpisodeSize), PlantedMessage.Of(TooShortProblem), OnlyDropSettles: true, DroppedUtc: droppedUtc, PairedWithNewFile: 1,
                     SeasonNumber: 2, EpisodeNumber: 7),
-                new PlantedCopy(EpisodePath(9), TestMedia.File(inode: 19, sizeBytes: EpisodeSize), CoversSeveralProblem, OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 9),
+                new PlantedCopy(EpisodePath(9), TestMedia.File(inode: 19, sizeBytes: EpisodeSize), PlantedMessage.Of(CoversSeveralProblem), OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 9),
             ],
             newFiles: [IdentifiedEpisode(1, Guid.NewGuid(), startedUtc), IdentifiedEpisode(7, Guid.NewGuid(), startedUtc)],
             inspectionStartedUtc: startedUtc,
@@ -403,12 +404,12 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
         var planted = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: RenumberedProblem,
+            reason: PlantedMessage.Of(RenumberedProblem),
             copies:
             [
                 new PlantedCopy(EpisodePath(1), TestMedia.File(inode: 11, sizeBytes: EpisodeSize), PairedWithNewFile: 0, SeasonNumber: 2, EpisodeNumber: 1),
                 new PlantedCopy(
-                    EpisodePath(5), TestMedia.File(inode: 15, sizeBytes: EpisodeSize), RenumberedProblem, OnlyDropSettles: true, DroppedUtc: Now(), SeasonNumber: 2, EpisodeNumber: 5),
+                    EpisodePath(5), TestMedia.File(inode: 15, sizeBytes: EpisodeSize), PlantedMessage.Of(RenumberedProblem), OnlyDropSettles: true, DroppedUtc: Now(), SeasonNumber: 2, EpisodeNumber: 5),
             ],
             newFiles: [IdentifiedEpisode(1, Guid.NewGuid(), startedUtc)],
             inspectionStartedUtc: startedUtc,
@@ -434,11 +435,11 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
         var planted = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: TooShortProblem,
+            reason: PlantedMessage.Of(TooShortProblem),
             copies:
             [
                 new PlantedCopy(
-                    EpisodePath(7), TestMedia.File(inode: 17, sizeBytes: EpisodeSize), TooShortProblem, OnlyDropSettles: true, DroppedUtc: Now(), SeasonNumber: 2, EpisodeNumber: 7),
+                    EpisodePath(7), TestMedia.File(inode: 17, sizeBytes: EpisodeSize), PlantedMessage.Of(TooShortProblem), OnlyDropSettles: true, DroppedUtc: Now(), SeasonNumber: 2, EpisodeNumber: 7),
                 new PlantedCopy(EpisodePath(1), TestMedia.File(inode: 11, sizeBytes: EpisodeSize), PairedWithNewFile: 0, SeasonNumber: 2, EpisodeNumber: 1),
             ],
             newFiles: [IdentifiedEpisode(1, Guid.NewGuid(), startedUtc)],
@@ -466,7 +467,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
         var planted = await _planter.PlantAsync(
             ReplacementJobState.Cancelled,
             [],
-            reason: CancelledReason,
+            reason: PlantedMessage.Of(CancelledReason),
             copies: [new PlantedCopy(TheatricalPath, TestMedia.File(inode: 1)), new PlantedCopy(AliensPath, TestMedia.File(inode: 4, sizeBytes: AliensSize))]);
 
         //Act
@@ -489,7 +490,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             [
                 new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1, sizeBytes: TheatricalSize), ReplacementNameState.Restored),
                 new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: SubtitleSize), ReplacementNameState.Restored),
-                new PlantedName(ReplacementNameKind.Video, AliensPath, TestMedia.File(inode: 4, sizeBytes: AliensSize), ReplacementNameState.Stayed, HeldProblem),
+                new PlantedName(ReplacementNameKind.Video, AliensPath, TestMedia.File(inode: 4, sizeBytes: AliensSize), ReplacementNameState.Stayed, PlantedMessage.Of(HeldProblem)),
                 new PlantedName(ReplacementNameKind.Video, Alien3Path, TestMedia.File(inode: 5), ReplacementNameState.Planned),
             ],
             quarantineCheckedUtc: Now(),
@@ -498,7 +499,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
         {
             await db.ReplacementJobFiles
                 .Where(copy => copy.Id == planted.Copies[1].Id)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(copy => copy.Problem, HeldReason), cancellationToken);
+                .ExecuteUpdateAsync(setters => setters.SetProperty(copy => copy.Problem, PlantedMessage.Of(HeldReason)), cancellationToken);
             await db.ReplacementJobFiles
                 .Where(copy => copy.Id == planted.Copies[2].Id)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(copy => copy.PairedNewFileId, planted.NewFiles[0].Id), cancellationToken);
@@ -709,7 +710,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
         var cancellationToken = TestContext.Current.CancellationToken;
         var startedUtc = Now().AddHours(-2);
         var planted = await _planter.PlantAsync(
-            ReplacementJobState.NeedsReview, [], reason: NotAlienReason, inspectionStartedUtc: startedUtc, libraryAskedUtc: startedUtc);
+            ReplacementJobState.NeedsReview, [], reason: PlantedMessage.Of(NotAlienReason), inspectionStartedUtc: startedUtc, libraryAskedUtc: startedUtc);
         await SwitchOffAsync(cancellationToken);
 
         //Act
@@ -755,7 +756,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             copies: [new PlantedCopy(EpisodePath(1), TestMedia.File(inode: 11, sizeBytes: EpisodeSize), SeasonNumber: 2, EpisodeNumber: 1)],
             newFiles:
             [
-                new ReplacementNewFileFacts(PackName(1), EpisodeSize, 1.0, PackPath(1), CheckedUtc: askedUtc, Problem: ChangedProblem),
+                new ReplacementNewFileFacts(PackName(1), EpisodeSize, 1.0, PackPath(1), CheckedUtc: askedUtc, Problem: PlantedMessage.Of(ChangedProblem)),
                 new ReplacementNewFileFacts(PackName(2), EpisodeSize, 0.5),
                 new ReplacementNewFileFacts(PackName(3), EpisodeSize, 1.0),
                 new ReplacementNewFileFacts(PackName(4), EpisodeSize, 1.0, PackPath(4), CheckedUtc: askedUtc),
@@ -854,13 +855,13 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             copies:
             [
                 new PlantedCopy(EpisodePath(1), TestMedia.File(inode: 11, sizeBytes: EpisodeSize), SeasonNumber: 2, EpisodeNumber: 1),
-                new PlantedCopy(EpisodePath(7), TestMedia.File(inode: 17, sizeBytes: EpisodeSize), TooShortProblem, OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 7),
+                new PlantedCopy(EpisodePath(7), TestMedia.File(inode: 17, sizeBytes: EpisodeSize), PlantedMessage.Of(TooShortProblem), OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 7),
             ],
             newFiles:
             [
                 new ReplacementNewFileFacts(PackName(1), EpisodeSize, 1.0, PackPath(1), CheckedUtc: askedUtc, ReadUtc: askedUtc.AddMinutes(1)),
                 IdentifiedEpisode(7, seriesId, askedUtc),
-                IdentifiedEpisode(8, seriesId, askedUtc) with { MediaWorkId = null, Problem = OtherSeriesProblem },
+                IdentifiedEpisode(8, seriesId, askedUtc) with { MediaWorkId = null, Problem = PlantedMessage.Of(OtherSeriesProblem) },
             ],
             inspectionStartedUtc: askedUtc,
             libraryAskedUtc: askedUtc);
@@ -939,7 +940,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             1979,
             MatchEvidence.TitleAndYear,
             confirmedByOwner: true,
-            "This release is Alien (1979)",
+            ReplacementConfirmation.Of("Alien", 1979, null),
             [(MediaIdentifierScheme.Tmdb, AlienTmdbId, true), (MediaIdentifierScheme.Imdb, AlienImdbId, false)]);
         await Replacements().AddWork(
             planted.Replacement.Id,
@@ -949,7 +950,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             1986,
             MatchEvidence.Identifier,
             confirmedByOwner: false,
-            "This release is Aliens (1986)",
+            ReplacementConfirmation.Of("Aliens", 1986, null),
             [(MediaIdentifierScheme.Imdb, AliensImdbId, false)]);
 
         //Act
@@ -979,11 +980,11 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
         var planted = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: RenumberedProblem,
+            reason: PlantedMessage.Of(RenumberedProblem),
             copies:
             [
                 new PlantedCopy(EpisodePath(1), TestMedia.File(inode: 11, sizeBytes: EpisodeSize), PairedWithNewFile: 0, SeasonNumber: 2, EpisodeNumber: 1),
-                new PlantedCopy(EpisodePath(5), TestMedia.File(inode: 15, sizeBytes: EpisodeSize), RenumberedProblem, OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 5),
+                new PlantedCopy(EpisodePath(5), TestMedia.File(inode: 15, sizeBytes: EpisodeSize), PlantedMessage.Of(RenumberedProblem), OnlyDropSettles: true, SeasonNumber: 2, EpisodeNumber: 5),
             ],
             newFiles: [IdentifiedEpisode(1, seriesId, startedUtc)],
             inspectionStartedUtc: startedUtc,
@@ -996,7 +997,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             2018,
             MatchEvidence.Identifier,
             confirmedByOwner: false,
-            "This release is Yellowstone (2018)",
+            ReplacementConfirmation.Of("Yellowstone", 2018, null),
             [(MediaIdentifierScheme.TmdbTv, YellowstoneTmdbTvId, false)]);
 
         //Act
@@ -1117,18 +1118,18 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             ReplacementJobState.Quarantined,
             [
                 new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1)),
-                new PlantedName(ReplacementNameKind.Companion, NfoPath, TestMedia.File(inode: 3, sizeBytes: NfoSize), ReplacementNameState.Stayed, HeldProblem),
+                new PlantedName(ReplacementNameKind.Companion, NfoPath, TestMedia.File(inode: 3, sizeBytes: NfoSize), ReplacementNameState.Stayed, PlantedMessage.Of(HeldProblem)),
                 new PlantedName(ReplacementNameKind.Video, AliensPath, TestMedia.File(inode: 4)),
             ]);
         // The mover stopped over the video before anything moved: the companion it left is no news of a move.
         var stopped = await _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [
-                new PlantedName(ReplacementNameKind.Video, "/media/movies/Heat (1995)/Heat (1995).mkv", TestMedia.File(inode: 5), ReplacementNameState.Stayed, HeldProblem),
-                new PlantedName(ReplacementNameKind.Companion, "/media/movies/Heat (1995)/Heat (1995).srt", TestMedia.File(inode: 6), ReplacementNameState.Stayed, HeldProblem),
+                new PlantedName(ReplacementNameKind.Video, "/media/movies/Heat (1995)/Heat (1995).mkv", TestMedia.File(inode: 5), ReplacementNameState.Stayed, PlantedMessage.Of(HeldProblem)),
+                new PlantedName(ReplacementNameKind.Companion, "/media/movies/Heat (1995)/Heat (1995).srt", TestMedia.File(inode: 6), ReplacementNameState.Stayed, PlantedMessage.Of(HeldProblem)),
             ],
             quarantineCheckedUtc: Now(),
-            reason: HeldReason);
+            reason: PlantedMessage.Of(HeldReason));
         // Not moved yet: no name at all.
         var verified = await _planter.PlantAsync(ReplacementJobState.Verified, []);
         var namesRead = 0;
@@ -1175,7 +1176,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             ReplacementJobState.Quarantined,
             [
                 new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1)),
-                new PlantedName(ReplacementNameKind.Companion, NfoPath, TestMedia.File(inode: 3, sizeBytes: NfoSize), ReplacementNameState.Stayed, HeldProblem),
+                new PlantedName(ReplacementNameKind.Companion, NfoPath, TestMedia.File(inode: 3, sizeBytes: NfoSize), ReplacementNameState.Stayed, PlantedMessage.Of(HeldProblem)),
             ]);
 
         //Act
@@ -1207,7 +1208,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
             ReplacementJobState.Verified,
             [
                 new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1)),
-                new PlantedName(ReplacementNameKind.Video, AliensPath, TestMedia.File(inode: 4), ReplacementNameState.Stayed, "The app may not write there."),
+                new PlantedName(ReplacementNameKind.Video, AliensPath, TestMedia.File(inode: 4), ReplacementNameState.Stayed, PlantedMessage.Of("The file system gave no reason.")),
             ],
             quarantineCheckedUtc: Now());
         await _factory.WithDbAsync(db => db.ReplacementFolders.ExecuteDeleteAsync(cancellationToken));
@@ -1305,10 +1306,10 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
                     $"/media/tv-shows/{title}/Season 02/{title} S02E{episode:00}.mkv",
                     TestMedia.File(inode: firstInode + episode),
                     ReplacementNameState.Stayed,
-                    HeldProblem)),
+                    PlantedMessage.Of(HeldProblem))),
             ],
             quarantineCheckedUtc: Now(),
-            reason: HeldReason,
+            reason: PlantedMessage.Of(HeldReason),
             newFiles: [.. Enumerable.Range(1, episodes).Select(episode => IdentifiedEpisode(episode, seriesId, startedUtc))],
             inspectionStartedUtc: startedUtc,
             libraryAskedUtc: startedUtc);
@@ -1322,7 +1323,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
                 2018,
                 MatchEvidence.Identifier,
                 confirmedByOwner: false,
-                $"This release is {title} {work} (2018)",
+                ReplacementConfirmation.Of($"{title} {work}", 2018, null),
                 [(MediaIdentifierScheme.TmdbTv, $"{work}", false), (MediaIdentifierScheme.Imdb, $"tt{work:0000000}", false)]);
         }
 
@@ -1337,7 +1338,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
     private Task StopCopyAsync(Guid copyId, string problem, CancellationToken cancellationToken) =>
         _factory.WithDbAsync(db => db.ReplacementJobFiles
             .Where(copy => copy.Id == copyId)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(copy => copy.Problem, problem), cancellationToken));
+            .ExecuteUpdateAsync(setters => setters.SetProperty(copy => copy.Problem, PlantedMessage.Of(problem)), cancellationToken));
 
     private Task SwitchOffAsync(CancellationToken cancellationToken) =>
         _factory.WithDbAsync(db => db.ReplacementSettings.ExecuteUpdateAsync(setters => setters.SetProperty(settings => settings.IsEnabled, false), cancellationToken));

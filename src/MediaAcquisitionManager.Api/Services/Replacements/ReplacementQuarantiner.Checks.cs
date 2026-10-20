@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -60,7 +61,7 @@ public sealed partial class ReplacementQuarantiner
         {
             var (checkedCopy, reason) = await CheckCopyAsync(copy, gate, roots, newFiles, cancellationToken);
             if (reason is not null)
-                return MoveCheck.Stopped(toMove, reason, new Dictionary<Guid, string> { [copy.Id] = reason });
+                return MoveCheck.Stopped(toMove, reason, new Dictionary<Guid, Message> { [copy.Id] = reason });
             checkedCopies.Add(checkedCopy!);
         }
 
@@ -72,7 +73,7 @@ public sealed partial class ReplacementQuarantiner
             // MAM-40 — listed as a removal lists its copy's (QuarantineCompanionListing): the folder, the link, the identities.
             var (listed, reason) = await QuarantineCompanionListing.ListAsync(quarantine, copy.AppPath, copy.RootText, cancellationToken);
             if (reason is not null)
-                return MoveCheck.Stopped(toMove, reason, new Dictionary<Guid, string> { [copy.Copy.Id] = reason });
+                return MoveCheck.Stopped(toMove, reason, new Dictionary<Guid, Message> { [copy.Copy.Id] = reason });
 
             var companions = companionsOf[copy.Copy.Id] = [];
             foreach (var (path, facts) in listed)
@@ -112,7 +113,7 @@ public sealed partial class ReplacementQuarantiner
         // Anything uncertain is never an all-clear (ADR 0031): a client not read, or read in part, stops the job.
         var uncertain = QuarantineHoldingCheck.UncertainOf(holdings);
         if (uncertain.Count > 0)
-            return MoveCheck.Stopped(toMove, QuarantineHoldingCheck.UncertainReason(uncertain, QuarantineWording.Replacement), new Dictionary<Guid, string>());
+            return MoveCheck.Stopped(toMove, QuarantineHoldingCheck.UncertainReason(uncertain, QuarantineWording.Replacement), new Dictionary<Guid, Message>());
 
         // A video a torrent lists — its own path, or reached through a link — stays until the owner removes the torrent.
         var heldCopies = checkedCopies
@@ -155,7 +156,7 @@ public sealed partial class ReplacementQuarantiner
     /// a disc, still the file picked (path, device and inode, size, modification time), never one of the new files, and
     /// its new file still the one verified. The copy as read now, or the first reason it stays.
     /// </summary>
-    private async Task<(CheckedCopy? Copy, string? Reason)> CheckCopyAsync(
+    private async Task<(CheckedCopy? Copy, Message? Reason)> CheckCopyAsync(
         ReplacementJobFileEntity copy,
         ReplacementGateState gate,
         IReadOnlyList<(string Text, NormalizedPath Path)> roots,
@@ -227,13 +228,13 @@ public sealed partial class ReplacementQuarantiner
 
     /// <summary>One companion of a copy as listed now, and the hold that keeps it where it is (<c>null</c> when none
     /// does).</summary>
-    private sealed record PlannedCompanion(NormalizedPath AppPath, FileFacts Facts, string? HeldBy);
+    private sealed record PlannedCompanion(NormalizedPath AppPath, FileFacts Facts, Message? HeldBy);
 
     /// <summary>A companion an earlier run left waiting, as checked now (its path parsed, <c>null</c> when it no longer
     /// does): still <c>Planned</c> to move, with what the disk says of it now (<paramref name="Fresh"/>, set only then), or
     /// the state it takes instead — <c>Stayed</c> or <c>Lost</c> — with why.</summary>
     private sealed record WaitingCompanion(
-        ReplacementJobNameEntity Name, NormalizedPath? AppPath, ReplacementNameState State, string? Problem, FileFacts? Fresh = null);
+        ReplacementJobNameEntity Name, NormalizedPath? AppPath, ReplacementNameState State, Message? Problem, FileFacts? Fresh = null);
 
     /// <summary>The checks' word on a job: the copies to move with their companions and the companions an earlier run left
     /// waiting (<paramref name="Waiting"/>), or why nothing moves — the job's reason, and each copy's own
@@ -241,14 +242,14 @@ public sealed partial class ReplacementQuarantiner
     private sealed record MoveCheck(
         IReadOnlyList<CheckedCopy> Copies,
         IReadOnlyList<WaitingCompanion> Waiting,
-        string? Reason,
+        Message? Reason,
         IReadOnlyList<ReplacementJobFileEntity> Considered,
-        IReadOnlyDictionary<Guid, string> Problems)
+        IReadOnlyDictionary<Guid, Message> Problems)
     {
         public static MoveCheck Planned(IReadOnlyList<CheckedCopy> copies, IReadOnlyList<WaitingCompanion> waiting) =>
-            new(copies, waiting, null, [], new Dictionary<Guid, string>());
+            new(copies, waiting, null, [], new Dictionary<Guid, Message>());
 
-        public static MoveCheck Stopped(IReadOnlyList<ReplacementJobFileEntity> considered, string reason, IReadOnlyDictionary<Guid, string> problems) =>
+        public static MoveCheck Stopped(IReadOnlyList<ReplacementJobFileEntity> considered, Message reason, IReadOnlyDictionary<Guid, Message> problems) =>
             new([], [], reason, considered, problems);
     }
 }

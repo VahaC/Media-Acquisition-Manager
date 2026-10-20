@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 
@@ -18,9 +19,9 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 // 342x237) or an episode listed as a film (Blitzkrieg, 1920x1080 after its Identify) is a frame of the video.
 internal sealed partial class JellyfinAdapter
 {
-    private const string NotAJpegError = "Jellyfin answered the poster with something that isn't a JPEG image.";
+    private static readonly Message NotAJpegError = Message.Of("jellyfin.poster.not-jpeg");
 
-    private const string NoPosterError = "Jellyfin has no poster for this item.";
+    private static readonly Message NoPosterError = Message.Of("jellyfin.poster.none");
 
     /// <summary>
     /// The widest a poster is asked for: TMDb's <c>w342</c>, the size of the app's other posters (MAM-33), which fills the

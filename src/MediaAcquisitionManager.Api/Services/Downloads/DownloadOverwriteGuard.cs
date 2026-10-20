@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using MediaAcquisitionManager.Api.Services.Destinations;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Files;
@@ -7,6 +8,7 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -360,49 +362,61 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
     /// destination's folder, why, and how many more of the release's files land on a file already there — each
     /// file once, however many of its places do (MAM-30: a file's <c>.part</c> place is that file too).
     /// </summary>
-    private static string RefusalOf(IntegrationConnectionEntity client, DestinationWording wording, NormalizedPath folder, IReadOnlyList<Collision> collisions)
+    /// <remarks>
+    /// MAM-47 (ADR 0042) — a sentence per shape (the destination or the category, with or without more files, counted
+    /// on <c>count</c>), the why an independent clause after its colon, nested as a message of its own.
+    /// </remarks>
+    private static Message RefusalOf(IntegrationConnectionEntity client, DestinationWording wording, NormalizedPath folder, IReadOnlyList<Collision> collisions)
     {
         var first = collisions[0];
         var name = string.Join('/', first.Target.Path.SegmentsAfter(folder));
         var why = first.Reason switch
         {
-            CollisionReason.DifferentSize => "a file of another size is already there",
-            CollisionReason.DifferentContent => "a file of the same size but other content is already there",
-            CollisionReason.NotAFile => "something that isn't a file is already there",
-            CollisionReason.Changed => "the file already there changed while the app compared it",
-            CollisionReason.QueuedTorrent => $"the torrent “{first.JobName}” it already has will write there",
-            CollisionReason.AlreadyThere => "a file is already there, and a replacement never lands on a file already there",
-            _ => "a file the app couldn't read to compare is already there",
+            CollisionReason.DifferentSize => Message.Of("downloads.overwrite.different-size-clause"),
+            CollisionReason.DifferentContent => Message.Of("downloads.overwrite.different-content-clause"),
+            CollisionReason.NotAFile => Message.Of("downloads.overwrite.not-a-file-clause"),
+            CollisionReason.Changed => Message.Of("downloads.overwrite.changed-clause"),
+            CollisionReason.QueuedTorrent => Message.Of("downloads.overwrite.queued-torrent-clause", ("torrent", first.JobName!)),
+            CollisionReason.AlreadyThere => Message.Of("downloads.overwrite.already-there-clause"),
+            _ => Message.Of("downloads.overwrite.unreadable-clause"),
         };
         var more = collisions.Select(collision => (object)collision.Target.File).Distinct(ReferenceEqualityComparer.Instance).Count() - 1;
-        var others = more switch
-        {
-            0 => "",
-            1 => " One more of the release's files would land on a file already there too.",
-            _ => $" {more} more of the release's files would land on files already there too.",
-        };
-        return $"“{client.Name}” would write over “{name}” in the folder of {wording.Destination}: {why}, so nothing was sent.{others}";
+        return more == 0
+            ? wording.Sentence(
+                "downloads.overwrite.refused-destination", "downloads.overwrite.refused-category", ("client", client.Name), ("path", name), ("why", why))
+            : wording.Sentence(
+                "downloads.overwrite.refused-destination-more",
+                "downloads.overwrite.refused-category-more",
+                ("client", client.Name),
+                ("path", name),
+                ("why", why),
+                ("count", more));
     }
 
     /// <summary>
     /// MAM-24 — the sentence a replacement's strict check refuses with when it couldn't look at every place the release
     /// would write: nothing reached the client, and the owner picks Keep both himself (Vasyl's decision of 2026-10-09).
     /// </summary>
-    private static string UncheckedRefusalOf(DestinationWording wording, DownloadOverwriteCheck check)
+    /// <remarks>
+    /// MAM-47 (ADR 0042) — the why in brackets an independent clause, nested. A magnet is never one: a replacement whose
+    /// release turns out a magnet is refused by <see cref="DownloadSender"/> before it is checked, and nothing else checks
+    /// strictly, so its sentence was dead and is gone (design §10.1).
+    /// </remarks>
+    private static Message UncheckedRefusalOf(DestinationWording wording, DownloadOverwriteCheck check)
     {
         var why = check switch
         {
-            DownloadOverwriteCheck.NotCheckedMagnet => "a magnet link names no files until the client has fetched them",
-            DownloadOverwriteCheck.NotCheckedFileList => "the .torrent's list of files can't be read",
-            DownloadOverwriteCheck.NotCheckedFolderUnknown => "the folder has no path in the app",
-            DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders =>
-                "the folder, or a link on the way to one of its places, lies outside the Media folders",
+            DownloadOverwriteCheck.NotCheckedMagnet =>
+                throw new UnreachableException("A replacement whose release is a magnet is refused before its overwrite check."),
+            DownloadOverwriteCheck.NotCheckedFileList => Message.Of("downloads.overwrite.unchecked.file-list-clause"),
+            DownloadOverwriteCheck.NotCheckedFolderUnknown => Message.Of("downloads.overwrite.unchecked.folder-unknown-clause"),
+            DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders => Message.Of("downloads.overwrite.unchecked.outside-media-folders-clause"),
             DownloadOverwriteCheck.NotCheckedClientJobs => wording.IsFolder
-                ? "the client couldn't list its torrents in that folder, or their files"
-                : "the client couldn't list its torrents in the category, or their files",
-            _ => "a file's name holds characters the app can't look up",
+                ? Message.Of("downloads.overwrite.unchecked.client-jobs-folder-clause")
+                : Message.Of("downloads.overwrite.unchecked.client-jobs-category-clause"),
+            _ => Message.Of("downloads.overwrite.unchecked.file-name-clause"),
         };
-        return $"The app couldn't check every place this release would write in the folder of {wording.Destination} ({why}), so nothing was sent and no copy will be replaced. Pick Keep both to download it.";
+        return wording.Sentence("downloads.overwrite.unchecked-destination", "downloads.overwrite.unchecked-category", ("why", why));
     }
 
     /// <summary>Why a place one of the release's files would be written isn't free.</summary>

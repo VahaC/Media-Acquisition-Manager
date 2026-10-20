@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -19,5 +20,5 @@ public interface ILibrarySyncRunDataFactory
         Guid? requestedByUserId = null,
         string? requestedByUserName = null,
         DateTime? createdUtc = null,
-        string? error = null);
+        Message? error = null);
 }

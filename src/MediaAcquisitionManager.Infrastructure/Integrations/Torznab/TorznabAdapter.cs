@@ -7,6 +7,7 @@ using System.Xml.Linq;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 
@@ -20,9 +21,16 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 /// <see cref="TorznabLinks"/>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// MAM-30 (D16) — a sentence that says how to fix a refused key or a wrong address names Jackett and
 /// Prowlarr as examples ("such as …"), since the owner fixes it in one of them; what the adapter does stays
 /// plain Torznab, the same for either.
+/// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — every sentence is a key of <c>torznab.json</c> and its values, never English: the feed's own
+/// words (its server title, an error's description, an address or a scheme it redirects to) are vendor values, cleaned
+/// and masked where they are read (<see cref="VendorText.Clean"/>).
+/// </para>
 /// </remarks>
 internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
     : HttpIntegrationAdapter(httpClients, HttpClientName), IReleaseSearchProvider
@@ -52,40 +60,46 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
     /// </summary>
     private const int MaximumElementDepth = 32;
 
-    private const string NotTorznabError =
-        "The service at this address answered, but not with Torznab capabilities. Check that the address is the feed's Torznab URL.";
+    private static readonly Message NotTorznabError = Message.Of("torznab.not-torznab");
 
     // MAM-30 (D16) — Jackett's copied address ends in /results/torznab/, not /api, so the hint names both
     // shapes the owner copies.
-    private const string NotFoundError =
-        "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address: Prowlarr's ends in /api, and Jackett's Copy Torznab Feed gives one ending in /results/torznab/.";
+    private static readonly Message NotFoundError = Message.Of("torznab.not-found");
 
     // A bare HTTP 429 without Torznab's <error> body: a server or proxy in front of the feed that
     // limits requests. Prowlarr's own 429 carries an <error>, which FeedError reads.
-    private const string TooManyRequestsError =
-        "The Torznab feed is refusing requests for now (429 Too Many Requests). Try again in a few minutes.";
+    private static readonly Message TooManyRequestsError = Message.Of("torznab.too-many-requests");
+
+    /// <summary>"title": the parameter every search takes, and the one a sentence names when the feed names none this
+    /// app knows.</summary>
+    private static readonly Message TitleParameter = Message.Of("torznab.parameter.title-clause");
+
+    private static readonly Message ImdbIdParameter = Message.Of("torznab.parameter.imdb-id-clause");
+
+    private static readonly Message TmdbIdParameter = Message.Of("torznab.parameter.tmdb-id-clause");
 
     /// <summary>
     /// The movie-search parameters a sentence names, in the order it names them; a parameter not
-    /// listed (<c>genre</c>, say) is left out.
+    /// listed (<c>genre</c>, say) is left out. MAM-47 — each name is a value-less key of its own, which the template
+    /// joins (<c>list:and:message</c>), so a translation names and joins them in its own words.
     /// </summary>
-    private static readonly (string Parameter, string Name)[] MovieSearchParameters =
+    private static readonly (string Parameter, Message Name)[] MovieSearchParameters =
     [
-        ("q", "title"),
-        ("imdbid", "IMDb id"),
-        ("tmdbid", "TMDb id"),
-        ("year", "year"),
+        ("q", TitleParameter),
+        ("imdbid", ImdbIdParameter),
+        ("tmdbid", TmdbIdParameter),
+        ("year", Message.Of("torznab.parameter.year-clause")),
     ];
 
     /// <summary>MAM-32 — the TV-search parameters a sentence names, in the order it names them.</summary>
-    private static readonly (string Parameter, string Name)[] TvSearchParameters =
+    private static readonly (string Parameter, Message Name)[] TvSearchParameters =
     [
-        ("q", "title"),
-        ("tvdbid", "TVDB id"),
-        ("imdbid", "IMDb id"),
-        ("tmdbid", "TMDb id"),
-        ("season", "season"),
-        ("ep", "episode"),
+        ("q", TitleParameter),
+        ("tvdbid", Message.Of("torznab.parameter.tvdb-id-clause")),
+        ("imdbid", ImdbIdParameter),
+        ("tmdbid", TmdbIdParameter),
+        ("season", Message.Of("torznab.parameter.season-clause")),
+        ("ep", Message.Of("torznab.parameter.episode-clause")),
     ];
 
     /// <summary>
@@ -234,11 +248,11 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
     /// The HTTP failures every request to the endpoint answers alike: a refused key, nothing at the
     /// address, a bare 429. <c>null</c> for any other status, which the base class words.
     /// </summary>
-    private static (IntegrationCallStatus Status, string Message)? KnownFailure(HttpResponseMessage response) =>
+    private static (IntegrationCallStatus Status, Message Message)? KnownFailure(HttpResponseMessage response) =>
         response.StatusCode switch
         {
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => (
-                IntegrationCallStatus.AuthenticationFailed, RefusedKeySentence(StatusText(response))),
+                IntegrationCallStatus.AuthenticationFailed, RefusedKeyByStatus(response)),
             HttpStatusCode.NotFound => (IntegrationCallStatus.UnexpectedResponse, NotFoundError),
             HttpStatusCode.TooManyRequests => (IntegrationCallStatus.Refused, TooManyRequestsError),
             _ => null,
@@ -270,7 +284,13 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
     /// The sentence for a feed's own <c>&lt;error code=… description=…/&gt;</c>, worded for the request
     /// it answered — one mapping for the connection test and every call (MAM-10).
     /// </summary>
-    private static (IntegrationCallStatus Status, string Message) FeedError(
+    /// <remarks>
+    /// MAM-47 (ADR 0042) — the feed's error, "error 100: Incorrect user credentials" or "error 100" when it gave no
+    /// description, is a message of its own nested in each sentence's parentheses (<c>torznab.error.*</c>): an aside
+    /// that agrees with nothing around it in any language, so it is translated once instead of once per sentence. The
+    /// description stays the feed's words (a vendor value) and the code a number.
+    /// </remarks>
+    private static (IntegrationCallStatus Status, Message Message) FeedError(
         XElement error, HttpStatusCode status, string?[] secrets, FeedRequest request)
     {
         // Allow surrounding whitespace, nothing else: a code that isn't a plain number isn't Torznab.
@@ -285,11 +305,15 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
         // puts a whole exception's text into error 900 and Prowlarr its exception's message into a
         // download's error 500, often naming the tracker URL with a passkey in its path or query —
         // a credential this app doesn't hold and so can't mask (VendorSamples README, "Cut to the host").
-        var description = RemoteText.Clean(TorznabLinks.WithoutAddresses((string?)error.Attribute("description")), DescriptionMaximumLength, secrets);
+        var description = VendorText.Clean(TorznabLinks.WithoutAddresses((string?)error.Attribute("description")), DescriptionMaximumLength, secrets);
         // "(error 100: Incorrect user credentials)", or "(error 100)" when the feed gave no description.
-        var detail = description.Length > 0
-            ? string.Create(CultureInfo.InvariantCulture, $"error {code}: {description}")
-            : string.Create(CultureInfo.InvariantCulture, $"error {code}");
+        // MAM-47 — the code goes in as a number ({{code, number}}), not as text: a stored "error 900: Fetching … failed: …"
+        // then reads back one way only, since the code ends at its digits; as text it could also take the description's
+        // words up to its own ": " (Jackett's exceptions, Prowlarr's "Fetching … failed: …") and the row stayed English.
+        // English prints the same digits; the spec's codes (100 to 910) stay below the 1,000 Ukrainian would group.
+        var detail = description.Text.Length > 0
+            ? Message.Of("torznab.error.described-clause", ("code", code), ("description", description))
+            : Message.Of("torznab.error.code-clause", ("code", code));
 
         return code switch
         {
@@ -298,26 +322,29 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
             // due to recent failures."/>. The HTTP 429 decides whatever code comes with it, so the
             // feed's own words say why and the status still says "not now".
             _ when code == 429 || status == HttpStatusCode.TooManyRequests => (
-                IntegrationCallStatus.Refused, $"The Torznab feed is refusing requests for now ({detail}). Try again in a few minutes."),
+                IntegrationCallStatus.Refused, Message.Of("torznab.feed.refusing", ("error", detail))),
             // MAM-10 — Prowlarr answers 410 Gone with <error code="410"> for a release its indexer no
             // longer has, and for an indexer switched off in Prowlarr: either way, not this release.
             _ when request == FeedRequest.Download && (code == 410 || status == HttpStatusCode.Gone) => (
-                IntegrationCallStatus.NotFound, $"The Torznab feed can't hand over this release any more ({detail}). Search again."),
-            100 or 101 or 102 => (IntegrationCallStatus.AuthenticationFailed, RefusedKeySentence(detail)),
-            910 => (IntegrationCallStatus.Refused, $"The Torznab feed has its API switched off ({detail})."),
+                IntegrationCallStatus.NotFound, Message.Of("torznab.download.gone", ("error", detail))),
+            // MAM-30 (D16) — a refused key, whichever way the feed says it (errors 100 to 102 here, a bare 401 or 403
+            // in RefusedKeyByStatus), with where the owner finds the right one: the gateway's own dashboard, which this
+            // app can't name.
+            100 or 101 or 102 => (IntegrationCallStatus.AuthenticationFailed, Message.Of("torznab.feed.key-refused", ("error", detail))),
+            910 => (IntegrationCallStatus.Refused, Message.Of("torznab.feed.api-off", ("error", detail))),
             >= 200 and <= 299 => (IntegrationCallStatus.UnexpectedResponse, NotUnderstoodSentence(request, detail)),
             _ when request == FeedRequest.Download => (
-                IntegrationCallStatus.ServiceError, $"The Torznab feed failed to hand over the release ({detail})."),
-            _ => (IntegrationCallStatus.ServiceError, $"The Torznab feed failed ({detail})."),
+                IntegrationCallStatus.ServiceError, Message.Of("torznab.download.failed", ("error", detail))),
+            _ => (IntegrationCallStatus.ServiceError, Message.Of("torznab.feed.failed", ("error", detail))),
         };
     }
 
     /// <summary>
-    /// MAM-30 (D16) — a refused key, whichever way the feed says it (errors 100 to 102, a bare 401 or 403),
-    /// with where the owner finds the right one: the gateway's own dashboard, which this app can't name.
+    /// MAM-30 (D16) — the key refused by a bare 401 or 403, named by its status ("401 Unauthorized"), with where the
+    /// owner finds the right one — as <see cref="FeedError"/> words the feed's own errors 100 to 102.
     /// </summary>
-    private static string RefusedKeySentence(string detail) =>
-        $"The Torznab feed refused the API key ({detail}). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.";
+    private static Message RefusedKeyByStatus(HttpResponseMessage response) =>
+        Message.Of("torznab.feed.key-refused-status", ("status", StatusText(response)));
 
     /// <summary>Errors 200–299 say the request was malformed: from this app, the feed is not what it seems.</summary>
     /// <remarks>
@@ -326,40 +353,46 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
     /// with HTTP 200 and <c>&lt;error code="201" description="Indexer is not supported" /&gt;</c> (its
     /// <c>ResultsController</c>; not recorded, MAM-31 confirms it live).
     /// </remarks>
-    private static string NotUnderstoodSentence(FeedRequest request, string detail) => request switch
+    private static Message NotUnderstoodSentence(FeedRequest request, Message detail) => request switch
     {
-        FeedRequest.Search => $"The Torznab feed didn't understand the search ({detail}).",
-        FeedRequest.Download => $"The Torznab feed didn't understand the download request ({detail}).",
-        _ => $"The Torznab feed doesn't serve what this address names ({detail}). Check the indexer in the feed's address, such as …/indexers/toloka/results/torznab/ for Jackett or …/1/api for Prowlarr.",
+        FeedRequest.Search => Message.Of("torznab.search.not-understood", ("error", detail)),
+        FeedRequest.Download => Message.Of("torznab.download.not-understood", ("error", detail)),
+        _ => Message.Of("torznab.feed.wrong-indexer", ("error", detail)),
     };
 
-    private static string NotTorznabSentence(FeedRequest request) => request switch
+    private static Message NotTorznabSentence(FeedRequest request) => request switch
     {
         FeedRequest.Search => NotSearchResultsError,
         FeedRequest.Download => NotATorrentError,
         _ => NotTorznabError,
     };
 
+    /// <remarks>
+    /// MAM-47 (ADR 0042) — a whole sentence per shape: the server the feed names, or "the feed" when it names none
+    /// (<c>torznab.connected-to-feed.*</c>), each with no search, the TV search alone, the movie search, or both.
+    /// </remarks>
     private static ConnectionTestResult DescribeCapabilities(XElement caps, string?[] secrets)
     {
-        var title = RemoteText.Clean((string?)caps.Element("server")?.Attribute("title"), ServerTitleMaximumLength, secrets);
-        var server = title.Length > 0 ? title : "the feed";
+        var title = VendorText.Clean((string?)caps.Element("server")?.Attribute("title"), ServerTitleMaximumLength, secrets);
+        (string, MessageValue)? server = title.Text.Length > 0 ? ("server", title) : null;
 
         var movieSearch = caps.Element("searching")?.Element("movie-search");
         var tvSearch = caps.Element("searching")?.Element("tv-search");
         // MAM-32 — the TV search is the owner's second question once series are searched for too.
-        var tv = IsAvailable(tvSearch) ? $"TV search by {ParameterNames(tvSearch!, TvSearchParameters)}" : null;
-        if (!IsAvailable(movieSearch))
-        {
-            return ConnectionTestResult.Succeeded(tv is null
-                ? $"Connected to {server} over Torznab, but it offers no movie or TV search."
-                : $"Connected to {server} over Torznab, but it offers no movie search; {tv}.");
-        }
+        (string, MessageValue)? tv = IsAvailable(tvSearch) ? ("tv", ParameterNames(tvSearch!, TvSearchParameters)) : null;
+        (string, MessageValue)? movie = IsAvailable(movieSearch) ? ("movie", ParameterNames(movieSearch!, MovieSearchParameters)) : null;
 
-        var movie = $"movie search by {ParameterNames(movieSearch!, MovieSearchParameters)}";
-        return ConnectionTestResult.Succeeded(tv is null
-            ? $"Connected to {server} over Torznab; {movie}."
-            : $"Connected to {server} over Torznab; {movie}, {tv}.");
+        return ConnectionTestResult.Succeeded((server, movie, tv) switch
+        {
+            ({ } named, null, null) => Message.Of("torznab.connected.no-search", named),
+            ({ } named, null, { } tvOnly) => Message.Of("torznab.connected.tv-only", named, tvOnly),
+            ({ } named, { } movieOnly, null) => Message.Of("torznab.connected.movie", named, movieOnly),
+            ({ } named, { } both, { } andTv) => Message.Of("torznab.connected.movie-and-tv", named, both, andTv),
+            (null, null, null) => Message.Of("torznab.connected-to-feed.no-search"),
+            (null, null, { } tvOnly) => Message.Of("torznab.connected-to-feed.tv-only", tvOnly),
+            (null, { } movieOnly, null) => Message.Of("torznab.connected-to-feed.movie", movieOnly),
+            (null, { } both, { } andTv) => Message.Of("torznab.connected-to-feed.movie-and-tv", both, andTv),
+        });
     }
 
     /// <summary>Whether a <c>searching</c> mode says <c>available="yes"</c>, in any letter case.</summary>
@@ -371,21 +404,19 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
         ((string?)mode.Attribute("supportedParams") ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
     /// <summary>"title", "title and year", "title, IMDb id and year"; "title" when the feed names none
-    /// this app knows — a movie or TV search always takes a query.</summary>
-    private static string ParameterNames(XElement mode, (string Parameter, string Name)[] known)
+    /// this app knows — a movie or TV search always takes a query. MAM-47 — as a list the template joins (its
+    /// <c>list:and:message</c> joins English as this did: "a, b and c").</summary>
+    private static ListValue ParameterNames(XElement mode, (string Parameter, Message Name)[] known)
     {
         var supported = SupportedParameters(mode);
-        var names = known
-            .Where(parameter => supported.Contains(parameter.Parameter, StringComparer.OrdinalIgnoreCase))
-            .Select(parameter => parameter.Name)
-            .ToArray();
+        MessageValue[] names =
+        [
+            .. known
+                .Where(parameter => supported.Contains(parameter.Parameter, StringComparer.OrdinalIgnoreCase))
+                .Select(parameter => parameter.Name),
+        ];
 
-        return names.Length switch
-        {
-            0 => "title",
-            1 => names[0],
-            _ => $"{string.Join(", ", names[..^1])} and {names[^1]}",
-        };
+        return new ListValue(names.Length > 0 ? names : [TitleParameter]);
     }
 
     private static ConnectionTestResult NotTorznab() =>

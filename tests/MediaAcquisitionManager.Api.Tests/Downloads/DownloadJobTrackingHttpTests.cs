@@ -12,6 +12,7 @@ using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -139,7 +140,7 @@ public sealed class DownloadJobTrackingHttpTests : IClassFixture<MediaAcquisitio
         var row = await RowAsync(sent.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Downloading, (double?)0.25, SampleInfoHash, movedUtc, (string?)null),
-            (row.Status, row.Progress, row.ClientJobId, row.StatusChangedUtc, row.BlockReason));
+            (row.Status, row.Progress, row.ClientJobId, row.StatusChangedUtc, TestTexts.En(row.BlockReason)));
     }
 
     [Theory]
@@ -162,7 +163,7 @@ public sealed class DownloadJobTrackingHttpTests : IClassFixture<MediaAcquisitio
         var row = await RowAsync(job.Id, cancellationToken);
         Assert.Equal(
             (expectedStatus, (double?)expectedProgress, expectedStatus == current ? plantedUtc : passUtc, (string?)null, Hash(1)),
-            (row.Status, row.Progress, row.StatusChangedUtc, row.BlockReason, row.ClientJobId));
+            (row.Status, row.Progress, row.StatusChangedUtc, TestTexts.En(row.BlockReason), row.ClientJobId));
         var read = await ReadAsync(job.Id, cancellationToken);
         Assert.Equal((expectedStatus, (double?)expectedProgress), (read.Status, read.Progress));
     }
@@ -282,7 +283,7 @@ public sealed class DownloadJobTrackingHttpTests : IClassFixture<MediaAcquisitio
         // The job took what the lookup said; the files stay as last read, and the files read set no reason —
         // why a job isn't moving on comes from the lookup alone.
         var row = await RowAsync(job.Id, cancellationToken);
-        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.4, (string?)null), (row.Status, row.Progress, row.BlockReason));
+        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.4, (string?)null), (row.Status, row.Progress, TestTexts.En(row.BlockReason)));
         Assert.Equal(TakenRows(0.2), await StoredFilesAsync(job.Id, cancellationToken));
     }
 
@@ -352,15 +353,15 @@ public sealed class DownloadJobTrackingHttpTests : IClassFixture<MediaAcquisitio
         Assert.Single(_factory.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == FilesPath);
         Assert.DoesNotContain(QBittorrentCalls(), call => call.Contains("category=", StringComparison.Ordinal));
         var firstRow = await RowAsync(first.Id, cancellationToken);
-        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.2, (string?)null), (firstRow.Status, firstRow.Progress, firstRow.BlockReason));
+        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.2, (string?)null), (firstRow.Status, firstRow.Progress, TestTexts.En(firstRow.BlockReason)));
         var secondRow = await RowAsync(second.Id, cancellationToken);
-        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.4, (string?)null), (secondRow.Status, secondRow.Progress, secondRow.BlockReason));
+        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.4, (string?)null), (secondRow.Status, secondRow.Progress, TestTexts.En(secondRow.BlockReason)));
         Assert.Empty(await StoredFilesAsync(first.Id, cancellationToken));
         Assert.Empty(await StoredFilesAsync(second.Id, cancellationToken));
         var renamedRow = await RowAsync(renamed.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Downloading, UnreachableReason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.DownloadClient),
-            (renamedRow.Status, renamedRow.BlockReason, renamedRow.BlockReasonOrigin));
+            (renamedRow.Status, TestTexts.En(renamedRow.BlockReason), renamedRow.BlockReasonOrigin));
     }
 
     [Fact]
@@ -389,13 +390,13 @@ public sealed class DownloadJobTrackingHttpTests : IClassFixture<MediaAcquisitio
         // and the reason is the app's sentence, the sender's to read. It goes by itself with the error.
         Assert.Equal(
             (DownloadJobStatus.Downloading, (double?)0.4, plantedUtc, ClientErrorReason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App),
-            (errored.Status, errored.Progress, errored.StatusChangedUtc, errored.BlockReason, errored.BlockReasonOrigin));
+            (errored.Status, errored.Progress, errored.StatusChangedUtc, TestTexts.En(errored.BlockReason), errored.BlockReasonOrigin));
         Assert.Equal((DownloadJobStatus.Downloading, ClientErrorReason), (shown.Status, shown.BlockReason));
-        Assert.Equal((DownloadJobStatus.Downloading, ClientErrorReason), (stillErrored.Status, stillErrored.BlockReason));
+        Assert.Equal((DownloadJobStatus.Downloading, ClientErrorReason), (stillErrored.Status, TestTexts.En(stillErrored.BlockReason)));
         var row = await RowAsync(job.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Downloading, (double?)0.5, plantedUtc, (string?)null, (DownloadJobErrorOrigin?)null),
-            (row.Status, row.Progress, row.StatusChangedUtc, row.BlockReason, row.BlockReasonOrigin));
+            (row.Status, row.Progress, row.StatusChangedUtc, TestTexts.En(row.BlockReason), row.BlockReasonOrigin));
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Infrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -23,8 +24,8 @@ public sealed class FileSystemFailureTests
         //Assert
         Assert.Equal(
             (FileInventoryStatus.Unreadable, null, "The app couldn't read “/media/Films”: Input/output error."),
-            (result.Status, result.Value, result.Error));
-        Assert.DoesNotContain("/proc/", result.Error, StringComparison.Ordinal);
+            (result.Status, result.Value, TestTexts.En(result.Error)));
+        Assert.DoesNotContain("/proc/", TestTexts.En(result.Error), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -39,7 +40,7 @@ public sealed class FileSystemFailureTests
         //Assert
         Assert.Equal(
             (FileInventoryStatus.Unreadable, null, "The app couldn't read “/media/Films”: Input/output error : '/proc/self/fd/23'."),
-            (result.Status, result.Value, result.Error));
+            (result.Status, result.Value, TestTexts.En(result.Error)));
     }
 
     [Fact]
@@ -53,6 +54,6 @@ public sealed class FileSystemFailureTests
         var result = FileSystemFailure.For<FileFacts>(exception, FolderAppPath, DescriptorPath);
 
         //Assert
-        Assert.Equal("The app couldn't read “/media/Films”: Stale file handle on /proc/self/fd/23.", result.Error);
+        Assert.Equal("The app couldn't read “/media/Films”: Stale file handle on /proc/self/fd/23.", TestTexts.En(result.Error));
     }
 }

@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -174,7 +175,7 @@ public sealed class JellyfinAdapterLocationsTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -191,7 +192,7 @@ public sealed class JellyfinAdapterLocationsTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to http://jellyfin.test:8096/***/web/index.html. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Single(_harness.JellyfinHttp.Requests);
     }
 
@@ -209,7 +210,7 @@ public sealed class JellyfinAdapterLocationsTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -230,7 +231,7 @@ public sealed class JellyfinAdapterLocationsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotJellyfinError, result.Error);
+        Assert.Equal(NotJellyfinError, TestTexts.En(result.Error));
     }
 
     [Fact]

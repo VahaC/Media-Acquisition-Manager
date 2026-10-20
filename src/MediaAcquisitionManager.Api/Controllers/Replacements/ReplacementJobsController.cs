@@ -98,8 +98,8 @@ public class ReplacementJobsController(IReplacementJobActions actions) : Control
     private ActionResult<DownloadJobDto> Answer(ReplacementActionResult result) => result.Status switch
     {
         ReplacementActionStatus.Done => Ok(result.Job),
-        ReplacementActionStatus.Invalid => this.BadRequestError(result.Error),
-        ReplacementActionStatus.Refused => this.ConflictError(result.Error),
+        ReplacementActionStatus.Invalid => this.BadRequestError(result.Error!),
+        ReplacementActionStatus.Refused => this.ConflictError(result.Error!),
         // The addressed row: missing and another user's alike, with no body.
         _ => NotFound(),
     };

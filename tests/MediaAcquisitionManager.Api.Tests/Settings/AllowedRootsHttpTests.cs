@@ -26,8 +26,8 @@ namespace MediaAcquisitionManager.Api.Tests.Settings;
 public sealed class AllowedRootsHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/allowed-roots";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
 
     // Spelled out rather than read from AllowedRootRules: they are what the settings page shows.
     private const string TooManyError = "The app can have at most 20 media folders.";

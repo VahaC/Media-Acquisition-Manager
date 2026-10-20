@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,8 +22,8 @@ public sealed class CatalogConnector(
     IIntegrationSettingsFactory settingsFactory) : ICatalogConnector
 {
     /// <summary>The sentence a computation without a catalog gets: the owner's Recompute now (409) and a run that
-    /// found none any more.</summary>
-    public const string NoCatalogError = "Connect a metadata catalog under Integrations first.";
+    /// found none any more. MAM-47 — a message under the name the constant had (ADR 0042).</summary>
+    public static readonly Message NoCatalogError = Message.Of("integrations.catalog.not-connected");
 
     public async Task<bool> HasCatalogAsync(CancellationToken cancellationToken = default) =>
         await FindAsync(cancellationToken) is not null;

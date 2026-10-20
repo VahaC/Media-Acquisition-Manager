@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -11,7 +12,8 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// takes it, a video that is a link refused, and each of its own companions (<see cref="QuarantineCompanions.Pick"/>)
 /// with the identity a torrent's hold on it is confirmed by.
 /// </summary>
-/// <remarks>Reads only; the sentences are the ones a stop names the folder or the file by.</remarks>
+/// <remarks>Reads only; the sentences are the ones a stop names the folder or the file by — MAM-47 (ADR 0042) — as
+/// messages of the <c>replacements.quarantine.companions</c> keys.</remarks>
 internal static class QuarantineCompanionListing
 {
     /// <summary>
@@ -19,7 +21,7 @@ internal static class QuarantineCompanionListing
     /// of it — or why nothing of the video may move: its folder couldn't be listed, the video's own name is a link, or a
     /// companion couldn't be read well enough.
     /// </summary>
-    public static async Task<(IReadOnlyList<(NormalizedPath AppPath, FileFacts Facts)> Companions, string? Reason)> ListAsync(
+    public static async Task<(IReadOnlyList<(NormalizedPath AppPath, FileFacts Facts)> Companions, Message? Reason)> ListAsync(
         IFileQuarantine quarantine, NormalizedPath appPath, string rootText, CancellationToken cancellationToken)
     {
         // Within the copy's own root, as its look was.
@@ -48,13 +50,14 @@ internal static class QuarantineCompanionListing
     }
 
     // The contract gives a sentence with every refusal; this is for one that broke it.
-    private static string NotListedReason(string path) => $"The app couldn't list the files beside {ReplacementText.Quote(path)}, so nothing moves.";
+    private static Message NotListedReason(string path) =>
+        Message.Of("replacements.quarantine.companions.not-listed", ("path", MessageText.Clean(path)));
 
     // The video's own name is a link, which the listing of its folder leaves out: renaming it would leave the file where it
     // is, and the file it leads to may be anyone's.
-    private static string LinkReason(string path) =>
-        $"{ReplacementText.Quote(ReplacementText.FileNameOf(path))} is a link to another file, and the app moves only a file itself, so it stays where it is.";
+    private static Message LinkReason(string path) =>
+        Message.Of("replacements.quarantine.companions.link", ("file", MessageText.Clean(ReplacementText.FileNameOf(path))));
 
-    private static string CompanionUnreadableReason(string name) =>
-        $"The app couldn't read {ReplacementText.Quote(name)} well enough to tell whether a torrent holds it.";
+    private static Message CompanionUnreadableReason(string name) =>
+        Message.Of("replacements.quarantine.companions.unreadable", ("name", MessageText.Clean(name)));
 }

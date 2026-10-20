@@ -431,3 +431,13 @@ MAM-41 section).** The row's **Replacement** cell says where the replacement sta
 sentence with what to do. Nothing about pairing, dropping or what only a drop settles changes: the
 server still works out each copy's status, a Drop still waits for Retry, and the row still leaves
 **Retry** out while a copy only a drop settles is in the replacement.
+
+## The confirmation kept as its claim (added 0.5.0, MAM-47)
+
+`ConfirmationText` is no longer the stored words: it holds the claim — the work, its seasons and episodes, and the
+tail that tells twins apart — as a message (ADR 0042), so the tick's label and the 400's sentence read in the
+reader's language. The `ReplacementWorkConfirmed` audit row names the claim in no language
+(`ReplacementConfirmationLabel`: `Alien (1979)`, `Doctor Who (2005) S02E01–E05 · Фільми`), and the startup converter
+rewrites older rows the same way (Vasyl's decision of 2026-10-19). Which tail tells twins apart is still chosen by the
+length of the English sentence against the audit name's 200 characters, so the choice doesn't change with the
+language. A work with no title loses its year in the words ("a work with no title, season 2").

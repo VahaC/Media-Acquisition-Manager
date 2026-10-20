@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -97,15 +98,16 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
         Assert.Equal(
             [
-                new ClientDestination("/downloads", "/downloads", "/downloads", IsClientDefaultFolder: true),
-                new ClientDestination("/downloads/movies", "/downloads/movies", "/downloads/movies"),
-                new ClientDestination(
+                ("/downloads", "/downloads", "/downloads", true, null),
+                ("/downloads/movies", "/downloads/movies", "/downloads/movies", false, null),
+                (
                     "/downloads/tv-shows",
                     "/downloads/tv-shows",
                     "/downloads/tv-shows",
-                    Problem: "Transmission can't see “/downloads/tv-shows” (No such file or directory). Mount that folder into Transmission, or add a path mapping on this integration that leads there, then look again."),
+                    false,
+                    "Transmission can't see “/downloads/tv-shows” (No such file or directory). Mount that folder into Transmission, or add a path mapping on this integration that leads there, then look again."),
             ],
-            result.Value);
+            InEnglish(result.Value));
         Assert.Equal(["/downloads", "/downloads/movies", "/downloads/tv-shows"], FreeSpacePaths());
     }
 
@@ -194,15 +196,15 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
         // "//downloads" is absolute, but POSIX lets the system read a path that starts with exactly two slashes its own way.
         Assert.Equal(
             [
-                new ClientDestination(
+                (
                     downloadDir,
                     downloadDir,
                     downloadDir,
-                    IsClientDefaultFolder: true,
-                    Problem: $"Transmission's download folder “{downloadDir}” isn't a full path the app can use. In Transmission's web interface open Edit preferences, Torrents, give “Download to” a full path such as /downloads, then look again."),
-                new ClientDestination("/downloads/movies", "/downloads/movies", "/downloads/movies"),
+                    true,
+                    $"Transmission's download folder “{downloadDir}” isn't a full path the app can use. In Transmission's web interface open Edit preferences, Torrents, give “Download to” a full path such as /downloads, then look again."),
+                ("/downloads/movies", "/downloads/movies", "/downloads/movies", false, null),
             ],
-            result.Value);
+            InEnglish(result.Value));
         Assert.Equal(["/downloads/movies"], FreeSpacePaths());
     }
 
@@ -221,7 +223,7 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
         Assert.Equal(@"D:\Torrents", destination.Key);
         Assert.Equal(
             @"Transmission can't see “D:\Torrents” (directory path is not absolute). Mount that folder into Transmission, or add a path mapping on this integration that leads there, then look again.",
-            destination.Problem);
+            TestTexts.En(destination.Problem));
         Assert.Equal([@"D:\Torrents"], FreeSpacePaths());
     }
 
@@ -243,7 +245,7 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
         Assert.Equal(isDownloadFolder, destination.IsClientDefaultFolder);
         Assert.Equal(
             $"{(isDownloadFolder ? "Transmission's download folder" : "The folder")} “{longFolder}” is longer than the 256 characters a destination can hold.",
-            destination.Problem);
+            TestTexts.En(destination.Problem));
         Assert.DoesNotContain(longFolder, FreeSpacePaths());
     }
 
@@ -261,7 +263,7 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
         //Assert
         Assert.Equal(
             "Transmission can't see “/downloads” (no free space reported). Mount that folder into Transmission, or add a path mapping on this integration that leads there, then look again.",
-            Assert.Single(result.Value!).Problem);
+            TestTexts.En(Assert.Single(result.Value!).Problem));
     }
 
     [Fact]
@@ -294,7 +296,7 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
         //Assert
         Assert.Equal(
             "Transmission can't see “/downloads” (denied for ***). Mount that folder into Transmission, or add a path mapping on this integration that leads there, then look again.",
-            Assert.Single(result.Value!).Problem);
+            TestTexts.En(Assert.Single(result.Value!).Problem));
     }
 
     [Theory]
@@ -323,7 +325,7 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
-        Assert.Equal("This is Transmission 3.00; the app needs Transmission 4.0 or newer. Update Transmission, then test again.", result.Error);
+        Assert.Equal("This is Transmission 3.00; the app needs Transmission 4.0 or newer. Update Transmission, then test again.", TestTexts.En(result.Error));
         Assert.Equal(["session-get"], _transmission.Calls.Select(call => call.Method));
     }
 
@@ -342,7 +344,7 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
         Assert.Equal(
             "Transmission keeps unfinished downloads in its temporary folder “/downloads/.incomplete”, where the app can't follow them. In Transmission's web interface open Edit preferences, Torrents, untick “Use temporary folder”, then test again.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Equal(["session-get"], _transmission.Calls.Select(call => call.Method));
     }
 
@@ -360,7 +362,7 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
-        Assert.Equal("Transmission answered 502 Bad Gateway. Its own log says why.", result.Error);
+        Assert.Equal("Transmission answered 502 Bad Gateway. Its own log says why.", TestTexts.En(result.Error));
         Assert.Equal(["/downloads"], FreeSpacePaths());
     }
 
@@ -377,7 +379,7 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("The service at this address answered, but not the way Transmission does.", result.Error);
+        Assert.Equal("The service at this address answered, but not the way Transmission does.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -397,4 +399,10 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
     /// <summary>The folders every <c>free-space</c> the server read asked about, in order.</summary>
     private List<string?> FreeSpacePaths() =>
         [.. _transmission.Calls.Where(call => call.Method == "free-space").Select(call => (string?)call.Arguments["path"])];
+
+    /// <summary>MAM-47 — each destination listed, its problem as a reader of English sees it.</summary>
+    private static List<(string Key, string DisplayName, string? ServicePath, bool IsClientDefaultFolder, string? Problem)> InEnglish(
+        IReadOnlyList<ClientDestination>? destinations) =>
+        [.. destinations!.Select(destination => (
+            destination.Key, destination.DisplayName, destination.ServicePath, destination.IsClientDefaultFolder, TestTexts.En(destination.Problem)))];
 }

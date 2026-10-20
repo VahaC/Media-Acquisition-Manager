@@ -6,12 +6,14 @@ using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -264,7 +266,7 @@ public sealed class FileInspectionHashHttpTests : IClassFixture<MediaAcquisition
         var takenName = await PlantFileAsync(TakenPath);
         var copy = AddTaken(CopyPath, CopyInode);
         // Looked at and read by the media inspector, then locked before the whole file could be read.
-        AddTaken(TakenPath, TakenInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, TakenLockedError));
+        AddTaken(TakenPath, TakenInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, Message.Legacy(TakenLockedError)));
         var now = Now();
 
         //Act
@@ -309,9 +311,9 @@ public sealed class FileInspectionHashHttpTests : IClassFixture<MediaAcquisition
         await PlantFileAsync(TakenPath);
         await PlantFileAsync(CopyPath);
         // Two can't be hashed: the backup, gone since the look, comes before the locked spare in path order.
-        AddTaken(CopyPath, CopyInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.NotFound, null, CopyGoneError));
+        AddTaken(CopyPath, CopyInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.NotFound, null, Message.Legacy(CopyGoneError)));
         var taken = AddTaken(TakenPath, TakenInode);
-        AddTaken(SparePath, SpareInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, SpareLockedError));
+        AddTaken(SparePath, SpareInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, Message.Legacy(SpareLockedError)));
         var now = Now();
 
         //Act
@@ -326,6 +328,27 @@ public sealed class FileInspectionHashHttpTests : IClassFixture<MediaAcquisition
     }
 
     [Fact]
+    public async Task Inspect_of_a_hash_the_inventory_gives_no_reason_for_counts_the_apps_own()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(Root);
+        await PlantFileAsync(CopyPath);
+        await PlantFileAsync(TakenPath);
+        AddTaken(CopyPath, CopyInode);
+        AddTaken(TakenPath, TakenInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, null));
+
+        //Act
+        var run = await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
+
+        //Assert
+        // Counted with a reason the owner can read, never an empty one.
+        Assert.Equal(
+            (FileInspectionRunStatus.Succeeded, new FileHashingDto(2, 2, 1, 1, "The app couldn't read the file.")),
+            (run.Status, run.Hashing));
+    }
+
+    [Fact]
     public async Task Inspect_cuts_a_hashing_problem_longer_than_its_column_with_an_ellipsis()
     {
         //Arrange
@@ -336,18 +359,26 @@ public sealed class FileInspectionHashHttpTests : IClassFixture<MediaAcquisition
         AddTaken(CopyPath, CopyInode);
         // An inventory that says far more than a column holds (1,000 characters).
         var sentence = $"The app may not read “{TakenPath}”:" + string.Concat(Enumerable.Repeat(" permission denied.", 60));
-        AddTaken(TakenPath, TakenInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, sentence));
-        var cut = string.Concat(sentence.AsSpan(0, FileInspectionRunEntity.ErrorMaximumLength - 1), "…");
+        AddTaken(TakenPath, TakenInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, Message.Legacy(sentence)));
 
         //Act
         var run = await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
 
         //Assert
         Assert.True(sentence.Length > FileInspectionRunEntity.ErrorMaximumLength);
-        Assert.Equal(1_000, cut.Length);
-        // Cut where it is stored, so the owner sees it was cut.
-        Assert.Equal((FileInspectionRunStatus.Succeeded, new FileHashingDto(2, 2, 1, 1, cut)), (run.Status, run.Hashing));
-        Assert.Equal(cut, (await RunRowAsync(run.Id, cancellationToken)).HashProblem);
+        // MAM-47 (ADR 0042) — stored as key and values: the column's converter fits the message into its 1,000
+        // characters by cutting its longest value, which ends with an ellipsis, so the owner sees it was cut.
+        var shown = run.Hashing.Problem!;
+        Assert.Equal((FileInspectionRunStatus.Succeeded, new FileHashingDto(2, 2, 1, 1, shown)), (run.Status, run.Hashing));
+        Assert.EndsWith("…", shown, StringComparison.Ordinal);
+        Assert.StartsWith(shown[..^1], sentence, StringComparison.Ordinal);
+        Assert.True(shown.Length < sentence.Length);
+        Assert.Equal(shown, TestTexts.En((await RunRowAsync(run.Id, cancellationToken)).HashProblem));
+        await _factory.WithDbAsync(async db =>
+        {
+            var stored = await db.Database.SqlQueryRaw<string>("SELECT \"HashProblem\" AS \"Value\" FROM \"FileInspectionRuns\"").SingleAsync(cancellationToken);
+            Assert.True(stored.Length <= FileInspectionRunEntity.ErrorMaximumLength, $"{stored.Length} characters stored");
+        });
     }
 
     [Fact]
@@ -360,7 +391,11 @@ public sealed class FileInspectionHashHttpTests : IClassFixture<MediaAcquisition
         await PlantFileAsync(TakenPath);
         var copy = AddTaken(CopyPath, CopyInode);
         // Written while it was read whole: what was read belongs to neither version.
-        AddTaken(TakenPath, TakenInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.ChangedWhileReading, null, ChangedWhileHashingError));
+        AddTaken(
+            TakenPath,
+            TakenInode,
+            new FileInventoryResult<FileContentHash>(
+                FileInventoryStatus.ChangedWhileReading, null, Message.Of("files.inventory.changed-while-hashing", ("path", TakenPath))));
         var changing = await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
         var changingHashes = await HashesAsync(cancellationToken);
         var firstUtc = Now();
@@ -486,7 +521,7 @@ public sealed class FileInspectionHashHttpTests : IClassFixture<MediaAcquisition
             await PlantFileAsync(path);
         AddTaken(CopyPath, CopyInode);
         AddTaken(TakenPath, TakenInode);
-        AddTaken(SparePath, SpareInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, SpareLockedError));
+        AddTaken(SparePath, SpareInode, new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, Message.Legacy(SpareLockedError)));
         // A size no other file has: looked at and read by the inspector, never hashed.
         _factory.Files.AddFile(ContinentalPath, TestMedia.File(ContinentalInode), TestMedia.Continental());
 
@@ -576,7 +611,7 @@ public sealed class FileInspectionHashHttpTests : IClassFixture<MediaAcquisition
     }
 
     private static (int?, int, int, int, string?) HashingOf(FileInspectionRunEntity run) =>
-        (run.HashCandidates, run.HashCandidatesChecked, run.HashCandidatesRead, run.HashProblemCount, run.HashProblem);
+        (run.HashCandidates, run.HashCandidatesChecked, run.HashCandidatesRead, run.HashProblemCount, TestTexts.En(run.HashProblem));
 
     private static async Task<FileInspectionRunDto> ReadRunAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
         (await response.Content.ReadFromJsonAsync<FileInspectionRunDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;

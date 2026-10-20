@@ -5,6 +5,8 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
+using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -254,7 +256,7 @@ public sealed class DownloadJobPoller(
     /// Whether <paramref name="client"/> can be asked about its jobs: the settings to ask it with, or the app's
     /// sentence saying why not and a word for the log. The order a send checks in (<c>DownloadService</c>).
     /// </summary>
-    private (ClientContext? Context, string? Refusal, string Kind) Prepare(IntegrationConnectionEntity client)
+    private (ClientContext? Context, Message? Refusal, string Kind) Prepare(IntegrationConnectionEntity client)
     {
         if (!client.IsEnabled)
             return (null, SwitchedOffReason(client.Name), "SwitchedOff");
@@ -290,7 +292,7 @@ public sealed class DownloadJobPoller(
         var rowDiffers = moved
             || !string.Equals(clientJob.ClientJobId, job.ClientJobId, StringComparison.Ordinal)
             || !string.Equals(infoHashV2, job.InfoHashV2, StringComparison.Ordinal)
-            || !string.Equals(DownloadJobUpdates.Stored(reason), job.BlockReason, StringComparison.Ordinal)
+            || !Equals(AsStored(reason), job.BlockReason)
             || origin != job.BlockReasonOrigin;
         Task<int> RecordAsync() => db.DownloadJobs.RecordObservationAsync(
             job.Id, job.Status, observation.Status, progress, clientJob.ClientJobId, infoHashV2, reason, origin, now);
@@ -434,7 +436,7 @@ public sealed class DownloadJobPoller(
 
     /// <summary>Ends the following of <paramref name="job"/> as <paramref name="status"/>, with the app's
     /// <paramref name="error"/> if any; whether it did — a cancel or a send that got there first wins.</summary>
-    private async Task<bool> StopAsync(DownloadJobEntity job, DownloadJobStatus status, string? error, DateTime now)
+    private async Task<bool> StopAsync(DownloadJobEntity job, DownloadJobStatus status, Message? error, DateTime now)
     {
         if (await db.DownloadJobs.StopFollowingAsync(job.Id, job.Status, status, error, now) == 0)
             return false;
@@ -445,9 +447,17 @@ public sealed class DownloadJobPoller(
 
     /// <summary>Writes why <paramref name="job"/> isn't moving on, or that nothing blocks it, when that differs
     /// from what it shows; whether it wrote.</summary>
-    private async Task<bool> BlockAsync(DownloadJobEntity job, string? reason, DownloadJobErrorOrigin? origin) =>
-        (!string.Equals(DownloadJobUpdates.Stored(reason), job.BlockReason, StringComparison.Ordinal) || origin != job.BlockReasonOrigin)
+    private async Task<bool> BlockAsync(DownloadJobEntity job, Message? reason, DownloadJobErrorOrigin? origin) =>
+        (!Equals(AsStored(reason), job.BlockReason) || origin != job.BlockReasonOrigin)
         && await db.DownloadJobs.RecordBlockReasonAsync(job.Id, job.Status, reason, origin) == 1;
+
+    /// <summary>
+    /// MAM-14 — <paramref name="reason"/> as its column keeps it: the poller compares a new reason with the stored one as
+    /// it would be stored, so a long one isn't written again on every pass. MAM-47 (ADR 0042) — the message as the
+    /// column's converter fits it (design §5.4), compared by its key and values: compared as rendered words, a reason
+    /// would read as changed whenever the language did.
+    /// </summary>
+    private static Message? AsStored(Message? reason) => reason is null ? null : MessageFit.Fit(reason, MessageJson.ColumnLength);
 
     /// <summary>
     /// Writes why every one of <paramref name="jobs"/> can't be followed — their client can't be asked — and,
@@ -455,7 +465,7 @@ public sealed class DownloadJobPoller(
     /// never the sentence.
     /// </summary>
     private async Task BlockAllAsync(
-        IntegrationConnectionEntity client, List<DownloadJobEntity> jobs, string reason, DownloadJobErrorOrigin origin, string kind)
+        IntegrationConnectionEntity client, List<DownloadJobEntity> jobs, Message reason, DownloadJobErrorOrigin origin, string kind)
     {
         var written = 0;
         foreach (var job in jobs)
@@ -506,11 +516,11 @@ public sealed class DownloadJobPoller(
     /// adapter (ADR 0007's second pass), which can name its address and so is the owner's to read; or the app's
     /// for an adapter that threw. With a word for the log.
     /// </summary>
-    private static (string Reason, DownloadJobErrorOrigin Origin, string Kind) ReasonFor<T>(ClientContext context, IntegrationCallResult<T>? failed)
+    private static (Message Reason, DownloadJobErrorOrigin Origin, string Kind) ReasonFor<T>(ClientContext context, IntegrationCallResult<T>? failed)
         where T : class =>
         failed is null
-            ? (ThrewReason(context.Client.Name), DownloadJobErrorOrigin.App, "Threw")
-            : (SecretRedaction.Redact(failed.Error, context.Settings.Secrets)!, DownloadJobErrorOrigin.DownloadClient, failed.Status.ToString());
+            ? (IntegrationAdapterMessages.UnreadableAnswer(context.Client.Name), DownloadJobErrorOrigin.App, "Threw")
+            : (failed.Error!.Redacted(context.Settings.Secrets), DownloadJobErrorOrigin.DownloadClient, failed.Status.ToString());
 
     /// <summary>
     /// Notes on <paramref name="context"/> that its client stopped answering in this pass, with why, when
@@ -541,34 +551,28 @@ public sealed class DownloadJobPoller(
         job.InfoHashV1 is not null && job.InfoHashV2 is null && !string.IsNullOrWhiteSpace(job.ClientDestinationKey);
 
     // The reasons a job shows. Each names the client — by its name now, which is what Integrations lists — and
-    // says what happens next.
+    // says what happens next. MAM-47 (ADR 0042) — messages of downloads.follow.*, stored as their key and values and
+    // rendered in the reader's language when the job is read; an adapter that threw reads the adapters' shared sentence.
 
-    private static string ClientRemovedReason(string clientName) =>
-        $"The download client “{clientName}” was removed, so this download can't be followed. Cancel the job to stop tracking it.";
+    private static Message ClientRemovedReason(string clientName) => Message.Of("downloads.follow.client-removed", ("client", clientName));
 
-    private static string SwitchedOffReason(string clientName) =>
-        $"“{clientName}” is switched off, so this download isn't followed for now. The owner can switch it on under Integrations.";
+    private static Message SwitchedOffReason(string clientName) => Message.Of("downloads.follow.switched-off", ("client", clientName));
 
-    private static string NoAdapterReason(string adapterType) => $"This version of the app can't follow downloads in “{adapterType}”.";
+    private static Message NoAdapterReason(string adapterType) => Message.Of("downloads.follow.type-unavailable", ("type", adapterType));
 
-    private static string ThrewReason(string clientName) => $"The app couldn't read what “{clientName}” answered.";
+    private static Message ClientErrorReason(string clientName) => Message.Of("downloads.follow.client-error", ("client", clientName));
 
-    private static string ClientErrorReason(string clientName) =>
-        $"“{clientName}” reports an error for this download, so it isn't moving on. Check it in “{clientName}”: the job goes on by itself once the error clears.";
+    private static Message MissingReason(string clientName) => Message.Of("downloads.follow.missing", ("client", clientName));
 
-    private static string MissingReason(string clientName) =>
-        $"“{clientName}” doesn't list this download any more. It is still followed in case it comes back; to send the release again, cancel this job first.";
-
-    private static string NotListedReason(string clientName) =>
-        $"“{clientName}” took this download but hasn't listed it since. It is still followed; to send the release again, cancel this job first.";
+    private static Message NotListedReason(string clientName) => Message.Of("downloads.follow.not-listed", ("client", clientName));
 
     // ADR 0013's gap: a job a stop left Created. Errors, not reasons: following ends.
 
-    private static string InterruptedBeforeHashesError(string clientName) =>
-        $"The app stopped while sending this download, before it could tell whether “{clientName}” took it, so it isn't followed. Check “{clientName}” before sending the release again.";
+    private static Message InterruptedBeforeHashesError(string clientName) =>
+        Message.Of("downloads.follow.interrupted-before-hashes", ("client", clientName));
 
-    private static string InterruptedNotListedError(string clientName) =>
-        $"The app stopped while sending this download, and “{clientName}” doesn't list it, so it isn't followed. Send the release again if you still want it.";
+    private static Message InterruptedNotListedError(string clientName) =>
+        Message.Of("downloads.follow.interrupted-not-listed", ("client", clientName));
 
     /// <summary>A client that can be asked: its row, its adapter and the settings to ask it with, for one
     /// pass.</summary>
@@ -579,6 +583,6 @@ public sealed class DownloadJobPoller(
         /// to it timed out, couldn't reach it, or its adapter threw (<see cref="NoteUnanswered{T}"/>); <c>null</c>
         /// while it answers. No further such call is made to it in the pass.
         /// </summary>
-        public (string Reason, DownloadJobErrorOrigin Origin)? Unanswered { get; set; }
+        public (Message Reason, DownloadJobErrorOrigin Origin)? Unanswered { get; set; }
     }
 }

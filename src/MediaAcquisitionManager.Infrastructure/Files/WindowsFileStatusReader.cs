@@ -74,7 +74,7 @@ internal sealed class WindowsFileStatusReader : IFileStatusReader
         if (modified > DateTime.MaxValue.ToFileTimeUtc())
         {
             return FileSystemFailure.Refused<FileFacts>(
-                FileInventoryStatus.Unreadable, FileInventoryMessages.CouldNotRead(appPath, "its modification time is past the year 9999"));
+                FileInventoryStatus.Unreadable, FileInventoryMessages.TimePastYear9999(appPath));
         }
 
         return new FileInventoryResult<FileFacts>(

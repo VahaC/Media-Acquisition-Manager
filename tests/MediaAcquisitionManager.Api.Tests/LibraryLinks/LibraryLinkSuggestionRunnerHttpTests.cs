@@ -8,6 +8,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -341,9 +342,43 @@ public sealed class LibraryLinkSuggestionRunnerHttpTests : IClassFixture<MediaAc
             var run = await db.LibraryLinkSuggestionRuns.AsNoTracking().SingleAsync(row => row.Id == runId, cancellationToken);
             Assert.Equal(
                 (LibraryLinkSuggestionRunStatus.Failed, (string?)"Connect a metadata catalog under Integrations first."),
-                (run.Status, run.Error));
+                (run.Status, TestTexts.En(run.Error)));
         });
         Assert.Equal(sent, _factory.TmdbHttp.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Run_whose_catalog_is_removed_while_it_searches_fails_saying_so()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await SyncAsync(cancellationToken, Landing());
+        var catalog = await ConnectCatalogAsync();
+        var removed = false;
+        // The owner removes the catalog while the run searches: what TMDb answers can't be stored as its own any more.
+        _tmdb.Intercept = request =>
+        {
+            if (!removed && request.RequestUri!.AbsolutePath.StartsWith("/3/search/", StringComparison.Ordinal))
+            {
+                removed = true;
+                using var scope = _factory.Services.CreateScope();
+                scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().IntegrationConnections
+                    .Where(integration => integration.Id == catalog.Id)
+                    .ExecuteDelete();
+            }
+
+            return null;
+        };
+
+        //Act
+        var run = await _factory.PrepareLinkSuggestionsAsync(_owner.AccessToken, cancellationToken);
+
+        //Assert
+        // MAM-47 (ADR 0042) — the stored reason in today's words; it had no test before.
+        Assert.True(removed);
+        Assert.Equal(
+            (LibraryLinkSuggestionRunStatus.Failed, (string?)"The metadata catalog was removed while the TMDb suggestions were prepared. The works searched so far are kept."),
+            (run.Status, run.Error));
     }
 
     [Fact]
@@ -382,7 +417,7 @@ public sealed class LibraryLinkSuggestionRunnerHttpTests : IClassFixture<MediaAc
         await _factory.WithDbAsync(async db =>
         {
             var run = await db.LibraryLinkSuggestionRuns.AsNoTracking().SingleAsync(row => row.Id == runId, cancellationToken);
-            Assert.Equal((LibraryLinkSuggestionRunStatus.Failed, (string?)AppErrorMessage), (run.Status, run.Error));
+            Assert.Equal((LibraryLinkSuggestionRunStatus.Failed, (string?)AppErrorMessage), (run.Status, TestTexts.En(run.Error)));
         });
         var error = Assert.Single(_factory.Logs.Entries, entry => entry.Category == typeof(LibraryLinkSuggestionRunWorker).FullName);
         Assert.Equal(LogLevel.Error, error.Level);
@@ -403,7 +438,7 @@ public sealed class LibraryLinkSuggestionRunnerHttpTests : IClassFixture<MediaAc
         await _factory.WithDbAsync(async db =>
         {
             var runs = await db.LibraryLinkSuggestionRuns.AsNoTracking().ToDictionaryAsync(run => run.Id, cancellationToken);
-            Assert.Equal((LibraryLinkSuggestionRunStatus.Failed, (string?)RestartedError), (runs[running.Id].Status, runs[running.Id].Error));
+            Assert.Equal((LibraryLinkSuggestionRunStatus.Failed, (string?)RestartedError), (runs[running.Id].Status, TestTexts.En(runs[running.Id].Error)));
             Assert.Equal(LibraryLinkSuggestionRunStatus.Queued, runs[queued.Id].Status);
         });
         Assert.True(_factory.Resolve<LibraryLinkSuggestionRunQueue>().Reader.TryRead(out var requeued));

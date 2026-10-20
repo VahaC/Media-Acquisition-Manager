@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Core.Accounts;
 
 /// <summary>
@@ -19,12 +21,12 @@ public static class PasswordRules
     /// </summary>
     public const int MaximumLength = 128;
 
-    private const string TooShortError = "A password must be at least 8 characters long.";
-    private const string TooLongError = "A password can be at most 128 characters long.";
+    private static readonly Message TooShortError = Message.Of("account.password.too-short", ("count", MinimumLength));
+    private static readonly Message TooLongError = Message.Of("account.password.too-long", ("count", MaximumLength));
 
-    /// <summary>The sentence saying what is wrong with <paramref name="password"/>, or <c>null</c>
+    /// <summary>Why <paramref name="password"/> is refused, as a message the Api renders (ADR 0042), or <c>null</c>
     /// when it is acceptable.</summary>
-    public static string? Validate(string? password) => password?.Length switch
+    public static Message? Validate(string? password) => password?.Length switch
     {
         null or < MinimumLength => TooShortError,
         > MaximumLength => TooLongError,

@@ -1,11 +1,12 @@
 using System.Diagnostics;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.AspNetCore.Diagnostics;
 
 namespace MediaAcquisitionManager.Api.Http;
 
 /// <summary>
 /// The answer to anything that escapes a controller or a middleware: 500 with the same
-/// <c>{ "error": "…" }</c> body every other failure uses, quoting the trace id. A client fault that
+/// <c>{ "error": "…", "code": "…" }</c> body every other failure uses, quoting the trace id. A client fault that
 /// Kestrel or MVC reports as <see cref="BadHttpRequestException"/> keeps its own 4xx instead.
 /// </summary>
 /// <remarks>
@@ -14,6 +15,8 @@ namespace MediaAcquisitionManager.Api.Http;
 /// gap: the user quotes it, the Error log line below carries it. The exception text itself never
 /// goes to the client — it can hold file paths, SQL and configuration values, and this answer
 /// reaches anonymous callers.
+/// MAM-47 (ADR 0042) — written by <see cref="ApiErrorBody"/>, in the request's language; the renderer never throws in
+/// production, so this answer can't turn into the empty 500 it replaces.
 /// </remarks>
 public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
@@ -33,9 +36,7 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
                 badRequest.StatusCode,
                 badRequest.Message);
 
-            httpContext.Response.StatusCode = badRequest.StatusCode;
-            await httpContext.Response.WriteAsJsonAsync(
-                new { error = DescribeClientFault(badRequest.StatusCode) }, cancellationToken);
+            await ApiErrorBody.WriteAsync(httpContext, badRequest.StatusCode, DescribeClientFault(badRequest.StatusCode));
             return true;
         }
 
@@ -50,18 +51,16 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             httpContext.Request.Path,
             traceId);
 
-        httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        await httpContext.Response.WriteAsJsonAsync(
-            new { error = $"The server failed to process this request. Quote trace id {traceId} when you report it." },
-            cancellationToken);
+        await ApiErrorBody.WriteAsync(
+            httpContext, StatusCodes.Status500InternalServerError, Message.Of("common.server.failed", ("traceId", traceId)));
         return true;
     }
 
     // Fixed sentences rather than the exception's message, like the 500 path: the message is
     // server-side wording (limits in bytes, parser internals), not something to show a user.
-    private static string DescribeClientFault(int statusCode) => statusCode switch
+    private static Message DescribeClientFault(int statusCode) => statusCode switch
     {
-        StatusCodes.Status413PayloadTooLarge => "The request body is larger than this server accepts.",
-        _ => "The server could not read this request.",
+        StatusCodes.Status413PayloadTooLarge => Message.Of("common.request.too-large"),
+        _ => Message.Of("common.request.unreadable"),
     };
 }

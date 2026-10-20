@@ -2,6 +2,7 @@ using System.Runtime.Versioning;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -98,7 +99,7 @@ public sealed class LocalFileInventoryTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.OutsideAllowedRoots, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal("No media folder is allowed yet, so the app reads no file.", result.Error);
+        Assert.Equal("No media folder is allowed yet, so the app reads no file.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -114,7 +115,7 @@ public sealed class LocalFileInventoryTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.OutsideAllowedRoots, result.Status);
-        Assert.Equal("No media folder is allowed yet, so the app reads no file.", result.Error);
+        Assert.Equal("No media folder is allowed yet, so the app reads no file.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -142,7 +143,7 @@ public sealed class LocalFileInventoryTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.OutsideAllowedRoots, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal($"“{path}” is outside the media folders the app may read.", result.Error);
+        Assert.Equal($"“{path}” is outside the media folders the app may read.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -170,7 +171,7 @@ public sealed class LocalFileInventoryTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.OutsideAllowedRoots, result.Status);
-        Assert.Equal($"“media{Separator}movie.mkv” is not a full path, so the app doesn't read it.", result.Error);
+        Assert.Equal($"“media{Separator}movie.mkv” is not a full path, so the app doesn't read it.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -185,7 +186,7 @@ public sealed class LocalFileInventoryTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.OutsideAllowedRoots, result.Status);
-        Assert.Equal($"“{path}” contains . or .. as a folder name, so the app doesn't read it.", result.Error);
+        Assert.Equal($"“{path}” contains . or .. as a folder name, so the app doesn't read it.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -200,7 +201,7 @@ public sealed class LocalFileInventoryTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.NotFound, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal($"There is no file at “{path}”.", result.Error);
+        Assert.Equal($"There is no file at “{path}”.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -240,7 +241,7 @@ public sealed class LocalFileInventoryTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.NotARegularFile, result.Status);
-        Assert.Equal($"“{path}” is a folder, not a file.", result.Error);
+        Assert.Equal($"“{path}” is a folder, not a file.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -343,7 +344,7 @@ public sealed class LocalFileInventoryTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.Unreadable, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal($"The app isn't allowed to read “{path}”.", result.Error);
+        Assert.Equal($"The app isn't allowed to read “{path}”.", TestTexts.En(result.Error));
     }
 
     [Fact]

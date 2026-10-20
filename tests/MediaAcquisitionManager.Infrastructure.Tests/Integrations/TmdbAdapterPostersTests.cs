@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -87,7 +88,7 @@ public sealed class TmdbAdapterPostersTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotAnImageError, result.Error);
+        Assert.Equal(NotAnImageError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -101,7 +102,7 @@ public sealed class TmdbAdapterPostersTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotAnImageError, result.Error);
+        Assert.Equal(NotAnImageError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -115,7 +116,7 @@ public sealed class TmdbAdapterPostersTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal("TMDb's image host has no poster at /esaQNJKjE8IDk5G0tmEOJL7AaEP.jpg.", result.Error);
+        Assert.Equal("TMDb's image host has no poster at /esaQNJKjE8IDk5G0tmEOJL7AaEP.jpg.", TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -133,8 +134,8 @@ public sealed class TmdbAdapterPostersTests : IDisposable
         // MAM-33 — the poster goes to TMDb's image host, never to the address the owner saved, so a sentence naming that
         // address would send them checking the wrong one.
         Assert.Equal(IntegrationCallStatus.Unreachable, result.Status);
-        Assert.Equal(expected, result.Error);
-        Assert.DoesNotContain(BaseUrl, result.Error, StringComparison.Ordinal);
+        Assert.Equal(expected, TestTexts.En(result.Error));
+        Assert.DoesNotContain(BaseUrl, TestTexts.En(result.Error), StringComparison.Ordinal);
     }
 
     [Fact]

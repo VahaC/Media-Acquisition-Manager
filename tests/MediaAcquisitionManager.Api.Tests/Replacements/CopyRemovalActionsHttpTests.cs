@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -154,10 +155,10 @@ public sealed class CopyRemovalActionsHttpTests : IClassFixture<MediaAcquisition
         //Assert
         Assert.Equal((HttpStatusCode.Conflict, reason), (response.StatusCode, await response.ReadErrorAsync(cancellationToken)));
         var row = Assert.Single(await _removals.RemovalsAsync(cancellationToken));
-        Assert.Equal((CopyRemovalState.NeedsReview, (string?)reason), (row.State, row.Reason));
+        Assert.Equal((CopyRemovalState.NeedsReview, (string?)reason), (row.State, TestTexts.En(row.Reason)));
         Assert.Equal(
             [(ReplacementNameState.Restored, (string?)null), (ReplacementNameState.Quarantined, (string?)SrtNotAllowed)],
-            (await _removals.NamesAsync(planted.Removal.Id, cancellationToken)).Select(name => (name.State, name.Problem)));
+            (await _removals.NamesAsync(planted.Removal.Id, cancellationToken)).Select(name => (name.State, TestTexts.En(name.Problem))));
         Assert.Equal(
             [
                 AuditAction.CopyRemovalRestoreStarted,
@@ -171,12 +172,37 @@ public sealed class CopyRemovalActionsHttpTests : IClassFixture<MediaAcquisition
     }
 
     [Fact]
+    public async Task Restore_whose_rename_back_moves_another_file_put_at_the_name_records_it_lost_as_this_copys_own()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var planted = await PlantQuarantinedAsync();
+        // Another file takes the subtitle's place in the quarantine after the last look, and the rename back moves it.
+        _factory.Quarantine.Swap(CopyRemovalPlanter.QuarantinePathOf(planted.Removal.Id, RemovedSrtPath), TestMedia.File(inode: 55, sizeBytes: 7));
+        const string problem =
+            "A different file now sits at “/media/movies/Alien (1979)/Alien (1979) 2160p.uk.srt”, as another file took the name's place in the "
+            + "quarantine just before the rename back, and this copy's own file wasn't found.";
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{BaseUrl}/{planted.Removal.Id}/restore", _harness.Owner.AccessToken);
+
+        //Assert
+        // MAM-47 — "this copy", as every other sentence of a removal calls it (the old copy, a replacement's word, before).
+        Assert.Equal(
+            (HttpStatusCode.Conflict, "“Alien (1979) 2160p.uk.srt” couldn't be put back: " + problem + " 1 of 2 names is back where it was."),
+            (response.StatusCode, await response.ReadErrorAsync(cancellationToken)));
+        Assert.Equal(
+            [(ReplacementNameState.Restored, (string?)null), (ReplacementNameState.Lost, problem)],
+            (await _removals.NamesAsync(planted.Removal.Id, cancellationToken)).Select(name => (name.State, TestTexts.En(name.Problem))));
+    }
+
+    [Fact]
     public async Task Restore_of_a_removal_that_moved_nothing_is_409()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var planted = await _removals.PlantAsync(
-            CopyRemovalState.NotMoved, [new PlantedName(ReplacementNameKind.Video, RemovedPath, TestMedia.File(inode: 2), ReplacementNameState.Stayed, "Refused.")]);
+            CopyRemovalState.NotMoved, [new PlantedName(ReplacementNameKind.Video, RemovedPath, TestMedia.File(inode: 2), ReplacementNameState.Stayed, PlantedMessage.Of("The file system gave no reason."))]);
         var before = await _removals.NamesAsync(planted.Removal.Id, cancellationToken);
 
         //Act
@@ -323,7 +349,7 @@ public sealed class CopyRemovalActionsHttpTests : IClassFixture<MediaAcquisition
                 new PlantedName(ReplacementNameKind.Video, RemovedPath, TestMedia.File(inode: 2), ReplacementNameState.Restored),
                 new PlantedName(ReplacementNameKind.Companion, RemovedSrtPath, TestMedia.File(inode: 3, sizeBytes: SrtSize)),
             ],
-            reason: "Stopped.");
+            reason: PlantedMessage.Of("The app stopped while putting this copy back: 1 of 2 names is back where it was."));
 
         //Act
         var response = await _factory.PostHttpRequest($"{BaseUrl}/{planted.Removal.Id}/delete-for-good", _harness.Owner.AccessToken);
@@ -343,7 +369,7 @@ public sealed class CopyRemovalActionsHttpTests : IClassFixture<MediaAcquisition
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var planted = await _removals.PlantAsync(
-            CopyRemovalState.NotMoved, [new PlantedName(ReplacementNameKind.Video, RemovedPath, TestMedia.File(inode: 2), ReplacementNameState.Stayed, "Refused.")]);
+            CopyRemovalState.NotMoved, [new PlantedName(ReplacementNameKind.Video, RemovedPath, TestMedia.File(inode: 2), ReplacementNameState.Stayed, PlantedMessage.Of("The file system gave no reason."))]);
         var before = await _removals.NamesAsync(planted.Removal.Id, cancellationToken);
 
         //Act

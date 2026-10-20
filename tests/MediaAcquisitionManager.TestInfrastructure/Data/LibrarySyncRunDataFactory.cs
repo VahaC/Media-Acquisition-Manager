@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
@@ -14,7 +15,7 @@ public sealed class LibrarySyncRunDataFactory(ApplicationDbContext db, TimeProvi
         Guid? requestedByUserId = null,
         string? requestedByUserName = null,
         DateTime? createdUtc = null,
-        string? error = null)
+        Message? error = null)
     {
         var requested = createdUtc ?? time.GetUtcNow().UtcDateTime;
         var finished = status is LibrarySyncStatus.Succeeded or LibrarySyncStatus.Failed;

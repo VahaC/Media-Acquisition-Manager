@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.Api.Services.Recommendations;
@@ -18,7 +19,7 @@ public sealed class RecommendationRunWorker(
     TimeProvider time,
     ILogger<RecommendationRunWorker> logger) : BackgroundService
 {
-    internal const string AppErrorMessage = "The recommendations stopped computing because of an error in the app. Its log says more.";
+    internal static readonly Message AppErrorMessage = Message.Of("recommendations.run.app-error");
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

@@ -25,8 +25,9 @@ public sealed class PersonalAccessTokensAccessHttpTests : IClassFixture<MediaAcq
     private const string TokenName = "Claude on the laptop";
 
     // Spelled out rather than read from PersonalAccessTokenErrors: this is what a script's author reads.
-    private const string NotForTokensBody =
-        """{"error":"An access token can't do this. A token reads, and with “Read and download” access also sends downloads, cancels following and marks Not interested; everything else is done in the web app. See “Scripts and the API” in the README."}""";
+    private static readonly string NotForTokensBody = ErrorBody.Json(
+        "An access token can't do this. A token reads, and with “Read and download” access also sends downloads, cancels following and marks Not interested; everything else is done in the web app. See “Scripts and the API” in the README.",
+        "account.token.not-for-tokens");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IPersonalAccessTokenSeeder _tokens = null!;

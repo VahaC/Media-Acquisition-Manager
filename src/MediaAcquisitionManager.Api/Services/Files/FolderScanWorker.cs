@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.Api.Services.Files;
@@ -18,7 +19,7 @@ public sealed class FolderScanWorker(
     TimeProvider time,
     ILogger<FolderScanWorker> logger) : BackgroundService
 {
-    internal const string AppErrorMessage = "The scan stopped because of an error in the app. Its log says more.";
+    internal static readonly Message AppErrorMessage = Message.Of("files.scan.app-error");
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

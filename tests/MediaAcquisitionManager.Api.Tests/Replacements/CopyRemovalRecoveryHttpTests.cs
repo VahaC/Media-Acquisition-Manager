@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.Extensions.Logging;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -64,7 +65,7 @@ public sealed class CopyRemovalRecoveryHttpTests : IClassFixture<MediaAcquisitio
         var removal = Assert.Single(await _removals.RemovalsAsync(cancellationToken));
         Assert.Equal(
             (CopyRemovalState.NeedsReview, (string?)"The app stopped while moving this copy: 1 of 2 names is in the quarantine.", (DateTime?)null),
-            (removal.State, removal.Reason, removal.LibraryNoticeDueUtc));
+            (removal.State, TestTexts.En(removal.Reason), removal.LibraryNoticeDueUtc));
         Assert.Equal(
             [(ReplacementNameState.Quarantined, (DateTime?)now), (ReplacementNameState.Planned, (DateTime?)null)],
             (await _removals.NamesAsync(removal.Id, cancellationToken)).Select(name => (name.State, name.MovedUtc)));
@@ -97,7 +98,7 @@ public sealed class CopyRemovalRecoveryHttpTests : IClassFixture<MediaAcquisitio
         // Nothing is in the quarantine, so nothing is left to review: the removal ends there.
         Assert.Equal(
             (CopyRemovalState.NotMoved, (string?)"The app stopped while moving this copy."),
-            (removal.State, removal.Reason));
+            (removal.State, TestTexts.En(removal.Reason)));
         Assert.Equal(ReplacementNameState.Planned, Assert.Single(await _removals.NamesAsync(removal.Id, cancellationToken)).State);
         Assert.Equal(
             [AuditAction.CopyRemovalNameNotMoved, AuditAction.CopyRemovalNotMoved],
@@ -135,13 +136,13 @@ public sealed class CopyRemovalRecoveryHttpTests : IClassFixture<MediaAcquisitio
         // or delete, and nothing known to have left the library.
         Assert.Equal(
             (CopyRemovalState.NeedsReview, (string?)reason, (DateTime?)null),
-            (removal.State, removal.Reason, removal.LibraryNoticeDueUtc));
+            (removal.State, TestTexts.En(removal.Reason), removal.LibraryNoticeDueUtc));
         Assert.Equal(
             [
                 (ReplacementNameState.Lost, (string?)"The app stopped while moving “Alien (1979) 2160p.mkv”, and found it neither where it was nor in the quarantine."),
                 (ReplacementNameState.Planned, (string?)null),
             ],
-            (await _removals.NamesAsync(removal.Id, cancellationToken)).Select(name => (name.State, name.Problem)));
+            (await _removals.NamesAsync(removal.Id, cancellationToken)).Select(name => (name.State, TestTexts.En(name.Problem))));
         Assert.Equal(
             [
                 (AuditAction.CopyRemovalNameNotMoved, (Guid?)null, (AuditTargetKind?)AuditTargetKind.CopyRemovalName, (Guid?)planted.Names[0].Id, (string?)"Alien (1979) 2160p.mkv"),
@@ -177,7 +178,7 @@ public sealed class CopyRemovalRecoveryHttpTests : IClassFixture<MediaAcquisitio
 
         //Assert
         var removal = Assert.Single(await _removals.RemovalsAsync(cancellationToken));
-        Assert.Equal((CopyRemovalState.Restored, (string?)null), (removal.State, removal.Reason));
+        Assert.Equal((CopyRemovalState.Restored, (string?)null), (removal.State, TestTexts.En(removal.Reason)));
         Assert.All(await _removals.NamesAsync(removal.Id, cancellationToken), name => Assert.Equal(ReplacementNameState.Restored, name.State));
         Assert.Equal(
             [AuditAction.CopyRemovalNameRestored, AuditAction.CopyRemovalNameRestored, AuditAction.CopyRemovalRestored],
@@ -206,7 +207,7 @@ public sealed class CopyRemovalRecoveryHttpTests : IClassFixture<MediaAcquisitio
         var removal = Assert.Single(await _removals.RemovalsAsync(cancellationToken));
         Assert.Equal(
             (CopyRemovalState.NeedsReview, (string?)"The app stopped while deleting this copy permanently: 1 of 2 names is deleted."),
-            (removal.State, removal.Reason));
+            (removal.State, TestTexts.En(removal.Reason)));
         Assert.Equal(
             [ReplacementNameState.Deleted, ReplacementNameState.Quarantined],
             (await _removals.NamesAsync(removal.Id, cancellationToken)).Select(name => name.State));

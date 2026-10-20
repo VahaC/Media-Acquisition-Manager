@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Destinations;
 
@@ -12,7 +13,7 @@ namespace MediaAcquisitionManager.Api.Services.Destinations;
 /// <param name="Status">Whether the client was asked, and how that went.</param>
 /// <param name="Destinations">Its destinations in its own order, each checked, when
 /// <see cref="ClientDestinationsStatus.Listed"/>; empty otherwise.</param>
-/// <param name="Error">The sentence saying why the client couldn't be asked; <c>null</c> when it
+/// <param name="Error">Why the client couldn't be asked, as a message the Api renders (ADR 0042); <c>null</c> when it
 /// answered.</param>
 /// <param name="Kind">MAM-30 — what the client's destinations are, by its type; <c>null</c> for a type this build
 /// doesn't register.</param>
@@ -21,7 +22,7 @@ namespace MediaAcquisitionManager.Api.Services.Destinations;
 public sealed record ClientDestinationsResult(
     ClientDestinationsStatus Status,
     IReadOnlyList<CheckedClientDestination> Destinations,
-    string? Error,
+    Message? Error,
     DownloadDestinationKind? Kind,
     IReadOnlyList<UnplacedLibraryFolder> Unplaced)
 {
@@ -29,7 +30,7 @@ public sealed record ClientDestinationsResult(
         DownloadDestinationKind? kind, IReadOnlyList<CheckedClientDestination> destinations, IReadOnlyList<UnplacedLibraryFolder> unplaced) =>
         new(ClientDestinationsStatus.Listed, destinations, null, kind, unplaced);
 
-    public static ClientDestinationsResult NotListed(ClientDestinationsStatus status, string error, DownloadDestinationKind? kind) =>
+    public static ClientDestinationsResult NotListed(ClientDestinationsStatus status, Message error, DownloadDestinationKind? kind) =>
         new(status, [], error, kind, []);
 
     /// <summary>

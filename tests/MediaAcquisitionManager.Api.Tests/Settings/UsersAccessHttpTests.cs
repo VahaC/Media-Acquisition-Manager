@@ -15,8 +15,8 @@ namespace MediaAcquisitionManager.Api.Tests.Settings;
 public sealed class UsersAccessHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/users";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IUserSeeder _users = null!;

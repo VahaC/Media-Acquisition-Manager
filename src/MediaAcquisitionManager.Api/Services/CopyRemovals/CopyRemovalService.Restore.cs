@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
@@ -13,17 +14,16 @@ namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
 /// </summary>
 public sealed partial class CopyRemovalService
 {
-    private const string NothingToRestoreError = "Nothing of this removal is in the quarantine, so there's nothing to put back.";
+    private static readonly Message NothingToRestoreError = Message.Of("duplicates.removal.restore.nothing");
 
-    private const string RestoreSwitchedOffError =
-        "Replacing and removing copies is switched off on the Media folders page, so nothing can be put back. Turn on “Replace copies after verification”, then press Restore again.";
+    private static readonly Message RestoreSwitchedOffError = Message.Of("duplicates.removal.restore.switched-off");
 
-    private const string RestoreNotSupportedError = "The app can't rename files on the platform it runs on, so nothing was put back.";
+    // A replacement's own words: the same platform and the same rename back.
+    private static readonly Message RestoreNotSupportedError = Message.Of("replacements.restore.unsupported");
 
     // A Delete for good stopped part-way deleted the video: what is left of the copy — a subtitle, an .nfo — would go back
     // to the library alone, and the removal would end saying the copy is back. Delete for good takes what is left.
-    private const string VideoDeletedError =
-        "This copy's video was deleted permanently, so nothing is put back without it. Delete permanently what the quarantine still holds.";
+    private static readonly Message VideoDeletedError = Message.Of("duplicates.removal.restore.video-deleted");
 
     public async Task<CopyRemovalResult> RestoreAsync(Guid copyRemovalId, Guid callerUserId, CancellationToken cancellationToken = default)
     {
@@ -44,7 +44,7 @@ public sealed partial class CopyRemovalService
         if (!inHand.TryTake(copyRemovalId))
             return CopyRemovalResult.Refused(BeingWorkedOnError);
 
-        string? stopped;
+        Message? stopped;
         try
         {
             stopped = await RunAsync(removal, names, RestoreWrite(), actor);
@@ -61,7 +61,7 @@ public sealed partial class CopyRemovalService
     /// Why <paramref name="names"/> can't be put back now, nothing written; <c>null</c> when they can: the platform renames,
     /// the switch is on, and every name passes <see cref="QuarantineNameChecks.RestoreRefusalAsync"/>.
     /// </summary>
-    private async Task<string?> RestoreRefusalAsync(IReadOnlyList<CopyRemovalNameEntity> names, CancellationToken cancellationToken)
+    private async Task<Message?> RestoreRefusalAsync(IReadOnlyList<CopyRemovalNameEntity> names, CancellationToken cancellationToken)
     {
         if (!quarantine.Capabilities.CanRename)
             return RestoreNotSupportedError;
@@ -86,5 +86,6 @@ public sealed partial class CopyRemovalService
             AuditAction.CopyRemovalNameRestoring,
             AuditAction.CopyRemovalNameRestored,
             AuditAction.CopyRemovalNameNotRestored,
-            SwitchedOffMidwayError));
+            SwitchedOffMidwayError,
+            QuarantineWording.Removal));
 }

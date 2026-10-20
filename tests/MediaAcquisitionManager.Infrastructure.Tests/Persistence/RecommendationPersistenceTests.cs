@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Options;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
@@ -207,8 +208,8 @@ public sealed class RecommendationPersistenceTests : DatabaseTestBase
         await using var db = CreateContext();
         await Runs(db).Create(RecommendationRunStatus.Succeeded);
         await Runs(db).Create(RecommendationRunStatus.Succeeded, RecommendationRunTrigger.LibrarySynced);
-        await Runs(db).Create(RecommendationRunStatus.Failed, error: "Connect a metadata catalog under Integrations first.");
-        await Runs(db).Create(RecommendationRunStatus.Failed, RecommendationRunTrigger.FeedRead, error: "The app restarted.");
+        await Runs(db).Create(RecommendationRunStatus.Failed, error: Message.Of("integrations.catalog.not-connected"));
+        await Runs(db).Create(RecommendationRunStatus.Failed, RecommendationRunTrigger.FeedRead, error: Message.Of("recommendations.run.restarted"));
 
         //Act
         var exception = await Record.ExceptionAsync(async () =>

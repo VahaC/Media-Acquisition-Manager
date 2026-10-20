@@ -22,7 +22,8 @@ public sealed class UsersPasswordHttpTests : IClassFixture<MediaAcquisitionManag
     private const string MeUrl = "/api/auth/me";
     private const string DownloadsUrl = "/api/downloads";
     private const string NewPassword = "brand-new-password";
-    private const string InvalidCredentialsBody = """{"error":"The user name or password is incorrect."}""";
+    private static readonly string InvalidCredentialsBody =
+        ErrorBody.Json("The user name or password is incorrect.", "account.sign-in.invalid-credentials");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IUserSeeder _users = null!;

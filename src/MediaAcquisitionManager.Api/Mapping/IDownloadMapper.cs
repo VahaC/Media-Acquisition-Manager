@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
@@ -16,6 +17,17 @@ public interface IDownloadMapper
     /// a folder job's folder only for the owner (D13).
     /// </summary>
     DownloadJobDto ToDto(DownloadJobEntity job, string releaseTitle, string sourceName, bool forOwner);
+
+    /// <summary>
+    /// MAM-47 — why <paramref name="job"/> failed, as the reader may read it: the stored message for the owner and for the
+    /// app's own sentences, else the app's sentence naming the service (<paramref name="sourceName"/> or the client)
+    /// without what it said. What <see cref="ToDto(DownloadJobEntity, string, string, bool)"/> renders as the job's error;
+    /// an MCP summary nests it (ADR 0042).
+    /// </summary>
+    Message? ErrorOf(DownloadJobEntity job, string sourceName, bool forOwner);
+
+    /// <summary>MAM-47 — why a followed <paramref name="job"/> isn't moving on, by <see cref="ErrorOf"/>'s rule.</summary>
+    Message? BlockReasonOf(DownloadJobEntity job, bool forOwner);
 
     /// <summary>MAM-14 — a file of a job as its details page lists it.</summary>
     DownloadJobFileDto ToDto(DownloadJobFileEntity file);

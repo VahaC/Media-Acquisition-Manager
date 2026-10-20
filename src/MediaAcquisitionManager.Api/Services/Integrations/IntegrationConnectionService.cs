@@ -13,6 +13,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
 using MediaAcquisitionManager.Core.Paging;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,8 +48,8 @@ public sealed partial class IntegrationConnectionService(
     /// (<c>DownloadClient</c>; MAM-33's <c>Metadata</c> is shorter).</summary>
     private const int KindEchoLength = 32;
 
-    private const string AdapterTypeMissingError = "Choose the service to connect to.";
-    private const string SecretModeError = "A secret change must be Keep, Set or Clear.";
+    private static readonly Message AdapterTypeMissingError = Message.Of("integrations.service.adapter-type-missing");
+    private static readonly Message SecretModeError = Message.Of("integrations.service.secret-mode-invalid");
 
     public async Task<IntegrationListResult> ListAsync(string? search, string? kind, int page, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -61,7 +62,7 @@ public sealed partial class IntegrationConnectionService(
             if (ParseKind(kind) is not { } parsedKind)
             {
                 return IntegrationListResult.Invalid(
-                    $"“{Echo(kind.Trim(), KindEchoLength)}” is not a kind of integration. Use MediaLibrary, ReleaseSearch, DownloadClient or Metadata.");
+                    Message.Of("integrations.list.kind-unknown", ("value", Echo(kind.Trim(), KindEchoLength))));
             }
 
             // On the column copied from the type at creation, so the filter runs in SQL.
@@ -432,9 +433,9 @@ public sealed partial class IntegrationConnectionService(
     private DownloadDestinationKind? DestinationKindOf(string? adapterType) =>
         adapters.Find<IDownloadClient>(adapterType)?.Capabilities.DestinationKind;
 
-    // The adapter a new integration or a new draft names, or the sentence saying why there is none.
+    // The adapter a new integration or a new draft names, or the message saying why there is none.
     // An exact match: the id is stored on the row and compared byte for byte (ADR 0005).
-    private (IIntegrationAdapter? Adapter, string? Error) FindRequestedAdapter(string? adapterType)
+    private (IIntegrationAdapter? Adapter, Message? Error) FindRequestedAdapter(string? adapterType)
     {
         var typeId = adapterType?.Trim() ?? "";
         if (typeId.Length == 0)
@@ -442,13 +443,13 @@ public sealed partial class IntegrationConnectionService(
 
         return adapters.Find(typeId) is { } adapter
             ? (adapter, null)
-            : (null, $"“{Echo(typeId, AdapterTypeEchoLength)}” is not a service this app can connect to.");
+            : (null, Message.Of("integrations.service.adapter-type-unknown", ("value", Echo(typeId, AdapterTypeEchoLength))));
     }
 
     // The rules a save and a draft test share, in CreateAsync's order: the address, the user name, each
     // secret change, then the credentials the changes leave — on the effective state, so a kept secret
     // counts as there when the stored row has one.
-    private static string? ValidateConnection(
+    private static Message? ValidateConnection(
         IntegrationAdapterDescriptor adapter,
         string? baseUrl,
         string? userName,
@@ -515,11 +516,13 @@ public sealed partial class IntegrationConnectionService(
             .Select(user => new AuditActor(user.Id, user.UserName))
             .SingleAsync(cancellationToken);
 
+    // MAM-47 (ADR 0042) — the name and the type as they are, not MessageText.Clean'ed: the name rules already refuse control
+    // characters, and a format character the owner typed (an emoji's joiner) belongs to the name the sentence quotes.
     private static IntegrationChangeResult NameTaken(string name) =>
-        IntegrationChangeResult.NameTaken($"An integration named “{name}” already exists.");
+        IntegrationChangeResult.NameTaken(Message.Of("integrations.service.name-taken", ("name", name)));
 
-    private static string AdapterUnavailableError(IntegrationConnectionEntity integration) =>
-        $"This version of the app can't connect to “{integration.AdapterType}”, so this integration can only be removed.";
+    private static Message AdapterUnavailableError(IntegrationConnectionEntity integration) =>
+        Message.Of("integrations.service.adapter-unavailable", ("type", integration.AdapterType));
 
     // Trimmed; blank is none — the rules read it the same way.
     private static string? NormalizeUserName(string? userName) =>

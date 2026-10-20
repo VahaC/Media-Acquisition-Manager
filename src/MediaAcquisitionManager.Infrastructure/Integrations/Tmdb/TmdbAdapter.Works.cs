@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
 using MediaAcquisitionManager.Core.Recommendations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 
@@ -109,7 +110,11 @@ internal sealed partial class TmdbAdapter
                 string.Create(
                     CultureInfo.InvariantCulture,
                     $"tv/{showId}/season/{seasonNumber}/episode/{episodeNumber}?append_to_response=external_ids&language={LanguageAskedBy(settings)}"),
-                string.Create(CultureInfo.InvariantCulture, $"TMDb has no episode {episodeNumber} of season {seasonNumber} of the show {showId}."),
+                Message.Of(
+                    "tmdb.not-found.episode",
+                    ("episode", episodeNumber.ToString(CultureInfo.InvariantCulture)),
+                    ("season", seasonNumber.ToString(CultureInfo.InvariantCulture)),
+                    ("show", showId)),
                 ReadEpisode,
                 token),
             cancellationToken);
@@ -129,7 +134,7 @@ internal sealed partial class TmdbAdapter
                 settings,
                 sessionSecrets,
                 $"collection/{id}?language={LanguageAskedBy(settings)}",
-                $"TMDb has no collection with the id {id}.",
+                Message.Of("tmdb.not-found.collection", ("id", id)),
                 ReadCollection,
                 token),
             cancellationToken);
@@ -157,14 +162,15 @@ internal sealed partial class TmdbAdapter
                 settings,
                 sessionSecrets,
                 $"person/{id}/combined_credits?language={LanguageAskedBy(settings)}",
-                $"TMDb has no person with the id {id}.",
+                Message.Of("tmdb.not-found.person", ("id", id)),
                 (root, secrets) => ReadPerson(root, id, secrets),
                 token),
             cancellationToken);
     }
 
-    private static string WorkNotFoundError(MediaWorkKind kind, string id) =>
-        kind == MediaWorkKind.Series ? $"TMDb has no show with the id {id}." : $"TMDb has no movie with the id {id}.";
+    /// <summary>TMDb's own 404 for a film or a show: one key per kind, the id a value (MAM-47).</summary>
+    private static Message WorkNotFoundError(MediaWorkKind kind, string id) =>
+        kind == MediaWorkKind.Series ? Message.Of("tmdb.not-found.show", ("id", id)) : Message.Of("tmdb.not-found.movie", ("id", id));
 
     /// <summary>
     /// A film's or a show's details. A film: its IMDb id, its collection and its directors (the crew's

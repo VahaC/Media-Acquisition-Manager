@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Core.Paging;
 
 /// <summary>
@@ -12,12 +14,15 @@ public static class PagingRules
     /// </summary>
     public const int MaximumPageSize = 100;
 
-    private const string PageError = "Page must be 1 or more.";
-    private const string PageSizeError = "Page size must be between 1 and 100.";
+    /// <summary>A page below 1, or one that isn't a number at all (MAM-33's text-valued lists answer it too).</summary>
+    internal static readonly Message PageError = Message.Of("common.paging.page-invalid");
 
-    /// <summary>The sentence saying what is wrong with <paramref name="page"/> (1-based) or
-    /// <paramref name="pageSize"/>, or <c>null</c> when both are acceptable.</summary>
-    public static string? Validate(int page, int pageSize)
+    /// <summary>A page size outside 1–<see cref="MaximumPageSize"/>, or one that isn't a number at all.</summary>
+    internal static readonly Message PageSizeError = Message.Of("common.paging.page-size-invalid");
+
+    /// <summary>Why <paramref name="page"/> (1-based) or <paramref name="pageSize"/> is refused, as a message the Api
+    /// renders (ADR 0042), or <c>null</c> when both are acceptable.</summary>
+    public static Message? Validate(int page, int pageSize)
     {
         if (page < 1)
             return PageError;

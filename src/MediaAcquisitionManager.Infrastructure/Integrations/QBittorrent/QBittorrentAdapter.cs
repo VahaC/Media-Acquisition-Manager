@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 
@@ -20,11 +21,18 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 /// which one holds a library copy (ADR 0031) — in <c>QBittorrentAdapter.Holdings.cs</c>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The sign-in and GETs, plus — MAM-13 — one write: <c>torrents/add</c>, sent once on a session a read has
 /// just confirmed and never sent again (house rule 8: a write sent twice may act twice). Nothing else that
 /// changes anything in qBittorrent — MAM-14 included: following a job only reads, and cancelling one sends
 /// nothing, so nothing here stops, pauses or deletes a torrent or its files (ADR 0014). Every answer is read
 /// as an allowlist, property by property by name (house rule 8).
+/// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — every sentence is a key of <c>qbittorrent.json</c> (or, where Transmission's words are the same
+/// but for the name, of <c>integrations.json</c> through <see cref="IntegrationAdapterMessages"/>) and its values; the
+/// version qBittorrent reports is a vendor value.
+/// </para>
 /// </remarks>
 internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
     : HttpIntegrationAdapter(httpClients, HttpClientName), IDownloadClient
@@ -35,6 +43,10 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
     /// <summary>The named client this adapter's requests go through, so a test can swap its handler.</summary>
     public const string HttpClientName = TypeId;
 
+    /// <summary>MAM-47 — the service's name, which the descriptor shows and the sentences shared with the other adapters
+    /// name it by (<see cref="IntegrationAdapterMessages"/>), static readers included.</summary>
+    private const string DisplayName = "qBittorrent";
+
     /// <summary>Far longer than qBittorrent's 32-character session id; a longer name or value is not
     /// one this app sends back.</summary>
     private const int CookiePartMaximumLength = 256;
@@ -42,27 +54,21 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
     /// <summary>Longer than any version qBittorrent reports (<c>v5.2.3</c>).</summary>
     private const int VersionMaximumLength = 32;
 
-    private const string CredentialsRefusedError = "qBittorrent refused the user name or password.";
+    private static readonly Message BannedError = Message.Of("qbittorrent.banned");
 
-    private const string BannedError =
-        "qBittorrent has banned this app's address after too many failed sign-ins. Wait for the ban to end (qBittorrent's Web UI options set how long), then try again.";
+    private static readonly Message NotQBittorrentSignInError = Message.Of("qbittorrent.not-qbittorrent-sign-in");
 
-    private const string NotQBittorrentSignInError =
-        "The service at this address answered the sign-in, but not the way qBittorrent does.";
+    private static readonly Message NotFoundError = Message.Of("qbittorrent.not-found");
 
-    private const string NotFoundError =
-        "qBittorrent's Web API wasn't found at this address (404 Not Found). Use the address of qBittorrent's Web UI, such as http://192.168.1.10:8080.";
+    private static readonly Message NoCookieError = Message.Of("qbittorrent.no-cookie");
 
-    private const string NoCookieError = "qBittorrent accepted the sign-in but sent no session cookie.";
+    private static readonly Message UnusableCookieError = Message.Of("qbittorrent.unusable-cookie");
 
-    private const string UnusableCookieError = "qBittorrent sent a session cookie this app can't use.";
+    private static readonly Message NotAVersionError = Message.Of("qbittorrent.not-a-version");
 
-    private const string NotAVersionError = "The service at this address answered, but not with a qBittorrent version.";
+    private static readonly Message SignInNeededError = Message.Of("qbittorrent.sign-in-needed");
 
-    private const string SignInNeededError =
-        "qBittorrent asks for a user name and password. Enter them, or let this app's address skip authentication in qBittorrent's Web UI options.";
-
-    private const string SessionRefusedError = "qBittorrent refused the session it had just opened.";
+    private static readonly Message SessionRefusedError = Message.Of("qbittorrent.session-refused");
 
     /// <summary>
     /// MAM-11 — the oldest qBittorrent the app works with (the owner's choice). 4.4.0 lists each
@@ -77,7 +83,7 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
     /// <inheritdoc/>
     public override IntegrationAdapterDescriptor Descriptor { get; } = new(
         TypeId,
-        "qBittorrent",
+        DisplayName,
         IntegrationKind.DownloadClient,
         // Optional: qBittorrent can let whitelisted subnets in without signing in (decision 1).
         UserName: CredentialRequirement.Optional,
@@ -183,10 +189,10 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
                 if (string.Equals(body, "Ok.", StringComparison.Ordinal))
                     return ReadSessionCookie(response);
                 return SignInResult.Failed(string.Equals(body, "Fails.", StringComparison.Ordinal)
-                    ? ConnectionTestResult.Failed(IntegrationCallStatus.AuthenticationFailed, CredentialsRefusedError)
+                    ? ConnectionTestResult.Failed(IntegrationCallStatus.AuthenticationFailed, IntegrationAdapterMessages.CredentialsRefused(Descriptor.DisplayName))
                     : ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotQBittorrentSignInError));
             case HttpStatusCode.Unauthorized:
-                return SignInResult.Failed(ConnectionTestResult.Failed(IntegrationCallStatus.AuthenticationFailed, CredentialsRefusedError));
+                return SignInResult.Failed(ConnectionTestResult.Failed(IntegrationCallStatus.AuthenticationFailed, IntegrationAdapterMessages.CredentialsRefused(Descriptor.DisplayName)));
             case HttpStatusCode.Forbidden:
                 return SignInResult.Failed(ConnectionTestResult.Failed(IntegrationCallStatus.Refused, BannedError));
             case HttpStatusCode.NotFound:
@@ -243,10 +249,17 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
         if (UnsupportedVersionError(version) is { } unsupported)
             return ConnectionTestResult.Failed(IntegrationCallStatus.UnsupportedVersion, unsupported);
 
+        var shown = Shown(version);
         return ConnectionTestResult.Succeeded(signedIn
-            ? $"Connected to qBittorrent {version}."
-            : $"Connected to qBittorrent {version} without signing in: it lets this app's address skip authentication.");
+            ? IntegrationAdapterMessages.Connected(DisplayName, shown)
+            : Message.Of("qbittorrent.connected-without-sign-in", ("version", shown)));
     }
+
+    /// <summary>
+    /// MAM-47 — a version <see cref="ReportedVersion"/> accepted, as the vendor's words a sentence shows: already no more
+    /// than <see cref="VersionMaximumLength"/> ASCII digits and dots, so cleaning leaves it as it is.
+    /// </summary>
+    private static VendorText Shown(string reported) => VendorText.Clean(reported, VersionMaximumLength);
 
     /// <summary>The version in <paramref name="body"/> as qBittorrent reports it (<c>v5.2.3</c>), or
     /// <c>null</c> when the body is not one.</summary>
@@ -279,12 +292,12 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
     /// <see cref="MinimumVersion"/> or later. A version that can't be compared is refused, never guessed
     /// at.
     /// </summary>
-    private static string? UnsupportedVersionError(string reported) =>
+    private static Message? UnsupportedVersionError(string reported) =>
         ComparableVersion(reported) switch
         {
-            null => $"qBittorrent reported the version “{reported}”, which the app can't compare with {MinimumVersion}, the oldest version it works with.",
+            null => Message.Of("qbittorrent.version.not-comparable", ("version", Shown(reported)), ("minimum", MinimumVersion.ToString())),
             var version when version < MinimumVersion =>
-                $"This is qBittorrent {reported}; the app works with qBittorrent {MinimumVersion} or later. Update qBittorrent, then test again.",
+                Message.Of("qbittorrent.version.too-old", ("version", Shown(reported)), ("minimum", MinimumVersion.ToString())),
             _ => null,
         };
 

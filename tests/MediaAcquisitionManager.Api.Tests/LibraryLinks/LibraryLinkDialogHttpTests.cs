@@ -112,9 +112,10 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var dialog = await ReadDialogAsync(response, cancellationToken);
         var item = Assert.Single(dialog.Items);
+        // MAM-47 — the sentence's key beside it: the kind of reason, which the dialog compares.
         Assert.Equal(
-            (false, (string?)"“Living room” is switched off. Switch it on under Integrations, then retry."),
-            (item.CanWrite, item.CannotWriteReason));
+            (false, (string?)"“Living room” is switched off. Switch it on under Integrations, then retry.", (string?)"library-links.write.switched-off"),
+            (item.CanWrite, item.CannotWriteReason, item.CannotWriteReasonCode));
         // No catalog connected: nothing can be linked yet.
         Assert.False(dialog.CatalogConnected);
     }
@@ -136,8 +137,9 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
         Assert.Equal(
-            (MediaWorkKind.Episode, false, (string?)"Jellyfin identifies movie and series items only, so a link on an episode stays in the app."),
-            (item.ItemKind, item.CanWrite, item.CannotWriteReason));
+            (MediaWorkKind.Episode, false, (string?)"Jellyfin identifies movie and series items only, so a link on an episode stays in the app.",
+                (string?)"jellyfin.identify.episode-unidentifiable"),
+            (item.ItemKind, item.CanWrite, item.CannotWriteReason, item.CannotWriteReasonCode));
     }
 
     [Fact]
@@ -155,7 +157,9 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
-        Assert.Equal((false, (string?)"“Old library” can't identify items, so a link stays in the app."), (item.CanWrite, item.CannotWriteReason));
+        Assert.Equal(
+            (false, (string?)"“Old library” can't identify items, so a link stays in the app.", (string?)"library-links.kept.no-identifier"),
+            (item.CanWrite, item.CannotWriteReason, item.CannotWriteReasonCode));
     }
 
     [Fact]
@@ -179,8 +183,8 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
         // Jellyfin identifies a series (Vasyl's final decision of 2026-10-06): the time its Apply takes is no reason the
         // owner is shown — the identification runs in the background.
         Assert.Equal(
-            (PenguinsId, MediaWorkKind.Series, true, (string?)null),
-            (item.SourceItemId, item.ItemKind, item.CanWrite, item.CannotWriteReason));
+            (PenguinsId, MediaWorkKind.Series, true, (string?)null, (string?)null),
+            (item.SourceItemId, item.ItemKind, item.CanWrite, item.CannotWriteReason, item.CannotWriteReasonCode));
         Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
     }
 

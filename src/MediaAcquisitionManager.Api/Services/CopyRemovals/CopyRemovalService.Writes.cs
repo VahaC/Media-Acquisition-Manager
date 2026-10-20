@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,7 +19,7 @@ public sealed partial class CopyRemovalService
     /// and the removal taken by the caller: <c>null</c> when every name was written and the removal ended; otherwise the
     /// sentence the owner gets.
     /// </summary>
-    private Task<string?> RunAsync(CopyRemovalEntity removal, IReadOnlyList<CopyRemovalNameEntity> names, RemovalWrite write, AuditActor actor) =>
+    private Task<Message?> RunAsync(CopyRemovalEntity removal, IReadOnlyList<CopyRemovalNameEntity> names, RemovalWrite write, AuditActor actor) =>
         new RemovalWriteLoop(db, gates, auditTrail, time, notice, logger, removal, write).RunAsync(names, write.Names, actor);
 
     /// <summary>
@@ -55,7 +56,7 @@ public sealed partial class CopyRemovalService
     {
         private CopyRemovalState _endedIn;
 
-        protected override string ChangedMeanwhileError => CopyRemovalService.ChangedMeanwhileError;
+        protected override Message ChangedMeanwhileError => CopyRemovalService.ChangedMeanwhileError;
 
         protected override IQueryable<CopyRemovalNameEntity> Names => Db.CopyRemovalNames;
 
@@ -74,7 +75,7 @@ public sealed partial class CopyRemovalService
 
         protected override AuditTarget TargetOf(CopyRemovalNameEntity name) => AuditTarget.CopyRemovalName(name);
 
-        protected override async Task<bool> FinishAsync(string? stopped, bool noticeDue, AuditActor actor, DateTime now)
+        protected override async Task<bool> FinishAsync(Message? stopped, bool noticeDue, AuditActor actor, DateTime now)
         {
             // Read inside the end's transaction: a removal with nothing left in the quarantine has nothing to review.
             _endedIn = stopped is not null
@@ -89,7 +90,7 @@ public sealed partial class CopyRemovalService
             return true;
         }
 
-        protected override void Finished(string? stopped) => LogMoved(write.Running, _endedIn);
+        protected override void Finished(Message? stopped) => LogMoved(write.Running, _endedIn);
 
         /// <summary>
         /// ADR 0030 — tells the library the names came back, after the commit and outside any transaction: best effort. A

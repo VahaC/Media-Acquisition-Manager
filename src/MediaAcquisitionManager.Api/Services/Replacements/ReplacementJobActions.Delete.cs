@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -10,18 +11,16 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// </summary>
 public sealed partial class ReplacementJobActions
 {
-    private const string NothingToDeleteError = "This replacement holds nothing in the quarantine to delete.";
+    private static readonly Message NothingToDeleteError = Message.Of("replacements.delete-for-good.nothing");
 
-    private const string NamesMissingError = "Deleting the old copies permanently needs the files you confirmed.";
+    private static readonly Message NamesMissingError = Message.Of("replacements.delete-for-good.names-missing");
 
-    private const string NamesChangedError =
-        "What this replacement holds in the quarantine changed since you opened it. Press Delete again to see what it holds now.";
+    private static readonly Message NamesChangedError = Message.Of("replacements.delete-for-good.names-changed");
 
-    private const string DeleteSwitchedOffError =
-        "Replacement is switched off on the Media folders page, so nothing can be deleted. Switch it on, then press Delete again.";
+    private static readonly Message DeleteSwitchedOffError = Message.Of("replacements.delete-for-good.switched-off");
 
     // MAM-26 — as Restore's: refused before the claim on a platform whose write contract writes nothing.
-    private const string DeleteNotSupportedError = "The app can't write to the media folders on the platform it runs on, so nothing was deleted.";
+    private static readonly Message DeleteNotSupportedError = Message.Of("replacements.delete-for-good.unsupported");
 
     public async Task<ReplacementActionResult> DeleteForGoodAsync(
         Guid replacementJobId, IReadOnlyList<Guid>? names, Guid callerUserId, CancellationToken cancellationToken = default)
@@ -46,7 +45,7 @@ public sealed partial class ReplacementJobActions
         if (!inHand.TryTake(replacementJobId))
             return ReplacementActionResult.Refused(BeingWorkedOnError);
 
-        string? stopped;
+        Message? stopped;
         try
         {
             stopped = await RunAsync(job, ReplacementJobState.Quarantined, quarantined, DeleteWrite(), actor);
@@ -64,7 +63,7 @@ public sealed partial class ReplacementJobActions
     /// replacement is on, and every name's quarantine is within the Media folders with the file there still the one the
     /// move put there. No tick is read: the quarantine belongs to the allowed root, not to a library folder (ADR 0033).
     /// </summary>
-    private async Task<string?> DeleteRefusalAsync(IReadOnlyList<ReplacementJobNameEntity> names, CancellationToken cancellationToken)
+    private async Task<Message?> DeleteRefusalAsync(IReadOnlyList<ReplacementJobNameEntity> names, CancellationToken cancellationToken)
     {
         if (!quarantine.Capabilities.CanRename)
             return DeleteNotSupportedError;

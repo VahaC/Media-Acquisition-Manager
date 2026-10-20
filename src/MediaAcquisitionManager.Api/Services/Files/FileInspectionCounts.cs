@@ -1,5 +1,7 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Files;
 
@@ -11,19 +13,25 @@ namespace MediaAcquisitionManager.Api.Services.Files;
 public static class FileInspectionCounts
 {
     /// <summary>
-    /// The counts of <paramref name="files"/> — each name's last look, its sentence, and whether the
+    /// The counts of <paramref name="files"/> — each name's last look, its reason, and whether the
     /// current path mappings give it an app path — given in path order, so "the first problem" is the
     /// same one on every poll.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// MAM-9 — the files it read, those it couldn't (whatever the reason, a missing app path included),
     /// and those it hasn't looked at; the first problem's sentence, in path order, to the owner only, like
     /// each file's (<c>LibraryMapper</c>). A file the last run found no app path for, which the mappings
     /// give one now, waits for the next run, the works list's rule: a fixed mapping shows at once, as the
     /// path warning does.
+    /// </para>
+    /// <para>
+    /// MAM-47 (ADR 0042) — the sentence in the request's language (<paramref name="texts"/>), with its key beside it, so
+    /// the page can tell a kind of reason apart without comparing words.
+    /// </para>
     /// </remarks>
     public static LibrarySourceInspectionDto Of(
-        IReadOnlyList<(FileInspectionStatus? Status, string? Error, bool HasAppPath)> files, bool forOwner)
+        IReadOnlyList<(FileInspectionStatus? Status, Message? Error, bool HasAppPath)> files, bool forOwner, IRequestTexts texts)
     {
         var looks = files
             .Where(file => !(file.Status == FileInspectionStatus.NoAppPath && file.HasAppPath))
@@ -31,11 +39,13 @@ public static class FileInspectionCounts
         var problems = looks
             .Where(file => IsProblem(file.Status, file.HasAppPath))
             .ToList();
+        var problem = forOwner && problems.Count > 0 ? problems[0].Error : null;
         return new LibrarySourceInspectionDto(
             looks.Count(file => file.Status == FileInspectionStatus.Inspected),
             problems.Count,
             files.Count - looks.Count + looks.Count(file => file.Status is null),
-            forOwner && problems.Count > 0 ? problems[0].Error : null);
+            texts.Render(problem),
+            problem?.Key);
     }
 
     /// <summary>

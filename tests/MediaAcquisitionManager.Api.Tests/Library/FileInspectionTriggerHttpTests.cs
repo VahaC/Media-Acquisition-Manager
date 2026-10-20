@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -334,7 +335,7 @@ public sealed class FileInspectionTriggerHttpTests : IClassFixture<MediaAcquisit
         await _factory.WithDbAsync(async db => files = await db.PhysicalFiles.AsNoTracking().ToListAsync(cancellationToken));
         return files.ToDictionary(
             file => file.ServicePath,
-            file => (file.Id, file.InspectionStatus, file.InspectionError, file.InspectedUtc, file.MediaInspectionId, file.DeviceId, file.Inode, file.LinkCount));
+            file => (file.Id, file.InspectionStatus, TestTexts.En(file.InspectionError), file.InspectedUtc, file.MediaInspectionId, file.DeviceId, file.Inode, file.LinkCount));
     }
 
     // Every run id waiting for the worker, in queue order; the queue is empty afterwards.

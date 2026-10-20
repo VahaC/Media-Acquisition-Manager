@@ -4,7 +4,9 @@ using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mcp.Results;
 using MediaAcquisitionManager.Api.Services.Downloads;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -17,9 +19,11 @@ namespace MediaAcquisitionManager.Api.Mcp.Tools;
 /// pick it opens on (<see cref="DownloadDialogPreselection"/>), the overwrite check of the destination picked, and Send
 /// held for a folder its client can't see — a new send's, as a retry is answered with its job. A send is always Keep both: <see cref="SendDownloadRequest"/> has no
 /// replacement field, and nothing here schedules one (ADR 0040). Built per call by the SDK, with the request's services.
+/// MAM-47 (ADR 0042) — every sentence it writes, its summaries and the service's refusals alike, in the language of the
+/// MCP request (<see cref="IRequestTexts"/>): English unless the client sends <c>Accept-Language</c>.
 /// </remarks>
 [McpServerToolType]
-public sealed class DownloadTools(IDownloadService downloads, McpToolResults results)
+public sealed class DownloadTools(IDownloadService downloads, IRequestTexts texts, McpToolResults results)
 {
     [McpServerTool(
         Name = "get_download_options",
@@ -49,7 +53,7 @@ public sealed class DownloadTools(IDownloadService downloads, McpToolResults res
         var userId = user.GetUserId();
         var listed = await downloads.GetOptionsAsync(releaseId.ToString(), userId, cancellationToken);
         if (listed.Options is not { } options)
-            return McpToolResults.Error(listed.Error!);
+            return McpToolResults.Error(texts.Render(listed.Error!));
 
         var (client, destination) = DownloadDialogPreselection.Of(options);
         var checkedDestination = destination;
@@ -61,7 +65,7 @@ public sealed class DownloadTools(IDownloadService downloads, McpToolResults res
                 .SelectMany(option => option.Destinations)
                 .FirstOrDefault(offered => offered.Id == asked);
             if (checkedDestination is null)
-                return McpToolResults.Error(DownloadToolErrors.DestinationNotOffered);
+                return McpToolResults.Error(texts.Render(DownloadToolErrors.DestinationNotOffered));
         }
 
         // As the dialog asks once a destination is picked: one live question to its client, and none without a pick.
@@ -70,15 +74,15 @@ public sealed class DownloadTools(IDownloadService downloads, McpToolResults res
         {
             var answered = await downloads.GetOverwriteCheckAsync(checkedDestination.Id.ToString(), userId, cancellationToken);
             if (answered.Answer is not { } answer)
-                return McpToolResults.Error(answered.Error!);
+                return McpToolResults.Error(texts.Render(answered.Error!));
             check = answer;
         }
 
         var held = check?.NotCheckedReason == DownloadOverwriteCheck.NotCheckedFolderNotSeen;
         return results.Success(
-            OptionsSummary(options, client, destination, checkedDestination, check),
+            texts.Render(OptionsSummary(options, client, destination, checkedDestination, check)),
             new DownloadOptionsToolResult(
-                options, client?.Id, destination?.Id, checkedDestination?.Id, check, held, held ? McpToolErrors.SendHeldFolderNotSeen : null));
+                options, client?.Id, destination?.Id, checkedDestination?.Id, check, held, held ? texts.Render(McpToolErrors.SendHeldFolderNotSeen) : null));
     }
 
     [McpServerTool(
@@ -126,7 +130,7 @@ public sealed class DownloadTools(IDownloadService downloads, McpToolResults res
             // Send. Any other answer — a missing destination included — goes on to the send, whose own checks answer it.
             var check = await downloads.GetOverwriteCheckAsync(destinationId.ToString(), userId, cancellationToken);
             if (check.Answer?.NotCheckedReason == DownloadOverwriteCheck.NotCheckedFolderNotSeen)
-                return McpToolResults.Error(McpToolErrors.SendHeldFolderNotSeen);
+                return McpToolResults.Error(texts.Render(McpToolErrors.SendHeldFolderNotSeen));
         }
 
         // Without a request id of the assistant's, every call is a new send: a retry can't be recognised (ADR 0013).
@@ -135,15 +139,20 @@ public sealed class DownloadTools(IDownloadService downloads, McpToolResults res
         // Created and Replayed carry the job, a failed one included — the HTTP API's 201 and 200 —, and the job says why it
         // failed; every refusal carries its sentence and wrote nothing.
         return sent.Job is { } job
-            ? results.Success(SendSummary(sent.Status, job), job)
-            : McpToolResults.Error(sent.Error!);
+            ? results.Success(texts.Render(await SendSummaryAsync(sent.Status, job, userId, cancellationToken)), job)
+            : McpToolResults.Error(texts.Render(sent.Error!));
     }
 
     // ── summaries ───────────────────────────────────────────────────────────────────────────────
 
+    /// <summary>MAM-47 — the dialog's own words for a failure without a reason (downloads.json failedNoReason).</summary>
+    private static readonly Message NotSent = Message.Of("downloads.mcp.send.not-sent");
+
     /// <summary>What the dialog would show: how many clients, what it opens on, and how the destination checked
     /// fares.</summary>
-    private static string OptionsSummary(
+    /// <remarks>MAM-47 (ADR 0042) — a sentence per pick, with or without the checked destination's clause: the pick is
+    /// the object of "preselect" (design §2.3); the clause after "and" stands on its own, nested.</remarks>
+    private static Message OptionsSummary(
         DownloadOptionsResponse options,
         DownloadClientOptionDto? client,
         DownloadDestinationOptionDto? destination,
@@ -152,43 +161,62 @@ public sealed class DownloadTools(IDownloadService downloads, McpToolResults res
     {
         // The dialog's own sentence (downloads.json noClients).
         if (options.Clients.Count == 0)
-            return "No download client can take this release yet. The owner sets them up under Integrations and Destinations.";
+            return Message.Of("downloads.mcp.options.no-clients");
 
-        var pick = (client, destination) switch
+        var count = options.Clients.Count;
+        var tail = checkedDestination is null || check is null ? null : TailOf(checkedDestination, checkedDestination.Id == destination?.Id, check);
+        return (client, destination, tail) switch
         {
-            ({ } picked, { } into) => $"“{into.Name}” of “{picked.Name}”",
-            ({ } picked, null) => $"“{picked.Name}” with no destination",
-            _ => "no client",
-        };
-        var summary = $"{Count(options.Clients.Count, "download client")} can take this release; the Download dialog would preselect {pick}";
-        if (checkedDestination is null || check is null)
-            return summary + ".";
-
-        var where = checkedDestination.Id == destination?.Id ? "there" : $"to “{checkedDestination.Name}”";
-        return summary + check.NotCheckedReason switch
-        {
-            null => $", and a release sent {where} is checked for files it would write over.",
-            DownloadOverwriteCheck.NotCheckedFolderNotSeen => $", and nothing can be sent {where}: its download client can't see the folder.",
-            { } reason => $", and a release sent {where} goes without the check for files it would write over ({reason}).",
+            ({ } picked, { } into, null) =>
+                Message.Of("downloads.mcp.options.pick-destination", ("count", count), ("destination", into.Name), ("client", picked.Name)),
+            ({ } picked, { } into, { } more) =>
+                Message.Of("downloads.mcp.options.pick-destination-tail", ("count", count), ("destination", into.Name), ("client", picked.Name), ("tail", more)),
+            ({ } picked, null, null) => Message.Of("downloads.mcp.options.pick-client", ("count", count), ("client", picked.Name)),
+            ({ } picked, null, { } more) => Message.Of("downloads.mcp.options.pick-client-tail", ("count", count), ("client", picked.Name), ("tail", more)),
+            (_, _, null) => Message.Of("downloads.mcp.options.pick-none", ("count", count)),
+            (_, _, { } more) => Message.Of("downloads.mcp.options.pick-none-tail", ("count", count), ("tail", more)),
         };
     }
+
+    /// <summary>How the destination checked fares: "there" when it is the one the dialog would preselect, else by its
+    /// name; why it goes unchecked by the check's API name.</summary>
+    private static Message TailOf(DownloadDestinationOptionDto checkedDestination, bool there, DownloadOverwriteCheckResponse check) =>
+        check.NotCheckedReason switch
+        {
+            null => there
+                ? Message.Of("downloads.mcp.options.checked-there-clause")
+                : Message.Of("downloads.mcp.options.checked-to-clause", ("destination", checkedDestination.Name)),
+            DownloadOverwriteCheck.NotCheckedFolderNotSeen => there
+                ? Message.Of("downloads.mcp.options.not-seen-there-clause")
+                : Message.Of("downloads.mcp.options.not-seen-to-clause", ("destination", checkedDestination.Name)),
+            { } reason => there
+                ? Message.Of("downloads.mcp.options.unchecked-there-clause", ("reason", reason.ToString()))
+                : Message.Of("downloads.mcp.options.unchecked-to-clause", ("destination", checkedDestination.Name), ("reason", reason.ToString())),
+        };
 
     /// <summary>What came of the send; a failed one with why, and that the next try needs a new request id, as the
     /// dialog makes a new one after a Failed job.</summary>
-    private static string SendSummary(DownloadSendStatus status, DownloadJobDto job)
+    /// <remarks>MAM-47 (ADR 0042) — why is the job's own error as its answer shows it to this caller, nested as a message,
+    /// so the request's language writes both (<see cref="IDownloadService.ReadAsync"/>).</remarks>
+    private async Task<Message> SendSummaryAsync(DownloadSendStatus status, DownloadJobDto job, Guid userId, CancellationToken cancellationToken)
     {
-        var what = $"“{job.ReleaseTitle}” to “{job.DownloadClientName}”" + (job.DestinationName is { } name ? $", into “{name}”," : "");
-        // The dialog's own words for a failure without a reason (downloads.json failedNoReason).
-        var why = job.Error ?? "The release wasn't sent.";
-        return (status, job.Status) switch
+        if (job.Status != DownloadJobStatus.Failed)
         {
-            (DownloadSendStatus.Replayed, DownloadJobStatus.Failed) =>
-                $"This requestId already tried to send {what} and that send failed: {why} A new send needs a new requestId.",
-            (DownloadSendStatus.Replayed, _) => $"This requestId already sent {what} so nothing was sent again; the job is {job.Status}.",
-            (_, DownloadJobStatus.Failed) => $"Sending {what} failed: {why} A new send needs a new requestId.",
-            _ => $"Sent {what} and the job is {job.Status}; list_jobs and get_job follow it.",
-        };
+            return status == DownloadSendStatus.Replayed
+                ? Sent(job, "downloads.mcp.send.replayed", "downloads.mcp.send.replayed-into", ("status", job.Status.ToString()))
+                : Sent(job, "downloads.mcp.send.sent", "downloads.mcp.send.sent-into", ("status", job.Status.ToString()));
+        }
+
+        var why = (await downloads.ReadAsync(job.Id, userId, cancellationToken))?.Error ?? NotSent;
+        return status == DownloadSendStatus.Replayed
+            ? Sent(job, "downloads.mcp.send.replayed-failed", "downloads.mcp.send.replayed-failed-into", ("why", why))
+            : Sent(job, "downloads.mcp.send.failed", "downloads.mcp.send.failed-into", ("why", why));
     }
 
-    private static string Count(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+    /// <summary>The send's sentence <paramref name="key"/> naming the release and the client, or
+    /// <paramref name="intoKey"/> naming the destination too, when the job names one.</summary>
+    private static Message Sent(DownloadJobDto job, string key, string intoKey, (string Name, MessageValue Value) value) =>
+        job.DestinationName is { } destination
+            ? Message.Of(intoKey, ("release", job.ReleaseTitle), ("client", job.DownloadClientName), ("destination", destination), value)
+            : Message.Of(key, ("release", job.ReleaseTitle), ("client", job.DownloadClientName), value);
 }

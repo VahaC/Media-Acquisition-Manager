@@ -8,6 +8,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -119,8 +120,8 @@ public sealed class SearchesSecretsHttpTests : IClassFixture<MediaAcquisitionMan
         Assert.All([bodies[2], bodies[5]], body => Assert.Equal(
             PlantedItems().Length,
             JsonSerializer.Deserialize<SearchReleaseListResponse>(body, MediaAcquisitionManagerApiFactory.JsonOptions)!.TotalCount));
-        Assert.Contains("refused the API key (error 100:", bodies[0], StringComparison.Ordinal);
-        Assert.Contains("refused the API key (error 100:", bodies[1], StringComparison.Ordinal);
+        Assert.Contains("refused the API key (error 100:", PseudoText.Strip(bodies[0]), StringComparison.Ordinal);
+        Assert.Contains("refused the API key (error 100:", PseudoText.Strip(bodies[1]), StringComparison.Ordinal);
         Assert.All(bodies, body =>
         {
             var text = ReadableText(body);
@@ -150,11 +151,11 @@ public sealed class SearchesSecretsHttpTests : IClassFixture<MediaAcquisitionMan
             // The failing source's sentence is kept for the owner, masked as the adapter and the second pass
             // left it (ADR 0007).
             var failing = await db.SearchSources.AsNoTracking().SingleAsync(source => source.Name == "Failing", cancellationToken);
-            Assert.Contains("refused the API key (error 100:", failing.Error, StringComparison.Ordinal);
+            Assert.Contains("refused the API key (error 100:", TestTexts.En(failing.Error), StringComparison.Ordinal);
             var search = await db.Searches.AsNoTracking().SingleAsync(cancellationToken);
             var stored = string.Join('\n', [
                 search.Text, search.ImdbId, search.TmdbId,
-                .. (await db.SearchSources.AsNoTracking().ToListAsync(cancellationToken)).SelectMany(source => new[] { source.Name, source.Error })]);
+                .. (await db.SearchSources.AsNoTracking().ToListAsync(cancellationToken)).SelectMany(source => new[] { source.Name, TestTexts.En(source.Error) })]);
             Assert.All(PlantedValues, secret => Assert.DoesNotContain(secret, stored, StringComparison.Ordinal));
             Assert.DoesNotMatch(@"(?i)sid=(?!\*\*\*)", stored);
 

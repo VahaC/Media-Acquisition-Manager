@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Core.Accounts;
 
 /// <summary>
@@ -18,16 +20,18 @@ public static class UserNameRules
     /// <summary>Two characters is an initial, not a name anyone finds again in a list.</summary>
     public const int MinimumLength = 3;
 
-    private const string LengthError = "A user name must be 3 to 32 characters long.";
-    private const string CharactersError = "A user name can contain only letters, digits, dots, hyphens and underscores.";
+    private static readonly Message LengthError =
+        Message.Of("account.user-name.length", ("minimum", MinimumLength), ("count", MaximumLength));
+
+    private static readonly Message CharactersError = Message.Of("account.user-name.characters");
 
     /// <summary>The form names are stored under and compared in: trimmed and upper-cased, culture
     /// independent, so "alice", "Alice " and "ALICE" are one account.</summary>
     public static string Normalize(string userName) => userName.Trim().ToUpperInvariant();
 
-    /// <summary>The sentence saying what is wrong with <paramref name="userName"/>, or <c>null</c>
+    /// <summary>Why <paramref name="userName"/> is refused, as a message the Api renders (ADR 0042), or <c>null</c>
     /// when it is acceptable.</summary>
-    public static string? Validate(string? userName)
+    public static Message? Validate(string? userName)
     {
         var trimmed = userName?.Trim() ?? "";
         if (trimmed.Length is < MinimumLength or > MaximumLength)

@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
 using MediaAcquisitionManager.Core.Search;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 
@@ -60,10 +61,9 @@ internal sealed partial class TorznabAdapter
             // owner learns why now rather than at the first download.
             if (read.WebLink is { } link && !TorznabLinks.SameOrigin(link, feed))
             {
-                var origin = RemoteText.Clean(TorznabLinks.Origin(link), OriginMaximumLength, secrets);
+                var origin = VendorText.Clean(TorznabLinks.Origin(link), OriginMaximumLength, secrets);
                 return IntegrationCallResult<IReadOnlyList<ReleaseSearchHit>>.Failed(
-                    IntegrationCallStatus.UnexpectedResponse,
-                    $"The Torznab feed lists its downloads at {origin}, not at the address entered for it, so the app couldn't fetch them. Enter the feed at the address its download links use.");
+                    IntegrationCallStatus.UnexpectedResponse, Message.Of("torznab.search.links-elsewhere", ("origin", origin)));
             }
 
             if (IsInCategories(read.Hit.CategoryIds, query.CategoryIds))

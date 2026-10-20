@@ -1,0 +1,368 @@
+{
+  "about": [
+    "MAM-47 (ADR 0042, design §6.8) — English the server stores in its message columns today, for StoredEnglishCorpusTests.",
+    "Synthetic and test sentences only, never production text: each is what today's producer writes, with the values the tests use.",
+    "'expect': converted (the default; one reading, no older words nested in it, written back byte for byte), cut-value (cut at the column's 'length', default 1000, inside its last value), kept (no reading), ambiguous (two or more).",
+    "'keyPrefix' is the parser's: the consent words end with no full stop, so only the replacements.confirm keys may read them.",
+    "Written once by a script in the MAM-47 build scratchpad (wp4/make_corpus.py); the JSON is the source of truth."
+  ],
+  "texts": [
+    {
+      "text": "No API endpoint matches POST /api/nope/deeper.",
+      "column": "none (an answer)",
+      "source": "Api/Controllers/UnknownApiController.cs; T/Api/Http/SpaFallbackHttpTests"
+    },
+    {
+      "text": "Device or resource busy (errno 16)",
+      "column": "any (a service's own words)",
+      "source": "an operating system's words: no wording of the app reads them",
+      "expect": "kept"
+    },
+    {
+      "text": "Download failed",
+      "column": "any (a service's own words)",
+      "source": "Prowlarr's description of a Torznab error 500",
+      "expect": "kept"
+    },
+    {
+      "text": "No path mapping of this integration covers “/data/movies/Taken (2008).mkv”.",
+      "column": "PhysicalFiles.InspectionError",
+      "source": "Core/Paths/PathMapper.cs:65; T/Api/Library/FileInspectionRunHttpTests.NoAppPathError"
+    },
+    {
+      "text": "“/media/Movies/Alien (1979)/Alien.1979.2160p.mkv” has no video stream.",
+      "column": "ReplacementJobNewFiles.Problem",
+      "source": "Core/Replacements/NewFileReadability.cs:73"
+    },
+    {
+      "text": "“/media/Movies/Alien (1979)/Alien.1979.2160p.mkv” is 1,234,567 bytes on the disk, not the 1,234,560 bytes “qBittorrent” downloaded, so it may be another file.",
+      "column": "ReplacementJobNewFiles.Problem",
+      "source": "Core/Replacements/NewFileReadability.cs:83 (N0)"
+    },
+    {
+      "text": "“qBittorrent” hasn't finished “Alien.1979.2160p/Alien.1979.2160p.mkv” (99 % done).",
+      "column": "ReplacementJobs.Reason",
+      "source": "Core/Replacements/NewFileCompleteness.cs:90"
+    },
+    {
+      "text": "Two new files are Alien (1979): “/media/movies/Alien.1979.Directors.Cut/Alien.1979.Directors.Cut.2160p.mkv” and “/media/movies/Alien.1979.Directors.Cut/Alien.1979.Directors.Cut.1080p.mkv”; the app can't tell which one replaces the old copy.",
+      "column": "ReplacementJobs.Reason",
+      "source": "Core/Replacements/ReplacementPairing.Sentences.cs:109; T/Api/Replacements/ReplacementDetailsHttpTests"
+    },
+    {
+      "text": "“/media/movies/Alien.1979.Directors.Cut.2160p.mkv” runs 1:06:40, less than three quarters of the old copy's 1:33:24.",
+      "column": "ReplacementJobFiles.Problem",
+      "source": "Core/Replacements/ReplacementPairing.Sentences.cs:115; T/Api/Replacements/ReplacementLineHttpTests"
+    },
+    {
+      "text": "“/media/tv-shows/Yellowstone (2018)/Season 02/Yellowstone S02E09.mkv” covers episodes 9–10 of season 2, so one new episode can't replace it.",
+      "column": "ReplacementJobFiles.Problem",
+      "source": "Core/Replacements/ReplacementPairing.Sentences.cs:82; T/Api/Replacements/ReplacementDetailsHttpTests"
+    },
+    {
+      "text": "The Torznab feed failed to hand over the release (error 500: Download failed).",
+      "column": "DownloadJobs.Error",
+      "source": "Infrastructure/Integrations/Torznab/TorznabAdapter.cs:315; the dev DB's row"
+    },
+    {
+      "text": "The Torznab feed failed to hand over the release (error 500: Indexer request failed for apikey=***).",
+      "column": "DownloadJobs.Error",
+      "source": "TorznabAdapter.cs:315 with a masked secret in the feed's words"
+    },
+    {
+      "text": "The Torznab feed failed to hand over the release (error 500: Indexer request failed, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead of the torrent, the tracker sent its maintenance page instead …",
+      "column": "DownloadJobs.Error",
+      "source": "TorznabAdapter.cs:315 with a feed's description longer than the column, cut by DownloadJobUpdates.Cut",
+      "expect": "cut-value"
+    },
+    {
+      "text": "The Torznab feed failed to hand over the release (error 900: Fetching http://jackett.test:9117 failed: key ***, token ***).",
+      "column": "DownloadJobs.Error",
+      "source": "TorznabAdapter.cs:315 with a feed's description holding “: ”; T/Api/Downloads/DownloadsSendJackettHttpTests. One reading since torznab.error.described-clause's code is a number ({{code, number}}): as a text value it also read as code “900: Fetching … failed” and stayed ambiguous (merge of WP4, R1)"
+    },
+    {
+      "text": "qBittorrent answered 500 Internal Server Error. Its own log says why.",
+      "column": "DownloadJobs.BlockReason",
+      "source": "Infrastructure/Integrations/HttpIntegrationAdapter.cs:223; T/Api/Downloads/DownloadJobMissingHttpTests"
+    },
+    {
+      "text": "Transmission at http://transmission.test:9091 didn't answer within 15 seconds.",
+      "column": "DownloadJobs.Error",
+      "source": "HttpIntegrationAdapter.cs:281; T/Api/Downloads/DownloadsSendTransmissionHttpTests"
+    },
+    {
+      "text": "The stored password of “qBittorrent” can't be read with this installation's encryption key. Enter the password again and save.",
+      "column": "DownloadJobs.BlockReason",
+      "source": "Api/Services/Integrations/IntegrationSettingsFactory.cs:52"
+    },
+    {
+      "text": "The stored API key of “Prowlarr” can't be read with this installation's encryption key. Enter the API key again and save.",
+      "column": "SearchSources.Error",
+      "source": "IntegrationSettingsFactory.cs:52"
+    },
+    {
+      "text": "The app couldn't read what “Prowlarr” answered.",
+      "column": "SearchSources.Error",
+      "source": "Api/Services/Releases/ReleaseSources.cs:199, DestinationChecker.cs:178 (one wording, one key)"
+    },
+    {
+      "text": "Connect a metadata catalog under Integrations first.",
+      "column": "RecommendationRuns.Error",
+      "source": "Api/Services/Catalog/CatalogConnector.cs:25"
+    },
+    {
+      "text": "There is no file at “/media/Movies/Alien (1979)/Alien (1979).mkv”.",
+      "column": "PhysicalFiles.InspectionError",
+      "source": "Infrastructure/Files/FileInventoryMessages.cs NotFound"
+    },
+    {
+      "text": "There is no file at “/media/Movies/The ”Best” Cut (1999).mkv”.",
+      "column": "PhysicalFiles.InspectionError",
+      "source": "FileInventoryMessages.cs NotFound — a name holding ”"
+    },
+    {
+      "text": "The app isn't allowed to read “/media/Movies/A Very Long Folder Name For A Collection/A Very Long Folder Name For A Collection/A Very Long Folder Name For A Collection/A Very Long Folder Name For A Collection/A Very Long Folder Name For A Collection/A Very Long Folder N…”.",
+      "column": "PhysicalFiles.InspectionError",
+      "source": "FileInventoryMessages.cs NotAllowedToRead — a path cut at 240 with …"
+    },
+    {
+      "text": "The app couldn't read “/media/Movies/Alien (1979)/Alien (1979).mkv”: Input/output error.",
+      "column": "PhysicalFiles.InspectionError",
+      "source": "FileInventoryMessages.cs CouldNotRead — the operating system's words"
+    },
+    {
+      "text": "ffprobe couldn't read “/media/Movies/Alien (1979)/Alien (1979).mkv” as media: it didn't finish within 2 minutes.",
+      "column": "MediaInspections.Error",
+      "source": "FileInventoryMessages.cs MediaUnreadable + FfprobeProcess.cs:129 (Describe)"
+    },
+    {
+      "text": "ffprobe couldn't read “/media/Movies/Alien (1979)/Alien (1979).mkv” as media: it didn't finish within 1.5 minutes.",
+      "column": "MediaInspections.Error",
+      "source": "FfprobeProcess.cs Describe, 0.#"
+    },
+    {
+      "text": "ffprobe couldn't read “/media/Movies/Alien (1979)/Alien (1979).mkv” as media: it printed more than 8 MiB.",
+      "column": "MediaInspections.Error",
+      "source": "FfprobeProcess.cs:135 (DescribeBytes)"
+    },
+    {
+      "text": "ffprobe couldn't read “/media/Movies/Alien (1979)/notes.txt” as media: it said “Invalid data found when processing input”.",
+      "column": "MediaInspections.Error",
+      "source": "FfprobeProcess.cs:239 — ffprobe's own words"
+    },
+    {
+      "text": "ffprobe couldn't read “/media/Movies/Alien (1979)/Alien (1979).ffconcat” as media: its content is “concat”, which isn't a media container the app reads.",
+      "column": "MediaInspections.Error",
+      "source": "FfprobeProcess.cs:234"
+    },
+    {
+      "text": "ffprobe couldn't read “/media/Movies/Alien (1979)/Alien (1979).mkv” as media: it stopped with exit code 1.",
+      "column": "MediaInspections.Error",
+      "source": "FfprobeProcess.cs:139-141"
+    },
+    {
+      "text": "The media folders hold more than 200,000 media files or 100,000 folders, or links inside them lead to the same folders many times over, so the scan stopped.",
+      "column": "FolderScanRuns.Error",
+      "source": "FileInventoryMessages.cs LimitReached (N0, FolderWalker's limits)"
+    },
+    {
+      "text": "“/media/Movies” is empty; if it is a mount, it may be away, so the files found in it before are kept.",
+      "column": "FolderScanRuns.Problem",
+      "source": "FileInventoryMessages.cs EmptyRoot"
+    },
+    {
+      "text": "“/media/Movies/Alien (1979)/Alien (1979).mkv” changed while the app was reading it for its hash, so the hash can't be said to belong to either version.",
+      "column": "FileInspectionRuns.HashProblem",
+      "source": "FileInventoryMessages.cs ChangedWhileHashing"
+    },
+    {
+      "text": "“/media/Movies/Alien (1979)/Alien (1979).srt” is on a read-only mount.",
+      "column": "ReplacementJobNames.Problem",
+      "source": "Infrastructure/Files/FileQuarantineMessages.cs ReadOnly"
+    },
+    {
+      "text": "The app couldn't rename or delete “/media/Movies/Alien (1979)/Alien (1979).mkv”: Device or resource busy (errno 16).",
+      "column": "CopyRemovalNames.Problem",
+      "source": "FileQuarantineMessages.cs CouldNotChange — an errno tail"
+    },
+    {
+      "text": "“qBittorrent” doesn't list this download any more. It is still followed in case it comes back; to send the release again, cancel this job first.",
+      "column": "DownloadJobs.BlockReason",
+      "source": "Api/Services/Downloads/DownloadJobPoller.cs:560; the dev DB's row"
+    },
+    {
+      "text": "“Transmission” is switched off, so this download isn't followed for now. The owner can switch it on under Integrations.",
+      "column": "DownloadJobs.BlockReason",
+      "source": "DownloadJobPoller.cs:550"
+    },
+    {
+      "text": "This version of the app can't follow downloads in “retired-client”.",
+      "column": "DownloadJobs.BlockReason",
+      "source": "DownloadJobPoller.cs:552; T/Api/Downloads/DownloadJobMissingHttpTests"
+    },
+    {
+      "text": "The app stopped while sending this download, before it could tell whether “qBittorrent” took it, so it isn't followed. Check “qBittorrent” before sending the release again.",
+      "column": "DownloadJobs.Error",
+      "source": "DownloadJobPoller.cs:568"
+    },
+    {
+      "text": "“qBittorrent” already has this torrent, so nothing was sent.",
+      "column": "DownloadJobs.Error",
+      "source": "Api/Services/Downloads/DownloadSender.cs:188"
+    },
+    {
+      "text": "“qBittorrent” has no category “Movies” any more, so nothing was sent: it would have created one in its default folder. Create the category again in “qBittorrent”, or the owner edits the destination.",
+      "column": "DownloadJobs.Error",
+      "source": "DownloadSender.cs:164"
+    },
+    {
+      "text": "“qBittorrent” would write over “Film.2001.mkv” in the folder of the category “Movies”: a file of another size is already there, so nothing was sent.",
+      "column": "DownloadJobs.Error",
+      "source": "Api/Services/Downloads/DownloadOverwriteGuard.cs:384; T/Api/Downloads/DownloadsSendOverwrite*HttpTests"
+    },
+    {
+      "text": "“Transmission” would write over “Show/S01E01.mkv” in the folder of the destination “Фільми”: the torrent “Show” it already has will write there, so nothing was sent.",
+      "column": "DownloadJobs.Error",
+      "source": "DownloadOverwriteGuard.cs:384"
+    },
+    {
+      "text": "This version of the app can't search releases through “retired-source”.",
+      "column": "SearchSources.Error",
+      "source": "Api/Services/Releases/ReleaseSources.cs:67"
+    },
+    {
+      "text": "The app restarted before these recommendations were computed. The previous ones are kept.",
+      "column": "RecommendationRuns.Error",
+      "source": "Api/Services/Recommendations/RecommendationRunReconciler.cs:23"
+    },
+    {
+      "text": "The app restarted before this sync finished. Start it again.",
+      "column": "LibrarySyncRuns.Error",
+      "source": "Api/Services/Library/LibrarySyncReconciler.cs:21; the dev DB's row"
+    },
+    {
+      "text": "Jellyfin listed 120 movies when the sync began and 121 by its end, so its library changed while it was being read. Nothing was changed here; sync again once Jellyfin's library scan has finished.",
+      "column": "LibrarySyncRuns.Error",
+      "source": "LibrarySyncRunner.cs:56-57"
+    },
+    {
+      "text": "The app restarted before this inspection finished. What it had read is kept.",
+      "column": "FileInspectionRuns.Error",
+      "source": "Api/Services/Files/FileInspectionReconciler.cs:29"
+    },
+    {
+      "text": "A file changed after this inspection looked at it, so its hash counts from the next inspection.",
+      "column": "FileInspectionRuns.HashProblem",
+      "source": "FileInspectionRunner.Hashes.cs:22"
+    },
+    {
+      "text": "The app restarted before this scan finished, so nothing it found was stored. Scan the folders again.",
+      "column": "FolderScanRuns.Error",
+      "source": "Api/Services/Files/FolderScanReconciler.cs:28"
+    },
+    {
+      "text": "The app restarted before these TMDb suggestions were prepared. The works searched so far are kept.",
+      "column": "LibraryLinkSuggestionRuns.Error",
+      "source": "LibraryLinkSuggestionRunReconciler.cs:23"
+    },
+    {
+      "text": "The app restarted while identifying the item in Jellyfin. Jellyfin may still be working on it: Retry in a few minutes checks what it holds before anything is sent.",
+      "column": "LibraryItemLinks.WriteError",
+      "source": "LibraryLinkWriteReconciler.cs:37-38 — state-bearing (design §6.6)"
+    },
+    {
+      "text": "TMDb knows no IMDb id of this episode, so its link stays in the app.",
+      "column": "LibraryItemLinks.WriteError",
+      "source": "LibraryLinkWritability.cs:34 — state-bearing (design §6.6)"
+    },
+    {
+      "text": "Jellyfin may still be working on this series after the last attempt; try again after 14:05 UTC.",
+      "column": "LibraryItemLinks.WriteError",
+      "source": "LibraryLinkWriter.cs:48-49"
+    },
+    {
+      "text": "“Jellyfin” is switched off. Switch it on under Integrations, then retry.",
+      "column": "LibraryItemLinks.WriteError",
+      "source": "LibraryLinkWriter.cs:45"
+    },
+    {
+      "text": "The download failed, so nothing will be replaced.",
+      "column": "ReplacementJobs.Reason",
+      "source": "Api/Services/Replacements/ReplacementJobFollower.cs:28"
+    },
+    {
+      "text": "“qBittorrent”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.",
+      "column": "ReplacementJobs.Reason",
+      "source": "ReplacementJobFollower.cs:137"
+    },
+    {
+      "text": "The app couldn't ask “qBittorrent” about this download within an hour: qBittorrent answered 500 Internal Server Error. Its own log says why.",
+      "column": "ReplacementJobs.Reason",
+      "source": "ReplacementNewFileReader.cs:413 nesting HttpIntegrationAdapter.cs:223"
+    },
+    {
+      "text": "“Alien (1979).mkv” couldn't be moved into the quarantine: The app couldn't rename or delete “/media/Movies/Alien (1979)/Alien (1979).mkv”: Device or resource busy (errno 16). 1 of 3 names is in the quarantine.",
+      "column": "ReplacementJobs.Reason",
+      "source": "ReplacementQuarantiner.Reasons.cs:50-53 nesting FileQuarantineMessages, with ReplacementNameTally"
+    },
+    {
+      "text": "“Mr and Mrs Bo and the Big Red Box of Toys (1999) - Part 1 of 2 - Act 1 of 3 - It Is a Big Box and It Is Red and It Is for You and Me and So On and So On.mkv” couldn't be moved into the quarantine: The app couldn't rename or delete “/media/Kids/Mr and Mrs Bo and the Big Red Box of Toys (1999)/Mr and Mrs Bo and the Big Red Box of Toys (1999) - Part 1 of 2 - Act 1 of 3 - It Is a Big Box and It Is Red and It Is for You and Me and So On and So On.mkv”: Device or resource busy (errno 16). 1 of 3 names is in the quarantine.",
+      "column": "ReplacementJobs.Reason",
+      "source": "ReplacementQuarantiner.Reasons.cs:50-53 nesting FileQuarantineMessages — a long path: the nested sentence holds more than 64 spaces (WP4 review)"
+    },
+    {
+      "text": "The app stopped while moving the old copies: 2 of 4 names are in the quarantine.",
+      "column": "ReplacementJobs.Reason",
+      "source": "ReplacementQuarantiner.Reasons.cs:66-67; T/Api/Replacements/ReplacementNameTallyTests"
+    },
+    {
+      "text": "Still held by the torrent “Alien” in “qBittorrent”: remove that torrent there without its files, then press Retry.",
+      "column": "ReplacementJobs.Reason",
+      "source": "QuarantineHoldingCheck.cs:64-68; T/Api/Conventions/ReplacementsAreOwnerOnlyHttpTests.HeldReason"
+    },
+    {
+      "text": "Held by the torrents “Alien.1979.1080p” in “qBittorrent” and “Alien.1979.2160p” in “Transmission”, so it stays where it is.",
+      "column": "ReplacementJobNames.Problem",
+      "source": "QuarantineHoldingCheck.cs:73-77"
+    },
+    {
+      "text": "“/media/Movies/Alien (1979)/Alien (1979).mkv” is gone, so there is nothing to move.",
+      "column": "ReplacementJobFiles.Problem",
+      "source": "ReplacementQuarantiner.Reasons.cs:23"
+    },
+    {
+      "text": "The app stopped while moving this copy: 1 of 2 names is in the quarantine.",
+      "column": "CopyRemovals.Reason",
+      "source": "CopyRemovalRecovery.cs:251-252; T/Api/CopyRemovals tests"
+    },
+    {
+      "text": "The app stopped while moving this copy.",
+      "column": "CopyRemovals.Reason",
+      "source": "CopyRemovalRecovery.cs:251-252, nothing moved yet"
+    },
+    {
+      "text": "Held by the torrent “Alien.1979.1080p” in “qBittorrent”, so it stays where it is.",
+      "column": "CopyRemovalNames.Problem",
+      "source": "QuarantineHoldingCheck.cs CompanionHeldReason via CopyRemovalService.Moves.cs:99"
+    },
+    {
+      "text": "This release is Alien (1979)",
+      "column": "ReplacementJobWorks.ConfirmationText",
+      "source": "ReplacementCandidateReader.Works.cs:131-151",
+      "keyPrefix": "replacements.confirm."
+    },
+    {
+      "text": "This release is Doctor Who (2005), season 2, episodes 1–5",
+      "column": "ReplacementJobWorks.ConfirmationText",
+      "source": "ReplacementCandidateReader.Works.cs:131-151",
+      "keyPrefix": "replacements.confirm."
+    },
+    {
+      "text": "This release is Halloween (2018) (the copy “Halloween.2018.1080p.mkv”)",
+      "column": "AuditEvents.TargetName",
+      "source": "ReplacementCandidateReader.cs:244-251 twins, the audit row's name (design §5.5, §6.2)",
+      "length": 200,
+      "keyPrefix": "replacements.confirm."
+    }
+  ]
+}

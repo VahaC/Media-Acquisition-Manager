@@ -36,7 +36,7 @@ public class LibraryController(ILibraryService library, ILibraryPosterService po
         return result.Status switch
         {
             LibraryWorkListStatus.Listed => Ok(result.List),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -53,7 +53,7 @@ public class LibraryController(ILibraryService library, ILibraryPosterService po
         {
             LibraryWorkListStatus.Listed => Ok(result.List),
             LibraryWorkListStatus.NotFound => NotFound(),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -76,7 +76,7 @@ public class LibraryController(ILibraryService library, ILibraryPosterService po
             case LibraryPosterStatus.NotFound:
                 return NotFound();
             default:
-                return this.BadGatewayError(result.Error);
+                return this.BadGatewayError(result.Error!);
         }
     }
 

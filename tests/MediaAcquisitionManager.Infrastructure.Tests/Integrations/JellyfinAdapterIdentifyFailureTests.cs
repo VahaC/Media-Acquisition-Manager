@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using static MediaAcquisitionManager.TestInfrastructure.Integrations.JellyfinIdentifyHarness;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
@@ -52,7 +53,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         //Assert
         // Nothing was sent to Apply: a failure, not a decision.
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Equal(4, _jellyfin.Http.Requests.Count);
         Assert.Empty(_jellyfin.ApplyRequests());
@@ -71,7 +72,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(KeyRefusedError, result.Error);
+        Assert.Equal(KeyRefusedError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Empty(_jellyfin.Server.Applied);
     }
@@ -87,7 +88,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotJellyfinError, result.Error);
+        Assert.Equal(NotJellyfinError, TestTexts.En(result.Error));
         Assert.Empty(_jellyfin.ApplyRequests());
     }
 
@@ -115,7 +116,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         //Assert
         // Jellyfin changed nothing: a failure, not an Apply that may have landed — and the item is not read again.
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Single(_jellyfin.ApplyRequests());
         Assert.StartsWith("/Items/RemoteSearch/Apply/", _jellyfin.Http.Requests[^1].Uri.AbsolutePath, StringComparison.Ordinal);
@@ -138,7 +139,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Equal("120. Landing Stripling", (string?)_jellyfin.Film["Name"]);
     }
@@ -154,7 +155,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal("Jellyfin refused to identify the item. Check that the API key belongs to an administrator.", result.Error);
+        Assert.Equal("Jellyfin refused to identify the item. Check that the API key belongs to an administrator.", TestTexts.En(result.Error));
         Assert.Empty(_jellyfin.Server.Applied);
     }
 
@@ -205,7 +206,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         var identification = result.Value!;
         Assert.Equal(LibraryIdentifyOutcome.NotConfirmed, identification.Outcome);
         Assert.True(identification.Sent);
-        Assert.Equal(AnswerLostProblem, identification.Sentence);
+        Assert.Equal(AnswerLostProblem, TestTexts.En(identification.Sentence));
         Assert.Empty(identification.IdsBefore);
         Assert.Empty(identification.IdsAfter);
         // Sent once, never again (house rule 8): the owner's Retry reads the item first.
@@ -232,7 +233,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         // The client's own timeout in minutes, as a person reads it: 0.1 seconds is 0.0017 minutes.
         Assert.Equal(
             "The match was sent to Jellyfin, but it didn't answer within 0.0017 minutes, and the item read again doesn't show it. Jellyfin may still be working on it: Retry in a few minutes checks again before sending anything.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
         Assert.Single(jellyfin.ApplyRequests());
         Assert.Equal(6, jellyfin.Http.Requests.Count);
     }
@@ -274,7 +275,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         Assert.True(identification.Sent);
         Assert.Equal(
             $"Jellyfin answered the match with {expectedStatus}, and the item read again doesn't show it. Its own log says why; the item may have lost its images. Retry checks again before sending anything.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
         Assert.Single(_jellyfin.ApplyRequests());
         Assert.Equal(6, _jellyfin.Http.Requests.Count);
     }
@@ -315,7 +316,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         var identification = result.Value!;
         Assert.Equal(LibraryIdentifyOutcome.NotConfirmed, identification.Outcome);
         Assert.True(identification.Sent);
-        Assert.Equal($"Jellyfin took the match, but the app couldn't read the item again to confirm it. {expectedSentence}", identification.Sentence);
+        Assert.Equal($"Jellyfin took the match, but the app couldn't read the item again to confirm it. {expectedSentence}", TestTexts.En(identification.Sentence));
         // The read never came: the ids the identification meant to leave are what the audit row records.
         Assert.Empty(identification.IdsBefore);
         Assert.Equal(["Imdb tt0056164", "Tmdb 223021"], Describe(identification.IdsAfter));
@@ -345,7 +346,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Unreachable, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         // No read again: nothing was sent.
         Assert.Equal(5, _jellyfin.Http.Requests.Count);
@@ -368,7 +369,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
         Assert.Equal(
             "Jellyfin at http://jellyfin.test:8096 didn't accept the connection within 5 seconds. Check the address and port, and that Jellyfin is running.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Equal(5, _jellyfin.Http.Requests.Count);
     }
@@ -388,7 +389,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         //Assert
         // The connection test's sentences, from one source; nothing was sent.
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Single(_jellyfin.Http.Requests);
     }
@@ -405,7 +406,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("Jellyfin at http://jellyfin.test:8096 didn't answer within 0.1 seconds.", result.Error);
+        Assert.Equal("Jellyfin at http://jellyfin.test:8096 didn't answer within 0.1 seconds.", TestTexts.En(result.Error));
         Assert.Single(jellyfin.Http.Requests);
     }
 
@@ -421,7 +422,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("Jellyfin at http://jellyfin.test:8096 didn't answer within 0.1 seconds.", result.Error);
+        Assert.Equal("Jellyfin at http://jellyfin.test:8096 didn't answer within 0.1 seconds.", TestTexts.En(result.Error));
         Assert.Empty(jellyfin.ApplyRequests());
     }
 
@@ -483,7 +484,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         //Assert
         // The recorded 404 of a read of an item that doesn't exist — and none in the user-less list either.
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal(ItemGoneError, result.Error);
+        Assert.Equal(ItemGoneError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Equal(
             [
@@ -509,7 +510,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
         Assert.Equal(
             "Jellyfin's administrator account can't see this item (a parental limit, a blocked tag or no access to its library), so the app can't read it as that account.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Empty(_jellyfin.Server.RemoteSearches);
     }
 
@@ -524,7 +525,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal("Jellyfin has no enabled administrator account to read the item as.", result.Error);
+        Assert.Equal("Jellyfin has no enabled administrator account to read the item as.", TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Equal("/Users", Assert.Single(_jellyfin.Http.Requests).Uri.AbsolutePath);
     }
@@ -543,7 +544,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("Jellyfin answered 400 Bad Request, which it doesn't send for this request. Check the address.", result.Error);
+        Assert.Equal("Jellyfin answered 400 Bad Request, which it doesn't send for this request. Check the address.", TestTexts.En(result.Error));
         Assert.Empty(_jellyfin.Server.RemoteSearches);
     }
 
@@ -558,7 +559,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(KeyRefusedError, result.Error);
+        Assert.Equal(KeyRefusedError, TestTexts.En(result.Error));
         Assert.Single(_jellyfin.Http.Requests);
     }
 
@@ -585,7 +586,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotJellyfinError, result.Error);
+        Assert.Equal(NotJellyfinError, TestTexts.En(result.Error));
         Assert.Empty(_jellyfin.ApplyRequests());
     }
 
@@ -601,7 +602,7 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         //Assert
         Assert.Equal(
             "Jellyfin holds an item of type “Folder ***” under this id, not a movie, so the app didn't identify it. Sync the library and link it again.",
-            result.Value!.Sentence);
+            TestTexts.En(result.Value!.Sentence));
     }
 
     [Fact]
@@ -620,8 +621,8 @@ public sealed class JellyfinAdapterIdentifyFailureTests : IDisposable
         var result = await _jellyfin.IdentifyAsync(FilmRequest(), TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.DoesNotContain(ApiKey, result.Value!.Sentence, StringComparison.Ordinal);
-        Assert.Contains("***", result.Value.Sentence, StringComparison.Ordinal);
+        Assert.DoesNotContain(ApiKey, TestTexts.En(result.Value!.Sentence), StringComparison.Ordinal);
+        Assert.Contains("***", TestTexts.En(result.Value.Sentence), StringComparison.Ordinal);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

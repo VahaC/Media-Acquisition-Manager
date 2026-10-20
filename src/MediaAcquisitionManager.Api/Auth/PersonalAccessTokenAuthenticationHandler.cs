@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using MediaAcquisitionManager.Api.Extensions;
+using MediaAcquisitionManager.Api.Http;
 using MediaAcquisitionManager.Api.RateLimiting;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Enums;
@@ -125,9 +126,8 @@ public sealed class PersonalAccessTokenAuthenticationHandler(
 
         // The rate limiter's own answer (RateLimitingServiceCollectionExtensions.OnRejected): a fixed window's
         // Retry-After is one whole window, never earlier than the next attempt can succeed.
-        Response.StatusCode = StatusCodes.Status429TooManyRequests;
         Response.Headers.RetryAfter = ((int)Math.Ceiling(SignInRateLimitPolicy.Window.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
-        await Response.WriteAsJsonAsync(new { error = RateLimitingServiceCollectionExtensions.TooManyAttempts }, Context.RequestAborted);
+        await ApiErrorBody.WriteAsync(Context, StatusCodes.Status429TooManyRequests, RateLimitingServiceCollectionExtensions.TooManyAttempts);
     }
 
     // One query: the token by its hash, active, of a user who exists and isn't disabled — the join drops a disabled

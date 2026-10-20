@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -23,7 +24,7 @@ public interface ICopyRemovalDataFactory
         string title = "Alien (1979)",
         string groupKey = "0123456789abcdef0123456789abcdef",
         DuplicateClass groupClass = DuplicateClass.SameWork,
-        string? reason = null,
+        Message? reason = null,
         DateTime? createdUtc = null,
         DateTime? libraryNoticeDueUtc = null);
 
@@ -38,7 +39,7 @@ public interface ICopyRemovalDataFactory
         string allowedRoot,
         FileFacts facts,
         ReplacementNameState state = ReplacementNameState.Planned,
-        string? problem = null,
+        Message? problem = null,
         DateTime? movedUtc = null,
         DateTime? restoredUtc = null,
         DateTime? deletedUtc = null);

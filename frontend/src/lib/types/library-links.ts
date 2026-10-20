@@ -137,6 +137,12 @@ export interface LibraryLinkItem {
    * IMDb id of that episode on TMDb).
    */
   cannotWriteReason: string | null
+  /**
+   * MAM-47 — the key of `cannotWriteReason`'s sentence (the API's error `code`), which names the kind of reason
+   * whatever the language and a renamed library: null when there is none. Optional until every server sends it;
+   * without it the words are compared.
+   */
+  cannotWriteReasonCode?: string | null
   /** Null without a link, like every link field below. */
   target: LibraryLinkTarget | null
   catalogKind: CatalogWorkKind | null
@@ -153,6 +159,8 @@ export interface LibraryLinkItem {
   writeState: LibraryLinkWriteState | null
   /** Why Jellyfin didn't identify it (the dialog is the owner's), the server's sentence verbatim. */
   writeError: string | null
+  /** MAM-47 — the key of `writeError`'s sentence, like `cannotWriteReasonCode`. */
+  writeErrorCode?: string | null
   /** UTC with a trailing `Z`: when the state last changed; while `Writing`, when the identification began. */
   writeStateUtc: string | null
   /** UTC with a trailing `Z`: when the link was set or last replaced. */

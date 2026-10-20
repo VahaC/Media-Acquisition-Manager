@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -231,9 +232,9 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, refused.Status);
-        Assert.Equal(CredentialsRefusedError, refused.Error);
+        Assert.Equal(CredentialsRefusedError, TestTexts.En(refused.Error));
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(RememberedCredentialsRefusedError, result.Error);
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(result.Error));
         Assert.Single(_harness.TransmissionHttp.Requests);
     }
 
@@ -250,7 +251,7 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
         //Assert
         // A request without credentials counts towards Transmission's lock too.
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(RememberedSignInNeededError, result.Error);
+        Assert.Equal(RememberedSignInNeededError, TestTexts.En(result.Error));
         Assert.Single(_harness.TransmissionHttp.Requests);
     }
 
@@ -269,7 +270,7 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal(RememberedForbiddenError, result.Error);
+        Assert.Equal(RememberedForbiddenError, TestTexts.En(result.Error));
         Assert.Single(_harness.TransmissionHttp.Requests);
     }
 
@@ -325,7 +326,7 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
         var result = await Client.FindJobsAsync(Saved, [Hash(1)], cancellationToken);
 
         //Assert
-        Assert.Equal(RememberedCredentialsRefusedError, stillRefused.Error);
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(stillRefused.Error));
         Assert.Equal(IntegrationCallStatus.Succeeded, test.Status);
         Assert.True(result.IsSuccess);
     }
@@ -363,7 +364,7 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
         //Assert
         Assert.NotEqual(IntegrationCallStatus.Succeeded, test.Status);
         Assert.Equal((test.Status, test.Message), (result.Status, result.Error));
-        Assert.NotEqual(RememberedCredentialsRefusedError, result.Error);
+        Assert.NotEqual(RememberedCredentialsRefusedError, TestTexts.En(result.Error));
         Assert.True(_harness.TransmissionHttp.Requests.Count > sentBefore);
     }
 
@@ -379,7 +380,7 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
         var result = await Client.FindJobsAsync(wrong, [Hash(1)], cancellationToken);
 
         //Assert
-        Assert.Equal(RememberedCredentialsRefusedError, result.Error);
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(result.Error));
         Assert.Single(_harness.TransmissionHttp.Requests);
     }
 
@@ -397,7 +398,7 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
         var result = await Client.FindJobsAsync(saved, [Hash(1)], cancellationToken);
 
         //Assert
-        Assert.Equal(RememberedCredentialsRefusedError, result.Error);
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(result.Error));
         Assert.Equal(2, _harness.TransmissionHttp.Requests.Count);
     }
 
@@ -419,8 +420,8 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal(RememberedCredentialsRefusedError, result.Error);
-        Assert.Equal(RememberedCredentialsRefusedError, resultOfTheOld.Error);
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(result.Error));
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(resultOfTheOld.Error));
         Assert.Equal(2, _harness.TransmissionHttp.Requests.Count);
     }
 
@@ -445,7 +446,7 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
         var result = await Client.FindJobsAsync(saved, [Hash(1)], cancellationToken);
 
         //Assert
-        Assert.Equal(RememberedCredentialsRefusedError, resultOfTheOld.Error);
+        Assert.Equal(RememberedCredentialsRefusedError, TestTexts.En(resultOfTheOld.Error));
         Assert.Equal(0, sentForTheOld);
         Assert.True(result.IsSuccess);
     }
@@ -462,7 +463,7 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
         var result = await Client.FindJobsAsync(draft, [Hash(1)], cancellationToken);
 
         //Assert
-        Assert.Equal(CredentialsRefusedError, result.Error);
+        Assert.Equal(CredentialsRefusedError, TestTexts.En(result.Error));
         Assert.Equal(2, _harness.TransmissionHttp.Requests.Count);
     }
 
@@ -527,7 +528,7 @@ public sealed class TransmissionAdapterSessionsTests : IDisposable
         var result = await Client.FindJobsAsync(Saved, [Hash(1)], cancellationToken);
 
         //Assert
-        Assert.Equal("Transmission refused the request: session *** expired.", result.Error);
+        Assert.Equal("Transmission refused the request: session *** expired.", TestTexts.En(result.Error));
     }
 
     [Fact]

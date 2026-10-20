@@ -1,9 +1,9 @@
 using System.Text.Json.Nodes;
-using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 
@@ -73,24 +73,28 @@ internal sealed partial class TransmissionAdapter
         }
         else
         {
-            var shown = RemoteText.Clean(downloadDir, FolderMaximumLength, CallSecrets(settings, sessionSecrets));
+            var shown = VendorText.Clean(downloadDir, FolderMaximumLength, CallSecrets(settings, sessionSecrets));
             destinations.Add(new ClientDestination(
                 downloadDir,
-                shown,
+                shown.Text,
                 downloadDir,
                 IsClientDefaultFolder: true,
-                Problem: $"Transmission's download folder “{shown}” isn't a full path the app can use. In Transmission's web interface open Edit preferences, Torrents, give “Download to” a full path such as /downloads, then look again."));
+                Problem: Message.Of("transmission.folder.download-folder-unusable", ("folder", shown))));
         }
 
         folders.AddRange(proposed.Where(folder => !folders.Exists(listed => listed.Folder.IsSameAs(folder))).Select(folder => (folder, false)));
         foreach (var (folder, isDefault) in folders)
         {
             var key = folder.ToString();
-            string? problem;
+            Message? problem;
             if (key.Length > DestinationRules.ClientDestinationKeyMaximumLength)
             {
                 // D1 — a destination's key holds the folder, and no more than this: listed with why, never sent to.
-                problem = $"{(isDefault ? "Transmission's download folder" : "The folder")} “{key}” is longer than the {DestinationRules.ClientDestinationKeyMaximumLength} characters a destination can hold.";
+                (string, MessageValue) longFolder = ("folder", key);
+                (string, MessageValue) limit = ("count", DestinationRules.ClientDestinationKeyMaximumLength);
+                problem = isDefault
+                    ? Message.Of("transmission.folder.download-folder-too-long", longFolder, limit)
+                    : Message.Of("transmission.folder.too-long", longFolder, limit);
             }
             else
             {
@@ -100,18 +104,28 @@ internal sealed partial class TransmissionAdapter
                 problem = seen;
             }
 
-            destinations.Add(new ClientDestination(
-                key, key, key, isDefault, problem is null ? null : SecretRedaction.Redact(problem, CallSecrets(settings, sessionSecrets))));
+            // The second pass the finished sentence got before (the folder is the app's or Transmission's, unmasked so
+            // far): every value masked again, now that the call's session secrets are all known.
+            destinations.Add(new ClientDestination(key, key, key, isDefault, problem?.Redacted(CallSecrets(settings, sessionSecrets))));
         }
 
         return IntegrationCallResult<IReadOnlyList<ClientDestination>>.Succeeded(destinations);
     }
 
     /// <summary>
+    /// MAM-47 — the sentence a folder client lists a folder it can't see with, naming the client
+    /// (<paramref name="service"/>) and its own reason. The test host's folder client (<c>FakeFolderDownloadClient</c>)
+    /// lists its folders with this very sentence, so a test of the app's side reads the words a reader of Transmission's
+    /// would.
+    /// </summary>
+    internal static Message FolderNotSeen(string service, string folder, VendorText reason) =>
+        Message.Of("transmission.folder.not-seen", ("service", service), ("folder", folder), ("reason", reason));
+
+    /// <summary>
     /// <c>free-space</c> of <paramref name="folder"/>: <c>null</c> when Transmission sees it, else the sentence saying it
     /// can't and how to fix it, with Transmission's own reason; or the failure of the whole call.
     /// </summary>
-    private async Task<(string? Problem, ConnectionTestResult? Failure)> FolderProblemAsync(
+    private async Task<(Message? Problem, ConnectionTestResult? Failure)> FolderProblemAsync(
         HttpClient client, RpcCall call, string folder, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
     {
         var (answer, failure) = await SendRpcAsync(client, call, FreeSpaceMethod, new JsonObject { ["path"] = folder }, sessionSecrets, cancellationToken);
@@ -120,10 +134,12 @@ internal sealed partial class TransmissionAdapter
         if (answer!.IsSuccess && Whole(answer.Arguments, "size-bytes") is >= 0)
             return (null, null);
 
-        // A success without free bytes is as good as no answer: Transmission couldn't measure the folder.
-        var reason = answer.IsSuccess ? "no free space reported" : RemoteText.Clean(answer.Result, ResultMaximumLength, CallSecrets(call.Settings, sessionSecrets));
+        // A success without free bytes is as good as no answer: Transmission couldn't measure the folder. MAM-47 — said
+        // in a sentence of its own: the reason is then the app's words, not Transmission's.
         return (
-            $"Transmission can't see “{folder}” ({reason}). Mount that folder into Transmission, or add a path mapping on this integration that leads there, then look again.",
+            answer.IsSuccess
+                ? Message.Of("transmission.folder.not-seen-no-free-space", ("service", Descriptor.DisplayName), ("folder", folder))
+                : FolderNotSeen(Descriptor.DisplayName, folder, VendorText.Clean(answer.Result, ResultMaximumLength, CallSecrets(call.Settings, sessionSecrets))),
             null);
     }
 

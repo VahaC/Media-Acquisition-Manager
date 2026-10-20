@@ -3,7 +3,9 @@ using System.Security.Claims;
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Library;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -14,10 +16,11 @@ namespace MediaAcquisitionManager.Api.Mcp.Tools;
 /// The Library page's own list (<see cref="ILibraryService.ListWorksAsync"/>), not the Search page's library matching:
 /// that runs only inside a release search, which asks every source and stores what they found — slow, and a write, for
 /// "do we have it?". The service shapes what the owner alone reads (a file's path problem quotes the owner's mappings)
-/// and answers its own sentences, which go back as they are. Built per call by the SDK, with the request's services.
+/// and answers its own refusals, which go back as the service words them. Built per call by the SDK, with the request's
+/// services. MAM-47 (ADR 0042) — the summary and the refusals are written in the request's language, one key per shape.
 /// </remarks>
 [McpServerToolType]
-public sealed class LibraryTools(ILibraryService library, McpToolResults results)
+public sealed class LibraryTools(ILibraryService library, McpToolResults results, IRequestTexts texts)
 {
     [McpServerTool(
         Name = "search_library",
@@ -56,16 +59,12 @@ public sealed class LibraryTools(ILibraryService library, McpToolResults results
         var listed = await library.ListWorksAsync(
             text, locationId: null, identifiers: null, kind, sort?.ToString(), page, pageSize, user.GetUserId(), cancellationToken);
         if (listed.Status != LibraryWorkListStatus.Listed)
-            return McpToolResults.Error(listed.Error!);
+            return McpToolResults.Error(texts.Render(listed.Error!));
 
         var list = listed.List!;
-        var matched = string.IsNullOrWhiteSpace(text)
-            ? $"The library lists {Works(list.TotalCount)}"
-            : list.TotalCount == 1
-                ? $"1 work matches “{text.Trim()}”"
-                : $"{list.TotalCount} works match “{text.Trim()}”";
-        return results.Success($"{matched}; page {list.Page} lists {list.Items.Count}.", list);
+        var summary = string.IsNullOrWhiteSpace(text)
+            ? Message.Of("library.mcp.search.listed", ("count", list.TotalCount), ("page", list.Page), ("listed", list.Items.Count))
+            : Message.Of("library.mcp.search.matched", ("count", list.TotalCount), ("text", text.Trim()), ("page", list.Page), ("listed", list.Items.Count));
+        return results.Success(texts.Render(summary), list);
     }
-
-    private static string Works(int count) => count == 1 ? "1 work" : $"{count} works";
 }

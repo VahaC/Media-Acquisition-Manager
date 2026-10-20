@@ -6,6 +6,8 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
+using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,12 +38,11 @@ public sealed class DestinationChecker(
     /// changes nothing when folders are stored and none of them maps into the app: the media library
     /// integration's path mappings are what to fix then.
     /// </summary>
-    private const string LibraryFoldersUnmappedError =
-        "None of the media library folders maps to a folder of the app through its integration's path mappings. Check those mappings under Integrations, then look again.";
+    private static readonly Message LibraryFoldersUnmappedError = Message.Of("destinations.libraries-unmapped");
 
     /// <summary>A destination whose client was removed after the destination was read (the database
     /// removes its destinations with it).</summary>
-    private const string ClientGoneError = "The download client of this destination no longer exists.";
+    private static readonly Message ClientGoneError = Message.Of("destinations.client.gone");
 
     public async Task<IReadOnlyDictionary<Guid, DestinationPathCheckResult>> CheckAsync(
         IReadOnlyCollection<DestinationMappingEntity> destinations, CancellationToken cancellationToken = default)
@@ -175,25 +176,25 @@ public sealed class DestinationChecker(
                 client.AdapterType,
                 exception.GetType().FullName,
                 exception.StackTrace);
-            return Failed(client, IntegrationCallStatus.UnexpectedResponse, $"The app couldn't read what “{client.Name}” answered.", settings);
+            return Failed(client, IntegrationCallStatus.UnexpectedResponse, IntegrationAdapterMessages.UnreadableAnswer(client.Name), settings);
         }
     }
 
-    private ClientAnswer NotAsked(IntegrationConnectionEntity client, ClientDestinationsStatus status, string error)
+    private ClientAnswer NotAsked(IntegrationConnectionEntity client, ClientDestinationsStatus status, Message error)
     {
         logger.LogInformation(
             "Destination listing of integration {IntegrationId} ({AdapterType}) did not ask it: {Status}.", client.Id, client.AdapterType, status);
         return new ClientAnswer(status, [], error, []);
     }
 
-    private ClientAnswer Failed(IntegrationConnectionEntity client, IntegrationCallStatus status, string error, IntegrationConnectionSettings settings)
+    private ClientAnswer Failed(IntegrationConnectionEntity client, IntegrationCallStatus status, Message error, IntegrationConnectionSettings settings)
     {
         // Information: the status only — never the address or the sentence (the connection test's rule).
         logger.LogInformation(
             "Destination listing of integration {IntegrationId} ({AdapterType}) failed: {Status}.", client.Id, client.AdapterType, status);
         // Masked again after the adapter (ADR 0007's second pass), which also covers an adapter that isn't
         // HTTP.
-        return new ClientAnswer(ClientDestinationsStatus.CallFailed, [], SecretRedaction.Redact(error, settings.Secrets), []);
+        return new ClientAnswer(ClientDestinationsStatus.CallFailed, [], error.Redacted(settings.Secrets), []);
     }
 
     /// <summary>One stored destination's check against what its client answered — MAM-30, a folder by the folder.</summary>
@@ -242,7 +243,12 @@ public sealed class DestinationChecker(
             unplaced.Add(new UnplacedLibraryFolder(
                 folder.LibraryName,
                 folder.ServicePath,
-                $"The library “{folder.LibraryName}” is at “{folder.ServicePath}” in Jellyfin, which none of its integration's path mappings brings into this app, so the app can't find its folder in “{client.Name}”. Check the path mappings of “{folder.IntegrationName}”."));
+                Message.Of(
+                    "destinations.unplaced.not-in-app",
+                    ("library", folder.LibraryName),
+                    ("path", folder.ServicePath),
+                    ("client", client.Name),
+                    ("integration", folder.IntegrationName))));
         }
 
         foreach (var key in storedKeys)
@@ -260,13 +266,14 @@ public sealed class DestinationChecker(
 
     /// <summary>MAM-30 — why the client's path mappings give the library folder no folder of the client's, and how to fix
     /// it.</summary>
-    private static string NoFolderProblem(
+    private static Message NoFolderProblem(
         IntegrationConnectionEntity client, LibraryFolder folder, ServicePathMapResult back, IReadOnlyList<PathMappingPair> pairs)
     {
         switch (back.Status)
         {
             case PathMapStatus.NotCovered:
-                return $"“{client.Name}” has no folder for the library “{folder.LibraryName}”: none of its path mappings leads to “{folder.AppPath}”. Add one under Integrations, “{client.Name}”, Path mappings (for example /downloads → /media), then look again.";
+                return Message.Of(
+                    "destinations.unplaced.not-covered", ("client", client.Name), ("library", folder.LibraryName), ("folder", folder.AppPath));
             case PathMapStatus.Ambiguous:
                 // The places each mapping alone leads back from, collapsed the way the mapper collapses agreeing ones.
                 var places = new List<NormalizedPath>();
@@ -278,17 +285,28 @@ public sealed class DestinationChecker(
                         places.Add(path);
                 }
 
-                return $"“{client.Name}”'s path mappings lead to the library “{folder.LibraryName}” (“{folder.AppPath}”) from different places: “{places[0]}” and “{places[1]}”. Keep one of those mappings, then look again.";
+                return Message.Of(
+                    "destinations.unplaced.ambiguous",
+                    ("client", client.Name),
+                    ("library", folder.LibraryName),
+                    ("folder", folder.AppPath),
+                    ("first", places[0].ToString()),
+                    ("second", places[1].ToString()));
             default:
                 // A folder name the client's style can't write: the mapper's own sentence says which.
-                return $"“{client.Name}” has no folder for the library “{folder.LibraryName}”: {back.Reason}";
+                return Message.Of("destinations.unplaced.unwritable", ("client", client.Name), ("library", folder.LibraryName), ("reason", back.Reason!));
         }
     }
 
     /// <summary>MAM-30 — a library folder whose folder in the client is longer than a destination's key can hold
     /// (<see cref="DestinationRules.ClientDestinationKeyMaximumLength"/>).</summary>
-    private static string TooLongProblem(IntegrationConnectionEntity client, string libraryName, string folder) =>
-        $"The folder of the library “{libraryName}” in “{client.Name}” (“{folder}”) is longer than the {DestinationRules.ClientDestinationKeyMaximumLength} characters a destination can hold.";
+    private static Message TooLongProblem(IntegrationConnectionEntity client, string libraryName, string folder) =>
+        Message.Of(
+            "destinations.unplaced.too-long",
+            ("library", libraryName),
+            ("client", client.Name),
+            ("folder", folder),
+            ("count", DestinationRules.ClientDestinationKeyMaximumLength));
 
     /// <summary>
     /// MAM-30 — a folder the client listed as <paramref name="entry"/>, or, when it is longer than a destination's key can
@@ -300,7 +318,11 @@ public sealed class DestinationChecker(
         entry.Key.Length > DestinationRules.ClientDestinationKeyMaximumLength
             ? entry with
             {
-                Problem = $"The folder “{entry.Key}” in “{client.Name}” is longer than the {DestinationRules.ClientDestinationKeyMaximumLength} characters a destination can hold.",
+                Problem = Message.Of(
+                    "destinations.folder-too-long",
+                    ("folder", entry.Key),
+                    ("client", client.Name),
+                    ("count", DestinationRules.ClientDestinationKeyMaximumLength)),
             }
             : entry;
 
@@ -319,15 +341,17 @@ public sealed class DestinationChecker(
     private static List<PathMappingPair> PairsOf(IntegrationConnectionEntity client) =>
         [.. client.PathMappings.OrderBy(mapping => mapping.Position).Select(mapping => new PathMappingPair(mapping.ServicePrefix, mapping.AppPrefix))];
 
-    private static string DisabledError(IntegrationConnectionEntity client) =>
-        $"“{client.Name}” is switched off. Switch it on under Integrations to use it for destinations.";
+    /// <summary>MAM-47 — shared: the Destinations page, a destination's save and a send that stores it on its job say it
+    /// alike (<c>destinations.client.*</c>).</summary>
+    private static Message DisabledError(IntegrationConnectionEntity client) =>
+        Message.Of("destinations.client.switched-off", ("client", client.Name));
 
-    private static string TypeUnavailableError(IntegrationConnectionEntity client) =>
-        $"This version of the app can't send downloads to “{client.AdapterType}”.";
+    private static Message TypeUnavailableError(IntegrationConnectionEntity client) =>
+        Message.Of("destinations.client.type-unavailable", ("type", client.AdapterType));
 
     /// <summary>What one client said, before any destination is checked against it — MAM-30, with the library folders a
     /// folder client was proposed none for. Its <c>ToString</c> prints the lists as their type names; the error is
     /// masked.</summary>
     private sealed record ClientAnswer(
-        ClientDestinationsStatus Status, IReadOnlyList<ClientDestination> Destinations, string? Error, IReadOnlyList<UnplacedLibraryFolder> Unplaced);
+        ClientDestinationsStatus Status, IReadOnlyList<ClientDestination> Destinations, Message? Error, IReadOnlyList<UnplacedLibraryFolder> Unplaced);
 }

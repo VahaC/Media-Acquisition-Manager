@@ -4,9 +4,11 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Options;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -421,7 +423,7 @@ public sealed class LibraryLinksPersistenceTests : DatabaseTestBase
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var db = CreateContext();
         await Runs(db).Create(LibraryLinkSuggestionRunStatus.Succeeded);
-        await Runs(db).Create(LibraryLinkSuggestionRunStatus.Failed, error: "TMDb couldn't be reached.");
+        await Runs(db).Create(LibraryLinkSuggestionRunStatus.Failed, error: Message.Legacy("TMDb couldn't be reached."));
         await Runs(db).Create(LibraryLinkSuggestionRunStatus.Succeeded);
 
         //Act
@@ -473,7 +475,8 @@ public sealed class LibraryLinksPersistenceTests : DatabaseTestBase
         var identifiedUtc = new DateTime(2026, 10, 6, 14, 30, 45, DateTimeKind.Utc).AddTicks(7_654_321);
         var requestedUtc = new DateTime(2026, 10, 6, 2, 30, 45, DateTimeKind.Utc).AddTicks(1_234_567);
         var episodeImdbId = "tt" + new string('9', LibraryItemLinkEntity.ValueMaximumLength - 2);
-        var lookupError = new string('x', LibraryItemLinkEntity.ErrorMaximumLength);
+        // MAM-47 (ADR 0042) — the column holds a message's JSON: one exactly as long as the column is kept whole.
+        var lookupError = Message.Legacy(new string('x', LibraryItemLinkEntity.ErrorMaximumLength - MessageJson.Write(Message.Legacy("")).Length));
         var link = await Links(db).Create(
             jellyfin.Id, LandingStriplingItemId, null, MediaIdentifierScheme.TmdbTv, "91724", LibraryLinkTarget.ShowEpisode, LibraryLinkWriteState.Written,
             configure: row =>
@@ -491,11 +494,12 @@ public sealed class LibraryLinksPersistenceTests : DatabaseTestBase
         await using var check = CreateContext();
         var stored = await check.LibraryItemLinks.AsNoTracking().SingleAsync(cancellationToken);
         var action = await Value(check, "SELECT \"Action\" AS \"Value\" FROM \"AuditEvents\"", cancellationToken);
+        var lookupErrorLength = (await Value(check, "SELECT \"LookupError\" AS \"Value\" FROM \"LibraryItemLinks\"", cancellationToken)).Length;
 
         //Assert
         Assert.Equal(
-            (episodeImdbId, (DateTime?)identifiedUtc, (DateTime?)requestedUtc, lookupError),
-            (stored.EpisodeImdbId, stored.IdentifiedUtc, stored.LookupRequestedUtc, stored.LookupError));
+            (episodeImdbId, (DateTime?)identifiedUtc, (DateTime?)requestedUtc, (Message?)lookupError, LibraryItemLinkEntity.ErrorMaximumLength),
+            (stored.EpisodeImdbId, stored.IdentifiedUtc, stored.LookupRequestedUtc, stored.LookupError, lookupErrorLength));
         Assert.Equal("LibraryItemIdentified", action);
     }
 

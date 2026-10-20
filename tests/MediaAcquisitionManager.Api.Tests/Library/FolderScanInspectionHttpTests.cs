@@ -7,6 +7,7 @@ using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -163,7 +164,7 @@ public sealed class FolderScanInspectionHttpTests : IClassFixture<MediaAcquisiti
         // known of the bytes; the size the library reported is still the library's.
         Assert.Equal(FileInspectionRunStatus.Succeeded, run.Status);
         var gone = (await FilesAsync(cancellationToken))[TakenPath];
-        Assert.Equal((taken.Id, FileInspectionStatus.NotFound, NotFoundError), (gone.Id, gone.InspectionStatus!.Value, gone.InspectionError));
+        Assert.Equal((taken.Id, FileInspectionStatus.NotFound, NotFoundError), (gone.Id, gone.InspectionStatus!.Value, TestTexts.En(gone.InspectionError)));
         Assert.Equal((null, null, null, null), (gone.DeviceId, gone.Inode, gone.ReadSizeBytes, gone.ReadModifiedUtc));
         Assert.Equal(30_000_000_000L, gone.SizeBytes);
     }

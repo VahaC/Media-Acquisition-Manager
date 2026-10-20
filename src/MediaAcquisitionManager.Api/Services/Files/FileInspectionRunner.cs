@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -55,15 +56,19 @@ public sealed partial class FileInspectionRunner(
     /// </summary>
     public const int MaximumConcurrentReads = 2;
 
-    internal const string NoAllowedRootsError =
-        "No media folders are allowed any more, so there was nothing to inspect. Add one under Media folders in the user menu.";
+    internal static readonly Message NoAllowedRootsError = Message.Of("files.inspection.no-allowed-roots-any-more");
 
-    internal const string IdentityUnknownError =
-        "This platform gives files no identity (device and inode), so the app can't keep what it reads from them.";
+    internal static readonly Message IdentityUnknownError = Message.Of("files.inspection.identity-unknown");
 
-    internal const string InspectorUnavailableError = "The media inspector couldn't be started.";
+    // The four below stand in where the file inventory gave no reason of its own; the inventory's, when it gives one,
+    // says more (it names the path).
+    internal static readonly Message InspectorUnavailableError = Message.Of("files.inspection.inspector-unavailable");
 
-    internal const string ChangedWhileReadingError = "The file changed while it was being read; the next inspection reads it again.";
+    internal static readonly Message ChangedWhileReadingError = Message.Of("files.inspection.changed-while-reading");
+
+    internal static readonly Message MediaUnreadableError = Message.Of("files.inspection.media-unreadable");
+
+    internal static readonly Message UnreadableError = Message.Of("files.inspection.unreadable");
 
     private readonly SemaphoreSlim _writes = new(1, 1);
 
@@ -72,9 +77,9 @@ public sealed partial class FileInspectionRunner(
     private Dictionary<Guid, Guid> _linkedAtStart = [];
     private readonly HashSet<Guid> _replacedReadings = [];
 
-    // The first "can't start ffprobe" sentence of this run: every later read would fail the same way, so
+    // The first "can't start ffprobe" reason of this run: every later read would fail the same way, so
     // the files still waiting get it without starting the inspector hundreds of times.
-    private string? _inspectorUnavailable;
+    private Message? _inspectorUnavailable;
 
     public async Task RunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
@@ -262,17 +267,17 @@ public sealed partial class FileInspectionRunner(
                 progress.AddProbed();
                 // Cached like a success under the key that was looked at, so a damaged file isn't read
                 // again on every inspection — only once it changes.
-                var error = read.Error ?? "The media inspector couldn't read the file.";
+                var error = read.Error ?? MediaUnreadableError;
                 var failedId = await StoreAsync(key, media: null, error, cancellationToken);
                 foreach (var name in names)
                     await WriteAsync(progress, name.Path.FileIds, Outcome.Read(failedId, error, name.Facts), cancellationToken);
                 break;
             case FileInventoryStatus.InspectorUnavailable:
                 // Never cached: it is the app's host that lacks the inspector, not the file that is wrong.
-                var sentence = read.Error ?? InspectorUnavailableError;
-                Interlocked.CompareExchange(ref _inspectorUnavailable, sentence, null);
+                var reason = read.Error ?? InspectorUnavailableError;
+                Interlocked.CompareExchange(ref _inspectorUnavailable, reason, null);
                 foreach (var name in names)
-                    await WriteAsync(progress, name.Path.FileIds, Outcome.Problem(FileInspectionStatus.InspectorUnavailable, sentence, name.Facts), cancellationToken);
+                    await WriteAsync(progress, name.Path.FileIds, Outcome.Problem(FileInspectionStatus.InspectorUnavailable, reason, name.Facts), cancellationToken);
                 break;
             case FileInventoryStatus.ChangedWhileReading:
                 // Not cached: the reading belongs to neither version. Shown as unreadable for now, so the

@@ -1,5 +1,9 @@
+using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
+using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using static MediaAcquisitionManager.TestInfrastructure.Replacements.ReplacementPairingInputs;
 
 namespace MediaAcquisitionManager.Core.Tests.Replacements;
@@ -31,9 +35,9 @@ public sealed class ReplacementPairingFilmsTests
         var result = ReplacementPairing.Pair([Alien], [copy], [file], [], LibraryName, libraryWaitPassed: false);
 
         //Assert
-        Assert.Equal((ReplacementPairingVerdict.Pass, (string?)null), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, null)], result.OldCopies);
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, Alien.WorkId, null)], result.NewFiles);
+        Assert.Equal((ReplacementPairingVerdict.Pass, (string?)null), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, null)], result.OldCopies.InEnglish());
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, Alien.WorkId, null)], result.NewFiles.InEnglish());
     }
 
     [Fact]
@@ -95,9 +99,9 @@ public sealed class ReplacementPairingFilmsTests
         // The file is the reason, not the copy left without one: fixing the file's item may pair it.
         const string reason =
             "“Jellyfin” identified “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” as another work (IMDb tt0090605, TMDb 679), not Alien (1979).";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, reason)], result.NewFiles);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, null)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, reason)], result.NewFiles.InEnglish());
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, null)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -117,11 +121,11 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         const string reason =
             "“Living room” gave “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” TMDb 348 within an hour, but Alien (1979) is known here only by IMDb tt0078748.";
-        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (waiting.Verdict, waiting.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, null)], waiting.NewFiles);
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (stopped.Verdict, stopped.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, reason)], stopped.NewFiles);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, null)], stopped.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (waiting.Verdict, TestTexts.En(waiting.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, null)], waiting.NewFiles.InEnglish());
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (stopped.Verdict, TestTexts.En(stopped.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, reason)], stopped.NewFiles.InEnglish());
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, null)], stopped.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -139,8 +143,36 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         const string reason =
             "“Living room” gave “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” IMDb tt0078748 and TMDb 348, but Alien (1979) has no TMDb or IMDb id here to compare them with.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, reason)], result.NewFiles);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, reason)], result.NewFiles.InEnglish());
+    }
+
+    [Theory]
+    // MAM-47 — "has"/"have" and "it"/"them" became a key per shape (no-id-to-compare.film.*): each shape keeps its English.
+    [InlineData(false, false, "TMDb 348, but Alien (1979) has no TMDb or IMDb id here to compare it with.")]
+    [InlineData(true, false, "TMDb 348, but Alien (1979) and Aliens (1986) have no TMDb or IMDb id here to compare it with.")]
+    [InlineData(true, true, "IMDb tt0078748 and TMDb 348, but Alien (1979) and Aliens (1986) have no TMDb or IMDb id here to compare them with.")]
+    public void Pair_of_a_new_item_with_ids_for_works_without_any_words_the_works_and_ids_by_their_number(bool twoWorks, bool twoIds, string tail)
+    {
+        //Arrange
+        var alien = Alien with { Identifiers = [] };
+        var aliens = Aliens with { Identifiers = [] };
+        ReplacementPairingWork[] works = twoWorks ? [alien, aliens] : [alien];
+        ReplacementPairingOldCopy[] copies = twoWorks
+            ? [FilmCopy(0, alien, OldAlien), FilmCopy(1, aliens, "/media/movies/Aliens (1986)/Aliens.1986.1080p.mkv")]
+            : [FilmCopy(0, alien, OldAlien)];
+        MediaIdentifier[] ids = twoIds
+            ? [Id(MediaIdentifierScheme.Tmdb, "348"), Id(MediaIdentifierScheme.Imdb, "tt0078748")]
+            : [Id(MediaIdentifierScheme.Tmdb, "348")];
+        var file = NewFile(0, NewAlien, FilmItem(ids));
+
+        //Act
+        var result = ReplacementPairing.Pair(works, copies, [file], [], "Living room", libraryWaitPassed: false);
+
+        //Assert
+        Assert.Equal(
+            (ReplacementPairingVerdict.Review, $"“Living room” gave “{NewAlien}” {tail}"),
+            (result.Verdict, TestTexts.En(result.Reason)));
     }
 
     [Fact]
@@ -159,7 +191,7 @@ public sealed class ReplacementPairingFilmsTests
         Assert.Equal(
             (ReplacementPairingVerdict.Review,
                 "“Jellyfin” identified “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” as another work (IMDb tt0090605, TMDb 348), not Alien (1979)."),
-            (result.Verdict, result.Reason));
+            (result.Verdict, TestTexts.En(result.Reason)));
     }
 
     [Fact]
@@ -182,7 +214,7 @@ public sealed class ReplacementPairingFilmsTests
         Assert.Equal(
             (ReplacementPairingVerdict.Review,
                 "“Jellyfin” gave “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” TMDb 348 within an hour, but Alien (1979) is known here only by IMDb tt0078748."),
-            (stopped.Verdict, stopped.Reason));
+            (stopped.Verdict, TestTexts.En(stopped.Reason)));
     }
 
     [Fact]
@@ -199,7 +231,7 @@ public sealed class ReplacementPairingFilmsTests
         Assert.Equal(
             (ReplacementPairingVerdict.Review,
                 "“Jellyfin” gave “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” conflicting ids: TMDb 348 is Alien (1979)'s, IMDb tt0090605 is not."),
-            (result.Verdict, result.Reason));
+            (result.Verdict, TestTexts.En(result.Reason)));
     }
 
     [Fact]
@@ -220,7 +252,7 @@ public sealed class ReplacementPairingFilmsTests
         Assert.Equal(
             (ReplacementPairingVerdict.Review,
                 "“Jellyfin”'s ids for “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” fit both Alien (1979) and Alien: Director's Cut (2003), so the app can't tell which work it is."),
-            (result.Verdict, result.Reason));
+            (result.Verdict, TestTexts.En(result.Reason)));
     }
 
     [Fact]
@@ -235,9 +267,9 @@ public sealed class ReplacementPairingFilmsTests
 
         //Assert
         // The owner may fix the item in the library meanwhile; the check then passes by itself.
-        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, null)], result.NewFiles);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, null)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, null)], result.NewFiles.InEnglish());
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, null)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -253,9 +285,9 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         const string reason =
             "“Jellyfin” gave “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” no TMDb or IMDb id within an hour, so it can't be told to be Alien (1979).";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, reason)], result.NewFiles);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, null)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, reason)], result.NewFiles.InEnglish());
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, null)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -273,7 +305,33 @@ public sealed class ReplacementPairingFilmsTests
         Assert.Equal(
             (ReplacementPairingVerdict.Review,
                 "“Jellyfin” made “/media/tv-shows/Penguins/Penguins.S02E05.mkv” a film, while the old copies are episodes of The Penguins of Madagascar."),
-            (result.Verdict, result.Reason));
+            (result.Verdict, TestTexts.En(result.Reason)));
+        // MAM-47 — one series has a key of its own, so Ukrainian names it in the singular.
+        Assert.Equal("replacements.pairing.made-film-of-series", result.Reason?.Key);
+        Assert.Equal(
+            "Медіатека «Jellyfin» визначила файл «/media/tv-shows/Penguins/Penguins.S02E05.mkv» як фільм, тоді як старі копії — це серії серіалу The Penguins of Madagascar.",
+            TestTexts.Uk(result.Reason));
+    }
+
+    [Fact]
+    public void Pair_of_a_film_item_in_a_job_of_two_series_names_both_series_in_the_plural()
+    {
+        //Arrange
+        var doctorWho = Show(new Guid("b1000000-0000-0000-0000-000000000002"), "Doctor Who", Id(MediaIdentifierScheme.TmdbTv, "57243"));
+        var copy = EpisodeCopy(0, 2, 5, "/media/tv-shows/Penguins/Season 02/Penguins.S02E05.mkv");
+        var file = NewFile(0, "/media/tv-shows/Penguins/Penguins.S02E05.mkv", FilmItem(Id(MediaIdentifierScheme.Imdb, "tt0892700")));
+
+        //Act
+        var result = ReplacementPairing.Pair([Penguins, doctorWho], [copy], [file], [], LibraryName, libraryWaitPassed: false);
+
+        //Assert
+        Assert.Equal("replacements.pairing.made-film", result.Reason?.Key);
+        Assert.Equal(
+            "“Jellyfin” made “/media/tv-shows/Penguins/Penguins.S02E05.mkv” a film, while the old copies are episodes of The Penguins of Madagascar and Doctor Who.",
+            TestTexts.En(result.Reason));
+        Assert.Equal(
+            "Медіатека «Jellyfin» визначила файл «/media/tv-shows/Penguins/Penguins.S02E05.mkv» як фільм, тоді як старі копії — це серії серіалів The Penguins of Madagascar і Doctor Who.",
+            TestTexts.Uk(result.Reason));
     }
 
     [Fact]
@@ -291,8 +349,8 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         const string reason =
             "Two new files are Alien (1979): “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” and “/media/movies/Alien (1979)/Alien.1979.1080p.REMUX.mkv”; the app can't tell which one replaces the old copy.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason)], result.OldCopies.InEnglish());
         Assert.Equal([(first.Id, (Guid?)Alien.WorkId), (second.Id, Alien.WorkId)], result.NewFiles.Select(outcome => (outcome.NewFileId, outcome.WorkId)));
     }
 
@@ -309,9 +367,49 @@ public sealed class ReplacementPairingFilmsTests
 
         //Assert
         const string reason = "No new file is Alien (1979), so “/media/movies/Alien (1979)/Alien.1979.1080p.mkv” has nothing to replace it.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason)], result.OldCopies);
-        Assert.Equal([new ReplacementNewFileOutcome(extra.Id, null, null)], result.NewFiles);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason)], result.OldCopies.InEnglish());
+        Assert.Equal([new EnglishNewFileOutcome(extra.Id, null, null)], result.NewFiles.InEnglish());
+    }
+
+    [Fact]
+    public void Pair_of_a_ticked_film_with_no_title_names_it_by_its_label_and_year()
+    {
+        //Arrange
+        // MAM-47 WP12 — a work the library gave no title: named by a label of ours in the reader's language, never by
+        // English words passed as its name.
+        var untitled = new ReplacementPairingWork(
+            new Guid("a1000000-0000-0000-0000-000000000009"), MediaWorkKind.Movie, ReplacementPairingWork.NameOf(null, 2005), [], [Id(MediaIdentifierScheme.Tmdb, "999")]);
+        var copy = FilmCopy(0, untitled, "/media/movies/Unknown/Unknown.2005.mkv");
+        var extra = NewFile(0, "/media/movies/Unknown/Extras/Making of.mkv", OtherItem());
+
+        //Act
+        var result = ReplacementPairing.Pair([untitled], [copy], [extra], [], LibraryName, libraryWaitPassed: false);
+
+        //Assert
+        Assert.Equal(
+            (ReplacementPairingVerdict.Review, "No new file is a work with no title (2005), so “/media/movies/Unknown/Unknown.2005.mkv” has nothing to replace it."),
+            (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal(Message.Of("replacements.pairing.work.untitled-year", ("year", "2005")), result.Reason!.Values["work"]);
+    }
+
+    [Fact]
+    public void Pair_of_a_new_item_without_an_id_names_a_work_with_no_title_among_the_others()
+    {
+        //Arrange
+        var untitled = new ReplacementPairingWork(
+            new Guid("a1000000-0000-0000-0000-000000000009"), MediaWorkKind.Movie, ReplacementPairingWork.NameOf(null, null), [], [Id(MediaIdentifierScheme.Tmdb, "999")]);
+        var alienCopy = FilmCopy(0, Alien, OldAlien);
+        var untitledCopy = FilmCopy(1, untitled, "/media/movies/Unknown/Unknown.mkv");
+        var file = NewFile(0, NewAlien, FilmItem());
+
+        //Act
+        var result = ReplacementPairing.Pair([Alien, untitled], [alienCopy, untitledCopy], [file], [], LibraryName, libraryWaitPassed: true);
+
+        //Assert
+        const string reason =
+            "“Jellyfin” gave “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” no TMDb or IMDb id within an hour, so it can't be told to be Alien (1979) or a work with no title.";
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, reason)], result.NewFiles.InEnglish());
     }
 
     [Fact]
@@ -329,7 +427,7 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         // A film from a collection pack is paired the same way as an episode from a season pack; outcomes by place.
         Assert.Equal(ReplacementPairingVerdict.Pass, result.Verdict);
-        Assert.Equal([new ReplacementOldCopyOutcome(alienCopy.Id, alien.Id, null), new ReplacementOldCopyOutcome(aliensCopy.Id, aliens.Id, null)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(alienCopy.Id, alien.Id, null), new EnglishOldCopyOutcome(aliensCopy.Id, aliens.Id, null)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -349,11 +447,11 @@ public sealed class ReplacementPairingFilmsTests
         var result = ReplacementPairing.Pair([Alien], [copy], [alien, aliens, extra], [], LibraryName, libraryWaitPassed: false);
 
         //Assert
-        Assert.Equal((ReplacementPairingVerdict.Pass, (string?)null), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, alien.Id, null)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Pass, (string?)null), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, alien.Id, null)], result.OldCopies.InEnglish());
         Assert.Equal(
-            [new ReplacementNewFileOutcome(alien.Id, Alien.WorkId, null), new ReplacementNewFileOutcome(aliens.Id, null, null), new ReplacementNewFileOutcome(extra.Id, null, null)],
-            result.NewFiles);
+            [new EnglishNewFileOutcome(alien.Id, Alien.WorkId, null), new EnglishNewFileOutcome(aliens.Id, null, null), new EnglishNewFileOutcome(extra.Id, null, null)],
+            result.NewFiles.InEnglish());
     }
 
     [Fact]
@@ -370,9 +468,9 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         const string reason =
             "“Jellyfin” identified “/media/movies/Aliens (1986)/Aliens.1986.2160p.mkv” as another work (IMDb tt0090605, TMDb 679), not Alien (1979).";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(aliens.Id, null, reason)], result.NewFiles);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, null)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(aliens.Id, null, reason)], result.NewFiles.InEnglish());
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, null)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -392,9 +490,9 @@ public sealed class ReplacementPairingFilmsTests
             "“Jellyfin” identified “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).";
         const string aliensReason =
             "“Jellyfin” identified “/media/movies/Aliens (1986)/Aliens.1986.2160p.mkv” as another work (IMDb tt0090605, TMDb 679), not Alien (1979).";
-        Assert.Equal((ReplacementPairingVerdict.Review, misreadReason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(misread.Id, null, misreadReason), new ReplacementNewFileOutcome(aliens.Id, null, aliensReason)], result.NewFiles);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, null)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, misreadReason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(misread.Id, null, misreadReason), new EnglishNewFileOutcome(aliens.Id, null, aliensReason)], result.NewFiles.InEnglish());
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, null)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -413,9 +511,9 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         const string reason =
             "“Jellyfin” identified “/media/movies/Alien 3 (1992)/Alien3.1992.2160p.mkv” as another work (IMDb tt0103644, TMDb 8077), not Alien (1979) or Aliens (1986).";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(alienCopy.Id, alien.Id, null), new ReplacementOldCopyOutcome(aliensCopy.Id, null, null)], result.OldCopies);
-        Assert.Equal([new ReplacementNewFileOutcome(alien.Id, Alien.WorkId, null), new ReplacementNewFileOutcome(alien3.Id, null, reason)], result.NewFiles);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(alienCopy.Id, alien.Id, null), new EnglishOldCopyOutcome(aliensCopy.Id, null, null)], result.OldCopies.InEnglish());
+        Assert.Equal([new EnglishNewFileOutcome(alien.Id, Alien.WorkId, null), new EnglishNewFileOutcome(alien3.Id, null, reason)], result.NewFiles.InEnglish());
     }
 
     [Fact]
@@ -433,9 +531,9 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         const string reason =
             "“Jellyfin” gave “/media/movies/Aliens (1986)/Aliens.1986.2160p.mkv” conflicting ids: TMDb 348 is Alien (1979)'s, IMDb tt0090605 is not.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, alien.Id, null)], result.OldCopies);
-        Assert.Equal([new ReplacementNewFileOutcome(alien.Id, Alien.WorkId, null), new ReplacementNewFileOutcome(conflicting.Id, null, reason)], result.NewFiles);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, alien.Id, null)], result.OldCopies.InEnglish());
+        Assert.Equal([new EnglishNewFileOutcome(alien.Id, Alien.WorkId, null), new EnglishNewFileOutcome(conflicting.Id, null, reason)], result.NewFiles.InEnglish());
     }
 
     [Fact]
@@ -452,9 +550,9 @@ public sealed class ReplacementPairingFilmsTests
 
         //Assert
         const string reason = "“/media/movies/Alien (1979)/Alien.1979.Extended.2160p.mkv” claims Extended cut, while the release claimed none.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, extended.Id, reason, OnlyDropSettles: true)], result.OldCopies);
-        Assert.Equal([new ReplacementNewFileOutcome(extended.Id, Alien.WorkId, null), new ReplacementNewFileOutcome(aliens.Id, null, null)], result.NewFiles);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, extended.Id, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
+        Assert.Equal([new EnglishNewFileOutcome(extended.Id, Alien.WorkId, null), new EnglishNewFileOutcome(aliens.Id, null, null)], result.NewFiles.InEnglish());
     }
 
     [Fact]
@@ -469,8 +567,8 @@ public sealed class ReplacementPairingFilmsTests
 
         //Assert
         const string reason = "“/media/movies/Alien (1979)/Alien.1979.Extended.2160p.mkv” claims Extended cut, while the release claimed none.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -486,7 +584,28 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         Assert.Equal(
             "“/media/movies/Alien (1979)/Alien.1979.Theatrical.Remastered.mkv” claims Theatrical cut and Remastered, while the release claimed Director's cut and Remastered.",
-            result.Reason);
+            TestTexts.En(result.Reason));
+    }
+
+    [Fact]
+    public void Pair_names_every_edition_by_the_label_the_Duplicates_page_gives_it()
+    {
+        //Arrange
+        // MAM-47 — the labels are common.edition.* keys picked by a switch that throws for a member it doesn't name: every
+        // member of MediaEdition, a new one included, must have its label, and each label keeps its English.
+        var copy = FilmCopy(0, Alien, OldAlien);
+        var file = NewFile(0, "/media/movies/Alien (1979)/Alien.1979.Theatrical.mkv", FilmItem(Id(MediaIdentifierScheme.Tmdb, "348")));
+        MediaEdition[] release = [.. Enum.GetValues<MediaEdition>().Where(edition => edition != MediaEdition.Theatrical)];
+
+        //Act
+        var result = ReplacementPairing.Pair([Alien], [copy], [file], release, LibraryName, libraryWaitPassed: false);
+
+        //Assert
+        Assert.Equal(
+            "“/media/movies/Alien (1979)/Alien.1979.Theatrical.mkv” claims Theatrical cut, while the release claimed Director's cut, "
+                + "Extended cut, Unrated, Uncut, Remastered, Special edition, IMAX, Open matte, Final cut, Redux, International cut, "
+                + "Alternate cut, Assembly cut, Widescreen and Full screen.",
+            TestTexts.En(result.Reason));
     }
 
     [Theory]
@@ -539,7 +658,7 @@ public sealed class ReplacementPairingFilmsTests
 
         //Assert
         Assert.Equal(ReplacementPairingVerdict.Pass, result.Verdict);
-        Assert.Equal("“/media/movies/Uncut Gems (2019)/Uncut.Gems.2019.2160p.mkv” claims Uncut, while the release claimed none.", byShownTitle.Reason);
+        Assert.Equal("“/media/movies/Uncut Gems (2019)/Uncut.Gems.2019.2160p.mkv” claims Uncut, while the release claimed none.", TestTexts.En(byShownTitle.Reason));
     }
 
     [Fact]
@@ -555,8 +674,8 @@ public sealed class ReplacementPairingFilmsTests
 
         //Assert
         const string reason = "“/media/movies/Alien (1979)/Alien.1979.2160p.mkv” runs 1:12:04, less than three quarters of the old copy's 1:56:30.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Theory]
@@ -591,6 +710,6 @@ public sealed class ReplacementPairingFilmsTests
         var result = ReplacementPairing.Pair([Alien], [copy], [file], [], LibraryName, libraryWaitPassed: false);
 
         //Assert
-        Assert.Equal("“/media/movies/Alien (1979)/Alien.1979.IMAX.mkv” claims IMAX, while the release claimed none.", result.Reason);
+        Assert.Equal("“/media/movies/Alien (1979)/Alien.1979.IMAX.mkv” claims IMAX, while the release claimed none.", TestTexts.En(result.Reason));
     }
 }

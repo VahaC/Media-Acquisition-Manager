@@ -8,6 +8,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -80,7 +81,7 @@ public sealed class ReplacementHoldingReaderTargetsTests : IClassFixture<MediaAc
         //Assert
         Assert.Equal(
             [("qBittorrent", ReplacementClientCheck.Read, (string?)null, 0)],
-            holdings.Clients.Select(client => (client.ClientName, client.Status, client.Error, client.UnplacedTorrents)));
+            holdings.Clients.Select(client => (client.ClientName, client.Status, TestTexts.En(client.Error), client.UnplacedTorrents)));
         Assert.Equal(
             new Dictionary<string, string>
             {
@@ -118,7 +119,7 @@ public sealed class ReplacementHoldingReaderTargetsTests : IClassFixture<MediaAc
             Described(holdings));
         Assert.Equal(
             [("qBittorrent", ReplacementClientCheck.Read, (string?)null, 0)],
-            holdings.Clients.Select(client => (client.ClientName, client.Status, client.Error, client.UnplacedTorrents)));
+            holdings.Clients.Select(client => (client.ClientName, client.Status, TestTexts.En(client.Error), client.UnplacedTorrents)));
     }
 
     [Fact]
@@ -142,7 +143,7 @@ public sealed class ReplacementHoldingReaderTargetsTests : IClassFixture<MediaAc
         // uncertain.
         Assert.Equal(
             [("qBittorrent", ReplacementClientCheck.Read, (string?)null, 0)],
-            holdings.Clients.Select(client => (client.ClientName, client.Status, client.Error, client.UnplacedTorrents)));
+            holdings.Clients.Select(client => (client.ClientName, client.Status, TestTexts.En(client.Error), client.UnplacedTorrents)));
         Assert.Equal([VideoPath], Described(holdings).Keys);
         Assert.DoesNotContain(_factory.QBittorrentHttp.Requests, request => request.Uri.Host is "seedbox.test" or "old.test");
     }
@@ -213,7 +214,7 @@ public sealed class ReplacementHoldingReaderTargetsTests : IClassFixture<MediaAc
         // held, as nothing was looked at there.
         Assert.Equal(
             [("qBittorrent", ReplacementClientCheck.Partial, (string?)null, 0, 1)],
-            holdings.Clients.Select(client => (client.ClientName, client.Status, client.Error, client.UnplacedTorrents, client.OutsideTorrents)));
+            holdings.Clients.Select(client => (client.ClientName, client.Status, TestTexts.En(client.Error), client.UnplacedTorrents, client.OutsideTorrents)));
         Assert.Empty(holdings.Holds);
         // One listing of the whole client, nothing but reads, and the disk never asked about a path outside /media.
         Assert.Single(QBittorrentCalls(), call => call == IncludeFilesCall);
@@ -342,7 +343,7 @@ public sealed class ReplacementHoldingReaderTargetsTests : IClassFixture<MediaAc
         // name's by its name, and its size is none of theirs.
         Assert.Equal(
             [("qBittorrent", ReplacementClientCheck.Read, (string?)null, 0, 0)],
-            holdings.Clients.Select(client => (client.ClientName, client.Status, client.Error, client.UnplacedTorrents, client.OutsideTorrents)));
+            holdings.Clients.Select(client => (client.ClientName, client.Status, TestTexts.En(client.Error), client.UnplacedTorrents, client.OutsideTorrents)));
         Assert.Empty(holdings.Holds);
     }
 
@@ -362,7 +363,7 @@ public sealed class ReplacementHoldingReaderTargetsTests : IClassFixture<MediaAc
         // Not read, with the app's sentence, rather than left out; and never asked.
         Assert.Equal(
             [("qBittorrent", ReplacementClientCheck.Read, (string?)null, 0), ("seedbox", ReplacementClientCheck.NotRead, "“seedbox” is switched off.", 0)],
-            holdings.Clients.Select(client => (client.ClientName, client.Status, client.Error, client.OutsideTorrents)));
+            holdings.Clients.Select(client => (client.ClientName, client.Status, TestTexts.En(client.Error), client.OutsideTorrents)));
         Assert.DoesNotContain(_factory.QBittorrentHttp.Requests, request => request.Uri.Host == "seedbox.test");
     }
 

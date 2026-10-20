@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
@@ -12,7 +13,7 @@ public sealed class MediaInspectionDataFactory(ApplicationDbContext db, TimeProv
         long sizeBytes,
         DateTime modifiedUtc,
         IReadOnlyList<MediaInspectionTrackEntity>? tracks = null,
-        string? error = null,
+        Message? error = null,
         long? durationMilliseconds = null,
         long? bitRate = null)
     {

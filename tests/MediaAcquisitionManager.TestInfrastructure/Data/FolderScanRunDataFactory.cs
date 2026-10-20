@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
@@ -15,8 +16,8 @@ public sealed class FolderScanRunDataFactory(ApplicationDbContext db, TimeProvid
         int filesFound = 0,
         int? filesUnreported = null,
         int problemCount = 0,
-        string? problem = null,
-        string? error = null)
+        Message? problem = null,
+        Message? error = null)
     {
         var queued = createdUtc ?? time.GetUtcNow().UtcDateTime;
         var run = new FolderScanRunEntity

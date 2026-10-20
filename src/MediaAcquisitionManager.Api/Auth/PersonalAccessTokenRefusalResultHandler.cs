@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Api.Http;
 using MediaAcquisitionManager.Api.Services.PersonalAccessTokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
@@ -5,9 +6,10 @@ using Microsoft.AspNetCore.Authorization.Policy;
 namespace MediaAcquisitionManager.Api.Auth;
 
 /// <summary>
-/// MAM-5 — answers a refusal by <see cref="PersonalAccessTokenAccessHandler"/> with 403 <c>{ "error": "…" }</c> and, for
-/// a personal access token, records it (<see cref="IPersonalAccessTokenRefusals"/>); every other outcome — any other
-/// 403, any 401 — goes to the framework's own handler unchanged (ADR 0040).
+/// MAM-5 — answers a refusal by <see cref="PersonalAccessTokenAccessHandler"/> with 403
+/// <c>{ "error": "…", "code": "…" }</c> and, for a personal access token, records it
+/// (<see cref="IPersonalAccessTokenRefusals"/>); every other outcome — any other 403, any 401 — goes to the framework's
+/// own handler unchanged (ADR 0040).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -44,7 +46,8 @@ public sealed class PersonalAccessTokenRefusalResultHandler : IAuthorizationMidd
                 context.RequestAborted);
         }
 
-        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        await context.Response.WriteAsJsonAsync(new { error = failure.Message }, context.RequestAborted);
+        // MAM-47 (ADR 0042) — through the one writer of error bodies: the sentence in this request's language, its key as
+        // the code a script matches on.
+        await ApiErrorBody.WriteAsync(context, StatusCodes.Status403Forbidden, PersonalAccessTokenErrors.MessageOf(failure.Reason));
     }
 }

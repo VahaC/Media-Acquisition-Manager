@@ -2,6 +2,7 @@ using System.Globalization;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Data;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -105,7 +106,7 @@ public sealed class AddLibraryLinkIdentifiedMigrationTests : DatabaseTestBase
         var link = await check.LibraryItemLinks.AsNoTracking().SingleAsync(cancellationToken);
         Assert.Equal(
             ("tt9103946", (DateTime?)requestedUtc, (string?)"Jellyfin refused the lookup.", (DateTime?)null),
-            (link.EpisodeImdbId, link.LookupRequestedUtc, link.LookupError, link.IdentifiedUtc));
+            (link.EpisodeImdbId, link.LookupRequestedUtc, TestTexts.En(link.LookupError), link.IdentifiedUtc));
     }
 
     [Fact]

@@ -60,6 +60,24 @@ public sealed class SpaFallbackHttpTests : IClassFixture<MediaAcquisitionManager
         Assert.Equal($"No API endpoint matches {method} {UnknownApiUrl}.", await response.ReadErrorAsync(cancellationToken));
     }
 
+    // MAM-47 (ADR 0042) — the pilot of the server's sentences as keys: the English is today's, byte for byte, and the body
+    // gains the sentence's key as its code.
+    [Fact]
+    public async Task Unknown_api_route_answers_the_sentence_and_its_code()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{UnknownApiUrl}/deeper");
+
+        //Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(
+            ErrorBody.Json("No API endpoint matches POST /api/nope/deeper.", "common.request.unknown-endpoint"),
+            await response.Content.ReadAsStringAsync(cancellationToken));
+    }
+
     [Fact]
     public async Task Unknown_api_route_with_an_invalid_token_is_still_404_not_401()
     {

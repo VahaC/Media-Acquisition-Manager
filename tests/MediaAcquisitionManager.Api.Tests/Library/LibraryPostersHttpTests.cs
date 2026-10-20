@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
@@ -30,7 +31,7 @@ public sealed class LibraryPostersHttpTests : IClassFixture<MediaAcquisitionMana
     private const string BaseUrl = "/api/library/posters";
     private const string ApiKey = "0123456789abcdef0123456789abcdef";
     private const string SecondJellyfinAddress = "http://127.0.0.2:9";
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
 
     /// <summary>The Continental's poster tag as <c>movies-page-with-images.json</c> records it.</summary>
     private const string ContinentalTag = "41f7c98888a81ea514189c27c6c3970c";
@@ -367,7 +368,7 @@ public sealed class LibraryPostersHttpTests : IClassFixture<MediaAcquisitionMana
         _factory.FakeLibraryIdentifier.Posters = (itemId, tag) =>
         {
             asked.Add((itemId, tag));
-            return IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.AuthenticationFailed, $"The fake library refused the key {Secret}.");
+            return IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.AuthenticationFailed, Message.Legacy($"The fake library refused the key {Secret}."));
         };
 
         //Act

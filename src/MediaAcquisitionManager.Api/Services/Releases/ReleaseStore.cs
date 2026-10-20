@@ -81,7 +81,7 @@ public sealed class ReleaseStore(
                     Position = stored.Count,
                     Status = outcome.Status,
                     NotSearchedReason = outcome.NotSearchedReason,
-                    Error = outcome.Error is null ? null : Cut(outcome.Error),
+                    Error = outcome.Error,
                 };
                 db.SearchSources.Add(source);
             }
@@ -198,11 +198,4 @@ public sealed class ReleaseStore(
 
         return kept.Count > 0 ? string.Join(',', kept) : null;
     }
-
-    // A sentence past the column is cut with an ellipsis, so the reader sees it was cut. The column's own
-    // constant, so the cut and the column can't drift apart (the LibrarySyncRunUpdates rule).
-    private static string Cut(string error) =>
-        error.Length <= SearchSourceEntity.ErrorMaximumLength
-            ? error
-            : string.Concat(error.AsSpan(0, SearchSourceEntity.ErrorMaximumLength - 1), "…");
 }

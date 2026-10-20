@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
@@ -121,7 +122,7 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
 
         //Assert
         // The trailer has no media ffprobe could read, yet warns of nothing: it is an extra (Vasyl's decision).
-        Assert.Equal((new LibrarySourceInspectionDto(1, 0, 0, null), 0, 3), (scan.Files, scan.IgnoredCount, scan.ExtrasCount));
+        Assert.Equal((new LibrarySourceInspectionDto(1, 0, 0, null, null), 0, 3), (scan.Files, scan.IgnoredCount, scan.ExtrasCount));
         Assert.Equal((4, 4), (scan.Space.FileCount, scan.Space.NameCount));
         Assert.Empty(problems.Items);
         var trailer = await FileAtAsync(TrailerPath, cancellationToken);
@@ -228,11 +229,11 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
     }
 
     [Theory]
-    [InlineData("?view=Duplicates", "“Duplicates” is not a view of the files in no library. Use Problems, Extras or Ignored, or leave it out for every file.")]
-    [InlineData("?view=1", "“1” is not a view of the files in no library. Use Problems, Extras or Ignored, or leave it out for every file.")]
-    [InlineData("?page=0", "Page must be 1 or more.")]
-    [InlineData("?pageSize=101", "Page size must be between 1 and 100.")]
-    public async Task List_with_a_view_or_page_it_doesnt_take_is_400_with_the_sentence(string query, string error)
+    [InlineData("?view=Duplicates", "“Duplicates” is not a view of the files in no library. Use Problems, Extras or Ignored, or leave it out for every file.", "files.unreported.view-unknown")]
+    [InlineData("?view=1", "“1” is not a view of the files in no library. Use Problems, Extras or Ignored, or leave it out for every file.", "files.unreported.view-unknown")]
+    [InlineData("?page=0", "Page must be 1 or more.", "common.paging.page-invalid")]
+    [InlineData("?pageSize=101", "Page size must be between 1 and 100.", "common.paging.page-size-invalid")]
+    public async Task List_with_a_view_or_page_it_doesnt_take_is_400_with_the_sentence(string query, string error, string code)
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -242,7 +243,8 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
 
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal($$"""{"error":"{{error}}"}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        // MAM-47 (ADR 0042) — with the sentence's key as the code.
+        Assert.Equal(ErrorBody.Json(error, code), await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
     [Fact]
@@ -273,10 +275,10 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
 
         //Assert
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal((new LibrarySourceInspectionDto(2, 1, 0, IsoError), 0), (before.Files, before.IgnoredCount));
+        Assert.Equal((new LibrarySourceInspectionDto(2, 1, 0, IsoError, Message.LegacyKey), 0), (before.Files, before.IgnoredCount));
         var after = (await ReadSourcesAsync(cancellationToken)).Scan;
         // Off the counts and the problem sentence at once; still in the room the files take, which it still takes.
-        Assert.Equal((new LibrarySourceInspectionDto(2, 0, 0, null), 1, before.Space), (after.Files, after.IgnoredCount, after.Space));
+        Assert.Equal((new LibrarySourceInspectionDto(2, 0, 0, null, null), 1, before.Space), (after.Files, after.IgnoredCount, after.Space));
         var counted = await ReadListAsync(await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken), cancellationToken);
         Assert.Equal([BirthdayPath, SamplePath], counted.Items.Select(file => file.AppPath));
         Assert.Equal((2, 0, 1), (counted.CountedCount, counted.ProblemCount, counted.IgnoredCount));
@@ -332,7 +334,7 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
         //Assert
         Assert.Equal((HttpStatusCode.NoContent, HttpStatusCode.NoContent), (undo.StatusCode, never.StatusCode));
         var scan = (await ReadSourcesAsync(cancellationToken)).Scan;
-        Assert.Equal((new LibrarySourceInspectionDto(2, 1, 0, IsoError), 0), (scan.Files, scan.IgnoredCount));
+        Assert.Equal((new LibrarySourceInspectionDto(2, 1, 0, IsoError, Message.LegacyKey), 0), (scan.Files, scan.IgnoredCount));
         Assert.Null((await FileAtAsync(IsoPath, cancellationToken)).IgnoredUtc);
         Assert.Equal(
             [(AuditAction.UnreportedFileIgnored, (Guid?)iso.Id), (AuditAction.UnreportedFileIgnoreUndone, iso.Id)],
@@ -385,7 +387,9 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
 
         //Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        Assert.Equal("""{"error":"Only the installation owner can do this."}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(
+            ErrorBody.Json("Only the installation owner can do this.", "account.owner-only"),
+            await response.Content.ReadAsStringAsync(cancellationToken));
         Assert.Null((await FileAtAsync(IsoPath, cancellationToken)).IgnoredUtc);
         Assert.Empty(await AuditAsync(cancellationToken));
     }

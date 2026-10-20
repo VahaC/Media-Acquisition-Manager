@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -42,7 +43,7 @@ public sealed class TorznabAdapterTests : IDisposable
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
         // Toloka's movie search takes only q, its TV search q, season and ep (VendorSamples README, MAM-32).
-        Assert.Equal("Connected to Prowlarr over Torznab; movie search by title, TV search by title, season and episode.", result.Message);
+        Assert.Equal("Connected to Prowlarr over Torznab; movie search by title, TV search by title, season and episode.", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -58,7 +59,7 @@ public sealed class TorznabAdapterTests : IDisposable
         var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal($"Connected to Jackett over Torznab; movie search by title, TV search by {expectedParameters}.", result.Message);
+        Assert.Equal($"Connected to Jackett over Torznab; movie search by title, TV search by {expectedParameters}.", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -72,7 +73,7 @@ public sealed class TorznabAdapterTests : IDisposable
         var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal("Connected to the feed over Torznab, but it offers no movie search; TV search by title and season.", result.Message);
+        Assert.Equal("Connected to the feed over Torznab, but it offers no movie search; TV search by title and season.", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -101,7 +102,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal($"Connected to Jackett over Torznab; movie search by {expectedParameters}.", result.Message);
+        Assert.Equal($"Connected to Jackett over Torznab; movie search by {expectedParameters}.", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -119,7 +120,35 @@ public sealed class TorznabAdapterTests : IDisposable
         //Assert
         // Still a working feed: the owner learns what it can't do before a search finds nothing.
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to the feed over Torznab, but it offers no movie or TV search.", result.Message);
+        Assert.Equal("Connected to the feed over Torznab, but it offers no movie or TV search.", TestTexts.En(result.Message));
+    }
+
+    [Theory]
+    // MAM-47 — each shape is a sentence of its own (the server the caps name or "the feed", times what it searches by),
+    // so each is pinned: a typo in one would change English with no other test failing.
+    [InlineData(
+        """<caps><server title="Jackett" /></caps>""",
+        "Connected to Jackett over Torznab, but it offers no movie or TV search.")]
+    [InlineData(
+        """<caps><server title="Jackett" /><searching><tv-search available="yes" supportedParams="q,season" /></searching></caps>""",
+        "Connected to Jackett over Torznab, but it offers no movie search; TV search by title and season.")]
+    [InlineData(
+        """<caps><searching><movie-search available="yes" supportedParams="q,year" /></searching></caps>""",
+        "Connected to the feed over Torznab; movie search by title and year.")]
+    [InlineData(
+        """<caps><searching><movie-search available="yes" supportedParams="q" /><tv-search available="yes" supportedParams="q,ep" /></searching></caps>""",
+        "Connected to the feed over Torznab; movie search by title, TV search by title and episode.")]
+    public async Task TestConnection_names_the_server_or_the_feed_with_each_search_it_offers(string caps, string expected)
+    {
+        //Arrange
+        _harness.TorznabHttp.Handler = (_, _) => Xml(caps);
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        Assert.Equal(expected, TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -203,7 +232,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Message);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -223,7 +252,7 @@ public sealed class TorznabAdapterTests : IDisposable
         // MAM-10 — the echoed address is cut to its scheme, host and port before anything else.
         Assert.Equal(
             "The Torznab feed refused the API key (error 100: Invalid API key *** for http://prowlarr.test:9696). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.",
-            result.Message);
+            TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -246,8 +275,8 @@ public sealed class TorznabAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
         Assert.All(
             ["planted-passkey-0001", "planted-passkey-0002", "planted-sid-0001", "planted-passkey-0003", "/rss", "passkey="],
-            planted => Assert.DoesNotContain(planted, result.Message, StringComparison.Ordinal));
-        Assert.StartsWith($"The Torznab feed failed (error 900: {new string('d', padding)}", result.Message, StringComparison.Ordinal);
+            planted => Assert.DoesNotContain(planted, TestTexts.En(result.Message), StringComparison.Ordinal));
+        Assert.StartsWith($"The Torznab feed failed (error 900: {new string('d', padding)}", TestTexts.En(result.Message), StringComparison.Ordinal);
     }
 
     [Theory]
@@ -271,7 +300,7 @@ public sealed class TorznabAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
         Assert.All(
             ["planted-passkey-0001", "planted-passkey-0002", "planted-sid-0001", "/rss", "/download"],
-            planted => Assert.DoesNotContain(planted, result.Message, StringComparison.Ordinal));
+            planted => Assert.DoesNotContain(planted, TestTexts.En(result.Message), StringComparison.Ordinal));
     }
 
     [Theory]
@@ -292,9 +321,9 @@ public sealed class TorznabAdapterTests : IDisposable
         var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal($"The Torznab feed failed (error 900: {expectedShown}).", result.Message);
-        Assert.DoesNotContain("planted-0001", result.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain("planted-passkey", result.Message, StringComparison.Ordinal);
+        Assert.Equal($"The Torznab feed failed (error 900: {expectedShown}).", TestTexts.En(result.Message));
+        Assert.DoesNotContain("planted-0001", TestTexts.En(result.Message), StringComparison.Ordinal);
+        Assert.DoesNotContain("planted-passkey", TestTexts.En(result.Message), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -308,7 +337,7 @@ public sealed class TorznabAdapterTests : IDisposable
         var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal("The Torznab feed failed (error 900: Request to http://[2001:db8::1]:8080 failed).", result.Message);
+        Assert.Equal("The Torznab feed failed (error 900: Request to http://[2001:db8::1]:8080 failed).", TestTexts.En(result.Message));
     }
 
     [Fact(Timeout = 30_000)]
@@ -325,7 +354,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
-        Assert.Equal($"The Torznab feed failed (error 900: {new string('a', 199)}…).", result.Message);
+        Assert.Equal($"The Torznab feed failed (error 900: {new string('a', 199)}…).", TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -340,7 +369,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
-        Assert.Equal("The Torznab feed failed (error 900: Could not reach https://tracker.test:8443 (timeout)).", result.Message);
+        Assert.Equal("The Torznab feed failed (error 900: Could not reach https://tracker.test:8443 (timeout)).", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -359,11 +388,11 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
-        Assert.Equal($"The Torznab feed failed (error 900: {new string('d', 190)}***).", result.Message);
+        Assert.Equal($"The Torznab feed failed (error 900: {new string('d', 190)}***).", TestTexts.En(result.Message));
         // Not 8 characters of the key in a row anywhere, the shortest value masking knows as a secret.
         Assert.All(
             Enumerable.Range(0, ApiKey.Length - 7),
-            start => Assert.DoesNotContain(ApiKey.Substring(start, 8), result.Message, StringComparison.Ordinal));
+            start => Assert.DoesNotContain(ApiKey.Substring(start, 8), TestTexts.En(result.Message), StringComparison.Ordinal));
     }
 
     [Fact]
@@ -377,7 +406,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
-        Assert.Equal($"The Torznab feed failed (error 900: {new string('d', 199)}…).", result.Message);
+        Assert.Equal($"The Torznab feed failed (error 900: {new string('d', 199)}…).", TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -403,7 +432,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Message);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -418,7 +447,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTorznabError, result.Message);
+        Assert.Equal(NotTorznabError, TestTexts.En(result.Message));
     }
 
     [Theory]
@@ -436,7 +465,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTorznabError, result.Message);
+        Assert.Equal(NotTorznabError, TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -459,7 +488,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTorznabError, result.Message);
+        Assert.Equal(NotTorznabError, TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -480,7 +509,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTorznabError, result.Message);
+        Assert.Equal(NotTorznabError, TestTexts.En(result.Message));
     }
 
     [Fact]
@@ -497,7 +526,7 @@ public sealed class TorznabAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to http://prowlarr.test:9696/login. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Message);
+            TestTexts.En(result.Message));
         Assert.Single(_harness.TorznabHttp.Requests);
     }
 
@@ -513,7 +542,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", result.Message);
+        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", TestTexts.En(result.Message));
     }
 
     private static HttpResponseMessage Xml(string body, HttpStatusCode status = HttpStatusCode.OK) =>

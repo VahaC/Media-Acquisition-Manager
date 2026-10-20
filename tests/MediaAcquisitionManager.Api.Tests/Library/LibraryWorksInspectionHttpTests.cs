@@ -11,6 +11,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Library;
@@ -263,7 +264,7 @@ public sealed class LibraryWorksInspectionHttpTests : IClassFixture<MediaAcquisi
             // Nothing was found there, so no identity is kept for it either.
             Assert.Equal(
                 (status, problem, inspectedAt, null, null, null, null),
-                (file.InspectionStatus!.Value, file.InspectionError, file.InspectedUtc!.Value, file.MediaInspectionId, file.DeviceId, file.Inode, file.LinkCount));
+                (file.InspectionStatus!.Value, TestTexts.En(file.InspectionError), file.InspectedUtc!.Value, file.MediaInspectionId, file.DeviceId, file.Inode, file.LinkCount));
             Assert.Equal(0, await db.MediaInspections.CountAsync(cancellationToken));
         });
     }
@@ -296,12 +297,12 @@ public sealed class LibraryWorksInspectionHttpTests : IClassFixture<MediaAcquisi
         await _factory.WithDbAsync(async db =>
         {
             var reading = await db.MediaInspections.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal((UnreadableContinentalError, null, null), (reading.Error, reading.DurationMilliseconds, reading.BitRate));
+            Assert.Equal((UnreadableContinentalError, null, null), (TestTexts.En(reading.Error), reading.DurationMilliseconds, reading.BitRate));
             Assert.Equal(0, await db.MediaInspectionTracks.CountAsync(cancellationToken));
             var file = await db.PhysicalFiles.AsNoTracking().SingleAsync(row => row.ServicePath == ContinentalPath, cancellationToken);
             Assert.Equal(
                 (FileInspectionStatus.MediaUnreadable, UnreadableContinentalError, reading.Id),
-                (file.InspectionStatus!.Value, file.InspectionError, file.MediaInspectionId!.Value));
+                (file.InspectionStatus!.Value, TestTexts.En(file.InspectionError), file.MediaInspectionId!.Value));
         });
     }
 
@@ -344,7 +345,7 @@ public sealed class LibraryWorksInspectionHttpTests : IClassFixture<MediaAcquisi
         await _factory.WithDbAsync(async db =>
             Assert.Equal(
                 string.Format(CultureInfo.InvariantCulture, FakeFileInventory.UnreadableMediaError, District13Path),
-                await db.PhysicalFiles.Where(file => file.ServicePath == District13Path).Select(file => file.InspectionError).SingleAsync(cancellationToken)));
+                TestTexts.En(await db.PhysicalFiles.Where(file => file.ServicePath == District13Path).Select(file => file.InspectionError).SingleAsync(cancellationToken))));
     }
 
     [Fact]

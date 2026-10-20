@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Search;
 
@@ -6,9 +7,9 @@ namespace MediaAcquisitionManager.Api.Services.Search;
 /// <param name="Status">How it ended.</param>
 /// <param name="Search">The stored search when <see cref="SearchCreateStatus.Created"/>.</param>
 /// <param name="Error">The sentence saying what the search doesn't take otherwise.</param>
-public sealed record SearchCreateResult(SearchCreateStatus Status, SearchResponse? Search, string? Error)
+public sealed record SearchCreateResult(SearchCreateStatus Status, SearchResponse? Search, Message? Error)
 {
     public static SearchCreateResult Created(SearchResponse search) => new(SearchCreateStatus.Created, search, null);
 
-    public static SearchCreateResult Invalid(string error) => new(SearchCreateStatus.Invalid, null, error);
+    public static SearchCreateResult Invalid(Message error) => new(SearchCreateStatus.Invalid, null, error);
 }

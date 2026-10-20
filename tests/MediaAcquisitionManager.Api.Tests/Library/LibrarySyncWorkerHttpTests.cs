@@ -4,11 +4,13 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -68,7 +70,7 @@ public sealed class LibrarySyncWorkerHttpTests : IClassFixture<MediaAcquisitionM
         await _factory.WithDbAsync(async db =>
         {
             var failed = await db.LibrarySyncRuns.SingleAsync(run => run.Id == brokenRun, cancellationToken);
-            Assert.Equal((LibrarySyncStatus.Failed, AppErrorMessage, now), (failed.Status, failed.Error, failed.FinishedUtc));
+            Assert.Equal((LibrarySyncStatus.Failed, AppErrorMessage, now), (failed.Status, TestTexts.En(failed.Error), failed.FinishedUtc));
             // The next run in the queue still went, and its library is all the snapshot holds.
             var succeeded = await db.LibrarySyncRuns.SingleAsync(run => run.Id == workingRun, cancellationToken);
             Assert.Equal((LibrarySyncStatus.Succeeded, 3), (succeeded.Status, succeeded.WorksCount));
@@ -139,7 +141,7 @@ public sealed class LibrarySyncWorkerHttpTests : IClassFixture<MediaAcquisitionM
         await _factory.WithDbAsync(async db =>
         {
             var run = await db.LibrarySyncRuns.SingleAsync(row => row.Id == runId, cancellationToken);
-            Assert.Equal((LibrarySyncStatus.Failed, RestartedError, null), (run.Status, run.Error, run.StartedUtc));
+            Assert.Equal((LibrarySyncStatus.Failed, RestartedError, null), (run.Status, TestTexts.En(run.Error), run.StartedUtc));
             Assert.Empty((await StoredLibrarySnapshot.ReadAsync(db, cancellationToken)).Rows());
         });
     }
@@ -154,7 +156,12 @@ public sealed class LibrarySyncWorkerHttpTests : IClassFixture<MediaAcquisitionM
         var runs = new LibrarySyncRunSeeder(_factory.Scope);
         var earlier = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-10);
         var succeeded = await runs.Create(livingRoom, LibrarySyncStatus.Succeeded, _owner.User, earlier);
-        var failed = await runs.Create(livingRoom, LibrarySyncStatus.Failed, _owner.User, earlier.AddMinutes(1), "Jellyfin answered 500 Internal Server Error. Its own log says why.");
+        var failed = await runs.Create(
+            livingRoom,
+            LibrarySyncStatus.Failed,
+            _owner.User,
+            earlier.AddMinutes(1),
+            Message.Of("http.status.server-error", ("service", "Jellyfin"), ("status", "500 Internal Server Error")));
         var queued = await runs.Create(livingRoom, LibrarySyncStatus.Queued, _owner.User, earlier.AddMinutes(2));
         var running = await runs.Create(bedroom, LibrarySyncStatus.Running, _owner.User, earlier.AddMinutes(3));
         var now = _factory.Time.GetUtcNow().UtcDateTime;
@@ -166,8 +173,8 @@ public sealed class LibrarySyncWorkerHttpTests : IClassFixture<MediaAcquisitionM
         await _factory.WithDbAsync(async db =>
         {
             var rows = await db.LibrarySyncRuns.AsNoTracking().ToDictionaryAsync(run => run.Id, cancellationToken);
-            Assert.Equal((LibrarySyncStatus.Failed, RestartedError, now), (rows[queued.Id].Status, rows[queued.Id].Error, rows[queued.Id].FinishedUtc));
-            Assert.Equal((LibrarySyncStatus.Failed, RestartedError, now), (rows[running.Id].Status, rows[running.Id].Error, rows[running.Id].FinishedUtc));
+            Assert.Equal((LibrarySyncStatus.Failed, RestartedError, now), (rows[queued.Id].Status, TestTexts.En(rows[queued.Id].Error), rows[queued.Id].FinishedUtc));
+            Assert.Equal((LibrarySyncStatus.Failed, RestartedError, now), (rows[running.Id].Status, TestTexts.En(rows[running.Id].Error), rows[running.Id].FinishedUtc));
             // Finished runs are history: their outcome stays as it was.
             Assert.Equal((LibrarySyncStatus.Succeeded, null, succeeded.FinishedUtc), (rows[succeeded.Id].Status, rows[succeeded.Id].Error, rows[succeeded.Id].FinishedUtc));
             Assert.Equal((LibrarySyncStatus.Failed, failed.Error, failed.FinishedUtc), (rows[failed.Id].Status, rows[failed.Id].Error, rows[failed.Id].FinishedUtc));

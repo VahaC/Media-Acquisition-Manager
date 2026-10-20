@@ -7,6 +7,8 @@ using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Options;
+using MediaAcquisitionManager.Core.Search;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
@@ -95,7 +97,7 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         {
             await Replacements(db).AddFile(job.Id, $"/media/movies/{job.Id}.mkv", TestMedia.File(inode: 1));
             await Replacements(db).AddWork(
-                job.Id, Guid.NewGuid(), MediaWorkKind.Movie, "Alien", 1979, MatchEvidence.Identifier, false, "This release is Alien (1979)",
+                job.Id, Guid.NewGuid(), MediaWorkKind.Movie, "Alien", 1979, MatchEvidence.Identifier, false, ReplacementConfirmation.Of("Alien", 1979, null),
                 [(MediaIdentifierScheme.Imdb, "tt0078748", false)]);
         }
 
@@ -139,10 +141,11 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var db = CreateContext();
         var owner = await CreateUserAsync(db);
-        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.NeedsReview, "Why.");
+        var job = await Replacements(db).Create(
+            (await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.NeedsReview, Message.Of("replacements.keep-both.reason"));
         await Replacements(db).AddWork(
             job.Id, Guid.NewGuid(), MediaWorkKind.Series, "Doctor Who", 2005, MatchEvidence.TitleAndYear, true,
-            "This release is Doctor Who (2005), season 2", [(MediaIdentifierScheme.TmdbTv, "57243", true)]);
+            ReplacementConfirmation.Of("Doctor Who", 2005, new ClaimedEpisodes(2, 2, null, null)), [(MediaIdentifierScheme.TmdbTv, "57243", true)]);
 
         //Act
         var stored = await db.Database
@@ -170,7 +173,8 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id);
         var auditTrail = new AuditTrail(db, TimeProvider.System);
         auditTrail.Record(AuditAction.ReplacementScheduled, AuditActor.From(owner), AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
-        auditTrail.Record(AuditAction.ReplacementWorkConfirmed, AuditActor.From(owner), AuditTarget.ReplacementJob(job, "This release is Alien (1979)"));
+        auditTrail.Record(
+            AuditAction.ReplacementWorkConfirmed, AuditActor.From(owner), AuditTarget.ReplacementConfirmation(job, ReplacementConfirmation.Of("Alien", 1979, null)));
         auditTrail.Record(AuditAction.ReplacementCancelled, AuditActor.From(owner), AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
         await db.SaveChangesAsync(cancellationToken);
 
@@ -184,7 +188,8 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
             [
                 "ReplacementCancelled/ReplacementJob/Alien (1979) BDRip",
                 "ReplacementScheduled/ReplacementJob/Alien (1979) BDRip",
-                "ReplacementWorkConfirmed/ReplacementJob/This release is Alien (1979)",
+                // MAM-47 (ADR 0042, design §5.5) — the owner's confirmation by its claim's label, in no language.
+                "ReplacementWorkConfirmed/ReplacementJob/Alien (1979)",
             ],
             rows);
     }
@@ -368,7 +373,8 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         var newFile = await Replacements(db).AddNewFile(job.Id, 0, "Alien.1979.2160p.mkv", LibraryFileKind.Movie);
         var startedUtc = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc).AddTicks(1_234_567);
         var askedUtc = startedUtc.AddMinutes(2).AddTicks(1);
-        var problem = new string('x', ReplacementJobFileEntity.ProblemMaximumLength);
+        // MAM-47 — a message the column keeps whole, compared by its key and values.
+        var problem = Message.Of("replacements.new-files.changed", ("path", "/media/movies/Alien (1979)/Alien.1979.2160p.mkv"));
 
         //Act
         await db.ReplacementJobs.Where(row => row.Id == job.Id).ExecuteUpdateAsync(
@@ -399,7 +405,7 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         Assert.Equal((startedUtc.Ticks, askedUtc.Ticks), (storedJob.InspectionStartedUtc!.Value.Ticks, storedJob.LibraryAskedUtc!.Value.Ticks));
         var storedCopy = await check.ReplacementJobFiles.AsNoTracking().SingleAsync(cancellationToken);
         Assert.Equal(
-            ((Guid?)newFile.Id, (int?)6, (long?)6_990_000, problem),
+            ((Guid?)newFile.Id, (int?)6, (long?)6_990_000, (Message?)problem),
             (storedCopy.PairedNewFileId, storedCopy.EpisodeNumberEnd, storedCopy.DurationMilliseconds, storedCopy.Problem));
         var storedFile = await check.ReplacementJobNewFiles.AsNoTracking().SingleAsync(cancellationToken);
         Assert.Equal(
@@ -556,7 +562,8 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         var copy = await Replacements(db).AddFile(job.Id, "/media/movies/Alien (1979)/Alien.mkv", TestMedia.File(inode: 42));
         var movedUtc = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc).AddTicks(1_234_567);
         var checkedUtc = movedUtc.AddMinutes(-1).AddTicks(3);
-        var problem = new string('x', ReplacementJobNameEntity.ProblemMaximumLength);
+        // MAM-47 — a message the column keeps whole, compared by its key and values.
+        var problem = Message.Of("replacements.quarantine.lost.moving", ("file", "Alien.mkv"));
 
         //Act
         // A device past long.MaxValue as an unsigned st_dev, a size past 4 GiB, a time with sub-millisecond ticks and a
@@ -575,7 +582,7 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         await using var check = CreateContext();
         var name = await check.ReplacementJobNames.AsNoTracking().SingleAsync(cancellationToken);
         Assert.Equal(
-            (copy.Id, TestMedia.DeviceId, 42L, 5_000_000_000L, TestMedia.ModifiedUtc.Ticks, (int?)2, problem, movedUtc.Ticks),
+            (copy.Id, TestMedia.DeviceId, 42L, 5_000_000_000L, TestMedia.ModifiedUtc.Ticks, (int?)2, (Message?)problem, movedUtc.Ticks),
             (name.ReplacementJobFileId, name.DeviceId, name.Inode, name.SizeBytes, name.ModifiedUtc.Ticks, name.LinkCount, name.Problem,
                 name.MovedUtc!.Value.Ticks));
         var stored = await check.ReplacementJobs.AsNoTracking().SingleAsync(cancellationToken);
@@ -687,7 +694,7 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         //Act
         var dropped = await Replacements(db).AddFile(
             job.Id, "/media/tv-shows/Yellowstone/Season 02/Yellowstone S02E05.mkv", TestMedia.File(inode: 42), position: 0,
-            problem: "Jellyfin “Living room” now numbers the old copy “Yellowstone S02E05.mkv” season 2, episode 6.", onlyDropSettles: true,
+            problem: Renumbered, onlyDropSettles: true,
             droppedUtc: droppedUtc);
         var kept = await Replacements(db).AddFile(job.Id, "/media/tv-shows/Yellowstone/Season 02/Yellowstone S02E06.mkv", TestMedia.File(inode: 43), position: 1);
 
@@ -744,8 +751,6 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
     public async Task Forgetting_a_check_deletes_its_new_files_and_their_ids_and_clears_the_undropped_copies_only()
     {
         //Arrange
-        const string Renumbered = "Jellyfin “Living room” now numbers the old copy “Yellowstone S02E05.mkv” season 2, episode 6.";
-        const string NoNewFile = "No new file is season 2, episode 6, so “Yellowstone S02E06.mkv” has nothing to replace it.";
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var db = CreateContext();
         var owner = await CreateUserAsync(db);
@@ -782,15 +787,32 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         // A dropped copy keeps its last pair and problem as history; the others start the next pairing from nothing.
         Assert.Equal(
             [
-                (dropped.Id, (Guid?)newFile.Id, (string?)Renumbered, true, (DateTime?)droppedUtc),
-                (stopped.Id, (Guid?)null, (string?)null, false, (DateTime?)null),
-                (paired.Id, (Guid?)null, (string?)null, false, (DateTime?)null),
-                (othersCopy.Id, (Guid?)othersNewFile.Id, (string?)NoNewFile, true, (DateTime?)null),
+                (dropped.Id, (Guid?)newFile.Id, (Message?)Renumbered, true, (DateTime?)droppedUtc),
+                (stopped.Id, (Guid?)null, (Message?)null, false, (DateTime?)null),
+                (paired.Id, (Guid?)null, (Message?)null, false, (DateTime?)null),
+                (othersCopy.Id, (Guid?)othersNewFile.Id, (Message?)NoNewFile, true, (DateTime?)null),
             ],
             copies.Select(copy => (copy.Id, copy.PairedNewFileId, copy.Problem, copy.OnlyDropSettles, copy.DroppedUtc)));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
+
+    // MAM-47 — a copy's problems as the check stores them: messages of the pairing's keys.
+    private static readonly Message Renumbered = Message.Of(
+        "replacements.pairing.old-renumbered",
+        ("library", "Living room"),
+        ("path", "/media/tv-shows/Yellowstone/Season 02/Yellowstone S02E05.mkv"),
+        ("nowSeason", "2"),
+        ("nowEpisode", "6"),
+        ("season", "2"),
+        ("episode", "5"));
+
+    private static readonly Message NoNewFile = Message.Of(
+        "replacements.pairing.no-new-file-episode",
+        ("series", "Yellowstone (2018)"),
+        ("season", "2"),
+        ("episode", "6"),
+        ("path", "/media/tv-shows/Yellowstone/Season 02/Yellowstone S02E06.mkv"));
 
     private static Task<UserEntity> CreateUserAsync(ApplicationDbContext db) =>
         new UserDataFactory(db, new Pbkdf2PasswordHasher(1_000), TimeProvider.System).Create("owner", "P@ssword1");

@@ -8,6 +8,7 @@ using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -69,7 +70,7 @@ public sealed class RecommendationRunWorkerHttpTests : IClassFixture<MediaAcquis
             var run = await db.RecommendationRuns.AsNoTracking().SingleAsync(row => row.Id == runId, cancellationToken);
             Assert.Equal(
                 (RecommendationRunStatus.Succeeded, queuedAt, ranAt, ranAt, 0, 0, (string?)null),
-                (run.Status, run.CreatedUtc, run.StartedUtc, run.FinishedUtc, run.SeedCount, run.CandidateCount, run.Error));
+                (run.Status, run.CreatedUtc, run.StartedUtc, run.FinishedUtc, run.SeedCount, run.CandidateCount, TestTexts.En(run.Error)));
         });
         Assert.False(_factory.Resolve<RecommendationRunQueue>().Reader.TryRead(out _));
     }
@@ -101,7 +102,7 @@ public sealed class RecommendationRunWorkerHttpTests : IClassFixture<MediaAcquis
         await _factory.WithDbAsync(async db =>
         {
             var failed = await db.RecommendationRuns.AsNoTracking().SingleAsync(run => run.Id == brokenRunId, cancellationToken);
-            Assert.Equal((RecommendationRunStatus.Failed, AppErrorMessage, now), (failed.Status, failed.Error, failed.FinishedUtc));
+            Assert.Equal((RecommendationRunStatus.Failed, AppErrorMessage, now), (failed.Status, TestTexts.En(failed.Error), failed.FinishedUtc));
             // The next run in the queue still went.
             var next = await db.RecommendationRuns.AsNoTracking().SingleAsync(run => run.Id == nextRunId, cancellationToken);
             Assert.Equal(RecommendationRunStatus.Succeeded, next.Status);
@@ -132,7 +133,7 @@ public sealed class RecommendationRunWorkerHttpTests : IClassFixture<MediaAcquis
         await _factory.WithDbAsync(async db =>
         {
             var failed = await db.RecommendationRuns.AsNoTracking().SingleAsync(run => run.Id == dead.Id, cancellationToken);
-            Assert.Equal((RecommendationRunStatus.Failed, AppErrorMessage, now), (failed.Status, failed.Error, failed.FinishedUtc));
+            Assert.Equal((RecommendationRunStatus.Failed, AppErrorMessage, now), (failed.Status, TestTexts.En(failed.Error), failed.FinishedUtc));
             var run = await db.RecommendationRuns.AsNoTracking().SingleAsync(run => run.Id == runId, cancellationToken);
             Assert.Equal(RecommendationRunStatus.Succeeded, run.Status);
         });
@@ -173,7 +174,7 @@ public sealed class RecommendationRunWorkerHttpTests : IClassFixture<MediaAcquis
         await _factory.WithDbAsync(async db =>
         {
             var run = await db.RecommendationRuns.AsNoTracking().SingleAsync(row => row.Id == runId, cancellationToken);
-            Assert.Equal((RecommendationRunStatus.Failed, RestartedError, restartedAt), (run.Status, run.Error, run.FinishedUtc));
+            Assert.Equal((RecommendationRunStatus.Failed, RestartedError, restartedAt), (run.Status, TestTexts.En(run.Error), run.FinishedUtc));
             var kept = Assert.Single(await StoredRecommendation.ReadAsync(db, cancellationToken));
             Assert.Equal(("603", RecommendationTab.Movies, 3.5), (kept.CatalogId, kept.Tab, kept.Score));
         });
@@ -216,7 +217,7 @@ public sealed class RecommendationRunWorkerHttpTests : IClassFixture<MediaAcquis
         await _factory.WithDbAsync(async db =>
         {
             var run = await db.RecommendationRuns.AsNoTracking().SingleAsync(row => row.Id == queued.Id, cancellationToken);
-            Assert.Equal((RecommendationRunStatus.Failed, QueueFullError), (run.Status, run.Error));
+            Assert.Equal((RecommendationRunStatus.Failed, QueueFullError), (run.Status, TestTexts.En(run.Error)));
         });
     }
 
@@ -238,7 +239,7 @@ public sealed class RecommendationRunWorkerHttpTests : IClassFixture<MediaAcquis
         await _factory.WithDbAsync(async db =>
         {
             var run = await db.RecommendationRuns.AsNoTracking().SingleAsync(row => row.Id == runId, cancellationToken);
-            Assert.Equal((RecommendationRunStatus.Failed, NoCatalogError, (int?)null), (run.Status, run.Error, run.CandidateCount));
+            Assert.Equal((RecommendationRunStatus.Failed, NoCatalogError, (int?)null), (run.Status, TestTexts.En(run.Error), run.CandidateCount));
         });
         Assert.Empty(_factory.TmdbHttp.Requests);
     }
@@ -275,7 +276,7 @@ public sealed class RecommendationRunWorkerHttpTests : IClassFixture<MediaAcquis
         await _factory.WithDbAsync(async db =>
         {
             var run = await db.RecommendationRuns.AsNoTracking().SingleAsync(row => row.Id == runId, cancellationToken);
-            Assert.Equal((RecommendationRunStatus.Failed, CatalogRemovedError, (int?)null), (run.Status, run.Error, run.CandidateCount));
+            Assert.Equal((RecommendationRunStatus.Failed, CatalogRemovedError, (int?)null), (run.Status, TestTexts.En(run.Error), run.CandidateCount));
         });
         Assert.True(removed);
         // No bug of the app: nothing of its own at Error (EF Core logs the failed save itself), and the runner's Warning
@@ -303,7 +304,7 @@ public sealed class RecommendationRunWorkerHttpTests : IClassFixture<MediaAcquis
         await _factory.WithDbAsync(async db =>
         {
             var run = await db.RecommendationRuns.AsNoTracking().SingleAsync(row => row.Id == runId, cancellationToken);
-            Assert.Equal((RecommendationRunStatus.Failed, KeyRefusedError), (run.Status, run.Error));
+            Assert.Equal((RecommendationRunStatus.Failed, KeyRefusedError), (run.Status, TestTexts.En(run.Error)));
         });
         var request = Assert.Single(_factory.TmdbHttp.Requests);
         Assert.Equal("/3/authentication", request.Uri.AbsolutePath);

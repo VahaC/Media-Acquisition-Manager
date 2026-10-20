@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using MediaAcquisitionManager.Infrastructure.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Files;
 
@@ -126,19 +126,19 @@ internal sealed partial class FfprobeProcess(string executable, TimeSpan timeLim
             await process.WaitForExitAsync(CancellationToken.None);
             await Task.WhenAll(output, errors);
             cancellationToken.ThrowIfCancellationRequested();
-            return MediaProbeResult.Failed($"it didn't finish within {Describe(timeLimit)}");
+            return MediaProbeResult.Failed(TimedOut(timeLimit));
         }
 
         var standardOutput = await output;
         var standardError = await errors;
         if (standardOutput.Overflowed)
-            return MediaProbeResult.Failed($"it printed more than {DescribeBytes(maximumOutputBytes)}");
+            return MediaProbeResult.Failed(PrintedTooMuch(maximumOutputBytes));
 
         if (process.ExitCode != 0)
         {
             return MediaProbeResult.Failed(
                 Reason(standardError.Bytes, "file:" + probePath)
-                ?? string.Create(CultureInfo.InvariantCulture, $"it stopped with exit code {process.ExitCode}"));
+                ?? Message.Of("files.ffprobe.exit-code-clause", ("code", process.ExitCode.ToString(CultureInfo.InvariantCulture))));
         }
 
         return MediaProbeResult.Succeeded(Utf8.GetString(standardOutput.Bytes));
@@ -223,7 +223,7 @@ internal sealed partial class FfprobeProcess(string executable, TimeSpan timeLim
     /// sentence names the file itself. A format refused by <see cref="ContainerFormats"/> is named instead of
     /// the bare "Invalid argument" ffprobe then gives. Without a verdict, the first line that says anything.
     /// </remarks>
-    private static string? Reason(byte[] errorText, string input)
+    private static Message? Reason(byte[] errorText, string input)
     {
         var lines = Utf8.GetString(errorText)
             .Split('\n')
@@ -231,34 +231,39 @@ internal sealed partial class FfprobeProcess(string executable, TimeSpan timeLim
             .Where(line => line.Length > 0)
             .ToList();
         if (lines.Select(line => FormatRefused().Match(line)).FirstOrDefault(match => match.Success) is { } refused)
-            return $"its content is “{Clean(refused.Groups["format"].Value)}”, which isn't a media container the app reads";
+            return Message.Of("files.ffprobe.not-a-container-clause", ("format", Clean(refused.Groups["format"].Value)));
 
         var verdictStart = input + ": ";
         var verdict = lines.LastOrDefault(line => line.StartsWith(verdictStart, StringComparison.Ordinal));
-        var said = verdict is null ? lines.Select(Clean).FirstOrDefault(line => line.Length > 0) : Clean(verdict[verdictStart.Length..]);
-        return said is { Length: > 0 } ? $"it said “{said}”" : null;
+        var said = verdict is null ? lines.Select(Clean).FirstOrDefault(line => line.Text.Length > 0) : Clean(verdict[verdictStart.Length..]);
+        return said is { Text.Length: > 0 } ? Message.Of("files.ffprobe.said-clause", ("said", said)) : null;
     }
 
-    private static string Clean(string line) => RemoteText.Clean(line, MaximumQuotedErrorLength, []);
+    /// <summary>ffprobe's own words, cleaned and cut to one line's worth.</summary>
+    private static VendorText Clean(string line) => VendorText.Clean(line, MaximumQuotedErrorLength);
 
     /// <summary>What libavformat logs when a file's content is in a format left out of
     /// <see cref="ContainerFormats"/>: <c>[concat @ 0x55…] Format not on whitelist '…'</c>.</summary>
     [GeneratedRegex(@"^\[(?<format>[^\]@]+?) @ [^\]]*\] Format not on whitelist", RegexOptions.CultureInvariant)]
     private static partial Regex FormatRefused();
 
-    private static string Describe(TimeSpan duration) => duration.TotalSeconds >= 60
-        ? Plural(duration.TotalMinutes, "minute")
-        : Plural(duration.TotalSeconds, "second");
+    /// <summary>
+    /// "it didn't finish within 2 minutes": the time limit in minutes from a minute up, else in seconds, to one decimal as
+    /// the format <c>0.#</c> wrote it (a midpoint rounded away from zero). MAM-47 — rounded here, before the template
+    /// counts it, so the plural follows the number shown: "1 minute" (pinned by <c>FfprobeEnglishFormatPinTests</c>).
+    /// </summary>
+    internal static Message TimedOut(TimeSpan duration) => duration.TotalSeconds >= 60
+        ? Message.Of("files.ffprobe.timed-out-minutes-clause", ("count", Tenths(duration.TotalMinutes)))
+        : Message.Of("files.ffprobe.timed-out-seconds-clause", ("count", Tenths(duration.TotalSeconds)));
 
-    private static string Plural(double value, string unit) =>
-        string.Create(CultureInfo.InvariantCulture, $"{value:0.#} {unit}{(value == 1 ? "" : "s")}");
+    /// <summary>
+    /// "it printed more than 8 MiB": MAM-47 — the limit is a size the template writes in the reader's units, by the exact
+    /// unit rule <c>DescribeBytes</c> had (pinned by <c>FfprobeEnglishFormatPinTests</c>).
+    /// </summary>
+    internal static Message PrintedTooMuch(int bytes) =>
+        Message.Of("files.ffprobe.too-much-output-clause", ("limit", new SizeValue(bytes)));
 
-    private static string DescribeBytes(int bytes) => bytes switch
-    {
-        _ when bytes % (1024 * 1024) == 0 => string.Create(CultureInfo.InvariantCulture, $"{bytes / (1024 * 1024)} MiB"),
-        _ when bytes % 1024 == 0 => string.Create(CultureInfo.InvariantCulture, $"{bytes / 1024} KiB"),
-        _ => string.Create(CultureInfo.InvariantCulture, $"{bytes} bytes"),
-    };
+    private static NumberValue Tenths(double value) => new(Math.Round((decimal)value, 1, MidpointRounding.AwayFromZero));
 
     /// <summary>What a stream said, and whether it said more than was kept.</summary>
     private sealed record CapturedStream(byte[] Bytes, bool Overflowed);

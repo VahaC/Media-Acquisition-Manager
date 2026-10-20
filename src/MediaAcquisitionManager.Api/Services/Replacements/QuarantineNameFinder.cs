@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -20,7 +21,7 @@ internal static class QuarantineNameFinder
     /// found, or a name found nowhere while neither the folder it was in nor the one it was going to is there — a mount
     /// missing, an empty mount point —, where its absence proves nothing.
     /// </summary>
-    public static async Task<(ReplacementNameState State, string? Problem)?> FindAsync(
+    public static async Task<(ReplacementNameState State, Message? Problem)?> FindAsync(
         IFileInventory files, QuarantinedNameEntity name, IReadOnlyList<string> roots, CancellationToken cancellationToken)
     {
         var inQuarantine = await files.DescribeAsync(name.QuarantinePath, roots, cancellationToken);
@@ -95,12 +96,14 @@ internal static class QuarantineNameFinder
     private static bool IsThere(FileInventoryResult<FileFacts> described, QuarantinedNameEntity name) =>
         described is { Status: FileInventoryStatus.Found, Value: { } facts } && facts.DeviceId == name.DeviceId && facts.Inode == name.Inode;
 
-    private static string LostWhileMovingProblem(string path) =>
-        $"The app stopped while moving {ReplacementText.Quote(ReplacementText.FileNameOf(path))}, and found it neither where it was nor in the quarantine.";
+    // MAM-47 (ADR 0042) — why a name is lost, as a message the Api renders; the file's own name, the template's quotes.
 
-    private static string LostWhileRestoringProblem(string path) =>
-        $"The app stopped while putting {ReplacementText.Quote(ReplacementText.FileNameOf(path))} back, and found it neither in the quarantine nor where it was.";
+    private static Message LostWhileMovingProblem(string path) =>
+        Message.Of("replacements.quarantine.lost.moving", ("file", MessageText.Clean(ReplacementText.FileNameOf(path))));
 
-    private static string LostWhileDeletingProblem(string path) =>
-        $"The app stopped while deleting {ReplacementText.Quote(ReplacementText.FileNameOf(path))} permanently, and something else is in its place in the quarantine.";
+    private static Message LostWhileRestoringProblem(string path) =>
+        Message.Of("replacements.quarantine.lost.restoring", ("file", MessageText.Clean(ReplacementText.FileNameOf(path))));
+
+    private static Message LostWhileDeletingProblem(string path) =>
+        Message.Of("replacements.quarantine.lost.deleting", ("file", MessageText.Clean(ReplacementText.FileNameOf(path))));
 }

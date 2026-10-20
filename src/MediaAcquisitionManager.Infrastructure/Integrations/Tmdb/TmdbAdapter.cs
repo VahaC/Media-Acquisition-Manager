@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 
@@ -110,19 +111,17 @@ internal sealed partial class TmdbAdapter(IHttpClientFactory httpClients, TimePr
     /// <summary>The longest name of a collection, a person or a genre kept: far past any real one.</summary>
     private const int NameMaximumLength = 200;
 
-    private const string ConnectedMessage = "Connected to TMDb.";
+    // MAM-47 (ADR 0042) — every sentence of this adapter is a key of tmdb.json with its values (the shared transport ones are
+    // http.json's, HttpIntegrationAdapter). "three retries" is MaximumRetries, a constant, so it is part of the sentence.
+    private static readonly Message ConnectedMessage = Message.Of("tmdb.connected");
 
-    private const string KeyRefusedError =
-        "TMDb refused the key (401 Unauthorized). Enter the API Read Access Token from themoviedb.org → Settings → API, not the shorter API key.";
+    private static readonly Message KeyRefusedError = Message.Of("tmdb.key-refused");
 
-    private const string NotTmdbError =
-        "The service at this address answered, but not the way TMDb's API does. Check the address: TMDb's is https://api.themoviedb.org.";
+    private static readonly Message NotTmdbError = Message.Of("tmdb.not-tmdb");
 
-    private const string ApiNotFoundError =
-        "TMDb's API wasn't found at this address (404 Not Found). Use https://api.themoviedb.org.";
+    private static readonly Message ApiNotFoundError = Message.Of("tmdb.api-not-found");
 
-    private const string TooManyRequestsError =
-        "TMDb is asking the app to slow down (429 Too Many Requests), and still was after three retries. Try again in a minute.";
+    private static readonly Message TooManyRequestsError = Message.Of("tmdb.too-many-requests");
 
     /// <summary>TMDb's own code for "The resource you requested could not be found." in a 404's body.</summary>
     private const int ResourceNotFoundCode = 34;
@@ -244,7 +243,7 @@ internal sealed partial class TmdbAdapter(IHttpClientFactory httpClients, TimePr
         IntegrationConnectionSettings settings,
         ICollection<string> sessionSecrets,
         string pathAndQuery,
-        string? notFoundError,
+        Message? notFoundError,
         Func<JsonElement, string?[], T?> read,
         CancellationToken cancellationToken) where T : class
     {
@@ -269,8 +268,8 @@ internal sealed partial class TmdbAdapter(IHttpClientFactory httpClients, TimePr
     /// <see cref="ResourceNotFoundCode"/>) for a call naming one resource, otherwise an address that isn't
     /// TMDb's API, which is no reason to say a work doesn't exist.
     /// </summary>
-    private static async Task<(IntegrationCallStatus Status, string Message)?> KnownFailureAsync(
-        HttpResponseMessage response, string? notFoundError, CancellationToken cancellationToken)
+    private static async Task<(IntegrationCallStatus Status, Message Message)?> KnownFailureAsync(
+        HttpResponseMessage response, Message? notFoundError, CancellationToken cancellationToken)
     {
         switch (response.StatusCode)
         {

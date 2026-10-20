@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Releases;
 
@@ -6,9 +7,9 @@ namespace MediaAcquisitionManager.Api.Services.Releases;
 /// <param name="Status">How it ended.</param>
 /// <param name="Response">What every source answered when <see cref="ReleaseSearchStatus.Searched"/>.</param>
 /// <param name="Error">The sentence saying what the search doesn't take otherwise.</param>
-public sealed record ReleaseSearchResult(ReleaseSearchStatus Status, ReleaseSearchResponse? Response, string? Error)
+public sealed record ReleaseSearchResult(ReleaseSearchStatus Status, ReleaseSearchResponse? Response, Message? Error)
 {
     public static ReleaseSearchResult Searched(ReleaseSearchResponse response) => new(ReleaseSearchStatus.Searched, response, null);
 
-    public static ReleaseSearchResult Invalid(string error) => new(ReleaseSearchStatus.Invalid, null, error);
+    public static ReleaseSearchResult Invalid(Message error) => new(ReleaseSearchStatus.Invalid, null, error);
 }

@@ -366,7 +366,8 @@ export function sourceOf(changes: Partial<LibrarySource>): LibrarySource {
     lastSucceededRun: lastRun,
     filesWithoutAppPathCount: 0,
     pathProblem: null,
-    inspection: { inspectedCount: 870, problemCount: 0, notInspectedCount: 0, problem: null },
+    pathProblemCode: null,
+    inspection: { inspectedCount: 870, problemCount: 0, notInspectedCount: 0, problem: null, problemCode: null },
     space: homeJellyfinSpace,
     ...changes,
   }
@@ -446,7 +447,7 @@ export function scanOf(changes: Partial<FolderScanOverview>): FolderScanOverview
     activeRun: null,
     lastFinishedRun: scanRunOf({}),
     hasQueuedRun: false,
-    files: { inspectedCount: 12, problemCount: 0, notInspectedCount: 0, problem: null },
+    files: { inspectedCount: 12, problemCount: 0, notInspectedCount: 0, problem: null, problemCode: null },
     space: scannedSpace,
     ignoredCount: 0,
     extrasCount: 0,

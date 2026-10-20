@@ -1,10 +1,10 @@
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Api.Services.Posters;
-using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Recommendations;
 using MediaAcquisitionManager.Core.Storage;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,8 +23,9 @@ public sealed class RecommendationPosterService(
     /// <summary>
     /// What a failed fetch tells anyone but the installation owner. The catalog's own sentence can quote the address
     /// the owner saved — the rule of a run's error and a download job's — and the page only shows a placeholder anyway.
+    /// MAM-47 — a message under the name the constant had (ADR 0042).
     /// </summary>
-    public const string FetchFailedError = "The metadata catalog couldn't send this poster.";
+    public static readonly Message FetchFailedError = Message.Of("recommendations.poster.fetch-failed");
 
     public async Task<RecommendationPosterResult> GetAsync(string fileName, Guid callerUserId, CancellationToken cancellationToken = default)
     {
@@ -55,8 +56,9 @@ public sealed class RecommendationPosterService(
         if (poster.Status == IntegrationCallStatus.NotFound)
             return RecommendationPosterResult.NotFound;
         if (!poster.IsSuccess)
-            // Masked again with the call's secrets — a second pass after the adapter's own (the MAM-7 rule).
-            return await FailedAsync(SecretRedaction.Redact(poster.Error, catalog.Settings.Secrets)!, callerUserId, cancellationToken);
+            // Masked again with the call's secrets — a second pass after the adapter's own (the MAM-7 rule), over the
+            // message's values (ADR 0042).
+            return await FailedAsync(poster.Error!.Redacted(catalog.Settings.Secrets), callerUserId, cancellationToken);
 
         // MAM-35 — the keep the Library's posters share (PosterFiles), logged as this service.
         await PosterFiles.KeepAsync(directory, path, poster.Value!.Content, logger, cancellationToken);
@@ -66,7 +68,7 @@ public sealed class RecommendationPosterService(
     /// <summary>A failed fetch: <paramref name="error"/> for the installation owner, <see cref="FetchFailedError"/> for
     /// everyone else. Information, not Warning: a page of posters failing at once would otherwise flood what ships off
     /// the box, and the next request asks again.</summary>
-    private async Task<RecommendationPosterResult> FailedAsync(string error, Guid callerUserId, CancellationToken cancellationToken)
+    private async Task<RecommendationPosterResult> FailedAsync(Message error, Guid callerUserId, CancellationToken cancellationToken)
     {
         logger.LogInformation("A poster couldn't be fetched from the metadata catalog.");
         return RecommendationPosterResult.Failed(

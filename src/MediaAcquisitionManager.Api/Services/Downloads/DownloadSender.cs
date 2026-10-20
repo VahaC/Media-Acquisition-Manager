@@ -8,6 +8,8 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Search;
+using MediaAcquisitionManager.Core.Texts;
+using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.Api.Services.Downloads;
@@ -69,13 +71,11 @@ public sealed class DownloadSender(
     /// </summary>
     private static readonly TimeSpan ConfirmationRetryDelay = TimeSpan.FromMilliseconds(500);
 
-    private const string LocatorUnreadableError =
-        "The release's download link can't be read with this installation's encryption key, so nothing was sent. Search again.";
+    private static readonly Message LocatorUnreadableError = Message.Of("downloads.sender.locator-unreadable");
 
     /// <summary>MAM-24 — a replacement whose gateway link turned out a magnet once fetched: its files can't be checked
     /// before the client has them (ADR 0032).</summary>
-    private const string ReplacementMagnetError =
-        "This release turned out to be a magnet link, whose files the app can't check before sending, so nothing was sent and no copy will be replaced. Pick Keep both to download it.";
+    private static readonly Message ReplacementMagnetError = Message.Of("downloads.sender.replacement-magnet");
 
     public async Task SendAsync(
         Guid jobId,
@@ -133,13 +133,13 @@ public sealed class DownloadSender(
         if (replacement && payload.Kind == ReleasePayloadKind.Magnet)
             return SendOutcome.Failed(ReplacementMagnetError);
         if (!downloadClient.Capabilities.PayloadKinds.Contains(payload.Kind))
-            return SendOutcome.Failed($"“{client.Name}” can't take {KindOf(payload.Kind)}, which this release turned out to be, so nothing was sent.");
+            return SendOutcome.Failed(TurnedOutError(client, payload.Kind));
 
         var hashes = TorrentInfoHashReader.Read(payload);
         // MAM-30, D12 — beside the kind: what the release is, not what the client says, so the app's own sentence, which
         // members read too, and nothing listed or asked first.
         if (hashes is { V1: null, V2: not null } && !downloadClient.Capabilities.TakesV2OnlyTorrents)
-            return SendOutcome.Failed($"“{client.Name}” can't take a torrent that is BitTorrent v2 only, which this release is, so nothing was sent.");
+            return SendOutcome.Failed(Message.Of("downloads.sender.v2-only", ("client", client.Name)));
         if (hashes.IsKnown)
             await db.DownloadJobs.RecordInfoHashesAsync(jobId, hashes);
 
@@ -160,8 +160,7 @@ public sealed class DownloadSender(
         // own entry, or one ListAsync adds with why the app can't use it (D3) —, and that one is FolderNotSeen below.
         if (listed.Find(key) is not { } destination)
         {
-            return SendOutcome.Failed(
-                $"“{client.Name}” has no category “{key}” any more, so nothing was sent: it would have created one in its default folder. Create the category again in “{client.Name}”, or the owner edits the destination.");
+            return SendOutcome.Failed(Message.Of("downloads.sender.category-missing", ("client", client.Name), ("category", key)));
         }
 
         var wording = new DestinationWording(downloadClient.Capabilities.DestinationKind, key, destinationName);
@@ -185,7 +184,7 @@ public sealed class DownloadSender(
             if (!held.IsSuccess)
                 return Failed(client, DownloadJobErrorOrigin.DownloadClient, "job lookup", held.Status, held.Error!, clientSettings);
             if (ClientJobCorrelation.Match(held.Value!, hashes).Status != ClientJobMatchStatus.None)
-                return SendOutcome.Failed($"“{client.Name}” already has this torrent, so nothing was sent.");
+                return SendOutcome.Failed(Message.Of("downloads.sender.already-has-torrent", ("client", client.Name)));
         }
 
         // ── what it would write over (MAM-38) ──
@@ -306,18 +305,18 @@ public sealed class DownloadSender(
 
     /// <summary>MAM-24 — the app's sentence for a replacement whose category's folder isn't inside a library the app
     /// knows: nothing reached the client.</summary>
-    private static string ReplacementOutsideLibrariesError(DestinationWording wording) =>
-        $"The folder of {wording.Destination} isn't inside a library the app knows, so nothing was sent and no copy will be replaced. Pick Keep both to download it, or the owner fixes the destination.";
+    private static Message ReplacementOutsideLibrariesError(DestinationWording wording) =>
+        wording.Sentence("downloads.sender.outside-libraries-destination", "downloads.sender.outside-libraries-category");
 
     /// <summary>MAM-38 — the app's sentence for a send whose overwrite check broke: nothing reached the client.</summary>
-    private static string OverwriteCheckFailedError(DestinationWording wording) =>
-        $"The app couldn't check whether this release would write over a file in the folder of {wording.Destination}, so nothing was sent. The app's log says why.";
+    private static Message OverwriteCheckFailedError(DestinationWording wording) =>
+        wording.Sentence("downloads.sender.overwrite-check-failed-destination", "downloads.sender.overwrite-check-failed-category");
 
     /// <summary>MAM-30 — the app's sentence for a folder destination its client can't use any more: it names the
     /// destination, never the folder (D13), and the client's own sentence is on the Destinations page. The overwrite
     /// check refuses such a folder with it too.</summary>
-    internal static string FolderUnusableError(IntegrationConnectionEntity client, string destinationName) =>
-        $"“{client.Name}” can't use the folder of the destination “{destinationName}” any more, so nothing was sent. The owner checks the destination under Destinations in the user menu.";
+    internal static Message FolderUnusableError(IntegrationConnectionEntity client, string destinationName) =>
+        Message.Of("downloads.sender.folder-unusable", ("client", client.Name), ("destination", destinationName));
 
     private Task<IntegrationCallResult<IReadOnlyList<ClientJob>>> FindAsync(
         IntegrationConnectionEntity client, IDownloadClient downloadClient, IntegrationConnectionSettings settings, TorrentInfoHashes hashes) =>
@@ -357,7 +356,7 @@ public sealed class DownloadSender(
                 integration.AdapterType,
                 exception.GetType().FullName,
                 exception.StackTrace);
-            return IntegrationCallResult<T>.Failed(IntegrationCallStatus.UnexpectedResponse, $"The app couldn't read what “{integration.Name}” answered.");
+            return IntegrationCallResult<T>.Failed(IntegrationCallStatus.UnexpectedResponse, IntegrationAdapterMessages.UnreadableAnswer(integration.Name));
         }
     }
 
@@ -368,7 +367,7 @@ public sealed class DownloadSender(
         DownloadJobErrorOrigin origin,
         string call,
         IntegrationCallStatus status,
-        string error,
+        Message error,
         IntegrationConnectionSettings settings)
     {
         // Information: the status only — never the address or the sentence (the connection test's rule).
@@ -379,18 +378,20 @@ public sealed class DownloadSender(
             integration.AdapterType,
             status);
         // Masked again after the adapter (ADR 0007's second pass), which also covers an adapter that isn't HTTP.
-        return SendOutcome.Failed(SecretRedaction.Redact(error, settings.Secrets)!, origin);
+        return SendOutcome.Failed(error.Redacted(settings.Secrets), origin);
     }
 
-    private static string KindOf(ReleasePayloadKind kind) => kind switch
+    /// <summary>A client that doesn't take what the release turned out to be once fetched. MAM-47 — a sentence per kind,
+    /// as the kind is the object of "take" (design §1.3).</summary>
+    private static Message TurnedOutError(IntegrationConnectionEntity client, ReleasePayloadKind kind) => kind switch
     {
-        ReleasePayloadKind.TorrentFile => "a .torrent file",
-        ReleasePayloadKind.Magnet => "a magnet link",
-        _ => "an NZB file",
+        ReleasePayloadKind.TorrentFile => Message.Of("downloads.sender.turned-out.torrent-file", ("client", client.Name)),
+        ReleasePayloadKind.Magnet => Message.Of("downloads.sender.turned-out.magnet", ("client", client.Name)),
+        _ => Message.Of("downloads.sender.turned-out.nzb", ("client", client.Name)),
     };
 
     /// <summary>How the sending ended, to write onto the job.</summary>
-    private sealed record SendOutcome(DownloadJobStatus Status, string? ClientJobId, string? Error, DownloadJobErrorOrigin? ErrorOrigin)
+    private sealed record SendOutcome(DownloadJobStatus Status, string? ClientJobId, Message? Error, DownloadJobErrorOrigin? ErrorOrigin)
     {
         public static SendOutcome NeedsLinking { get; } = new(DownloadJobStatus.NeedsLinking, null, null, null);
 
@@ -398,7 +399,7 @@ public sealed class DownloadSender(
 
         /// <summary>A failure in <paramref name="error"/>, the app's own sentence unless <paramref name="origin"/>
         /// says whose it is.</summary>
-        public static SendOutcome Failed(string error, DownloadJobErrorOrigin origin = DownloadJobErrorOrigin.App) =>
+        public static SendOutcome Failed(Message error, DownloadJobErrorOrigin origin = DownloadJobErrorOrigin.App) =>
             new(DownloadJobStatus.Failed, null, error, origin);
     }
 }

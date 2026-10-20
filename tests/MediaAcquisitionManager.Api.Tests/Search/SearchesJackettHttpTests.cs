@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
@@ -228,7 +229,10 @@ public sealed class SearchesJackettHttpTests : IClassFixture<MediaAcquisitionMan
         var body = await stored.Content.ReadAsStringAsync(cancellationToken);
         Assert.DoesNotContain("a-key-jackett-refuses", body, StringComparison.Ordinal);
         Assert.DoesNotContain(ApiKey, body, StringComparison.Ordinal);
-        Assert.Equal(RefusedKeyError, (string?)JsonNode.Parse(body)!["sources"]![0]!["error"]);
+        // MAM-47 — read through the factory's options, which in the pseudo pass prove the sentence came through the renderer.
+        Assert.Equal(
+            RefusedKeyError,
+            JsonSerializer.Deserialize<SearchResponse>(body, MediaAcquisitionManagerApiFactory.JsonOptions)!.Sources[0].Error);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -24,7 +25,8 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class CopyRemovalEntity : AuditableEntity
 {
-    /// <summary>The longest <see cref="Reason"/> kept, as a replacement's.</summary>
+    /// <summary>The longest <see cref="Reason"/> kept, as a replacement's; a longer message is fitted to it (MAM-47: its
+    /// longest value cut).</summary>
     public const int ReasonMaximumLength = ReplacementJobEntity.ReasonMaximumLength;
 
     /// <summary>The longest <see cref="Title"/> kept: a series' title, a place and an episode's title, each up to 500
@@ -47,9 +49,10 @@ public class CopyRemovalEntity : AuditableEntity
     /// <summary>When <see cref="State"/> last changed.</summary>
     public DateTime StateChangedUtc { get; set; }
 
-    /// <summary>Why it waits for review or didn't move, one readable sentence; <c>null</c> otherwise.</summary>
+    /// <summary>Why it waits for review or didn't move, as a message the Api renders in the reader's language (MAM-47,
+    /// ADR 0042); <c>null</c> otherwise.</summary>
     [MaxLength(ReasonMaximumLength)]
-    public string? Reason { get; set; }
+    public Message? Reason { get; set; }
 
     /// <summary>The group's heading when it was removed, as the Duplicates page showed it: "The Gods Must Be Crazy
     /// (1980)", or an episode's "Clarkson's Farm · S02E03 · Title"; the video's own name for a group no library

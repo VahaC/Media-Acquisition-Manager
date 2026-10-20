@@ -1,0 +1,23 @@
+{
+  "redirect": {
+    "to": "The address answered with a redirect to {{location, vendor}}. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
+    "bare": "The address answered with a redirect. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else."
+  },
+  "status": {
+    "server-error": "{{service}} answered {{status}}. Its own log says why.",
+    "unexpected": "{{service}} answered {{status}}, which it doesn't send for this request. Check the address."
+  },
+  "unreachable": {
+    "host-not-found": "Couldn't reach {{service}} at {{address}}: the host name can't be found.",
+    "refused": "Couldn't reach {{service}} at {{address}}: nothing accepted the connection. Check the address and port, and that {{service}} is running.",
+    "secure-connection": "Couldn't reach {{service}} at {{address}}: the secure (HTTPS) connection failed, for example because its certificate isn't trusted.",
+    "failed": "Couldn't reach {{service}} at {{address}}: the connection failed before it answered."
+  },
+  "too-large": "The answer from {{address}} is far larger than anything {{service}} sends. Check the address.",
+  "timeout": {
+    "connect_one": "{{service}} at {{address}} didn't accept the connection within {{count, number}} second. Check the address and port, and that {{service}} is running.",
+    "connect_other": "{{service}} at {{address}} didn't accept the connection within {{count, number}} seconds. Check the address and port, and that {{service}} is running.",
+    "answer_one": "{{service}} at {{address}} didn't answer within {{count, number}} second.",
+    "answer_other": "{{service}} at {{address}} didn't answer within {{count, number}} seconds."
+  }
+}

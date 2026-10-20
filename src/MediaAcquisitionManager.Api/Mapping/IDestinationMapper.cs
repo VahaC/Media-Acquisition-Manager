@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Api.Services.Destinations;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
@@ -34,5 +35,5 @@ public interface IDestinationMapper
         IntegrationConnectionEntity source,
         IReadOnlyList<DestinationSectionGroup> sections,
         IReadOnlyDictionary<Guid, string> destinationNames,
-        string? error);
+        Message? error);
 }

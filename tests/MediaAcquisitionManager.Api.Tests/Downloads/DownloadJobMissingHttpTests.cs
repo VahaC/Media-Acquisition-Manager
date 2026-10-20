@@ -13,6 +13,7 @@ using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -132,13 +133,13 @@ public sealed class DownloadJobMissingHttpTests : IClassFixture<MediaAcquisition
         // why, and every pass still looks for it, by its id and among its destination's torrents.
         Assert.Equal(
             (DownloadJobStatus.Downloading, (double?)0.3, downloadingUtc, MissingReason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App, SampleInfoHash),
-            (missing.Status, missing.Progress, missing.StatusChangedUtc, missing.BlockReason, missing.BlockReasonOrigin, missing.ClientJobId));
+            (missing.Status, missing.Progress, missing.StatusChangedUtc, TestTexts.En(missing.BlockReason), missing.BlockReasonOrigin, missing.ClientJobId));
         Assert.Equal((DownloadJobStatus.Downloading, MissingReason), (shown.Status, shown.BlockReason));
         Assert.Equal([Version, Lookup(SampleInfoHash), Version, MoviesListing], stillLookedFor);
         var row = await RowAsync(sent.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Downloading, (double?)0.5, downloadingUtc, (string?)null, (DownloadJobErrorOrigin?)null),
-            (row.Status, row.Progress, row.StatusChangedUtc, row.BlockReason, row.BlockReasonOrigin));
+            (row.Status, row.Progress, row.StatusChangedUtc, TestTexts.En(row.BlockReason), row.BlockReasonOrigin));
     }
 
     [Fact]
@@ -158,11 +159,11 @@ public sealed class DownloadJobMissingHttpTests : IClassFixture<MediaAcquisition
 
         //Assert
         // A qBittorrent before 5.2 lists a torrent a moment after taking it: nothing to show for that moment.
-        Assert.Equal((DownloadJobStatus.Submitted, (string?)null), (withinGrace.Status, withinGrace.BlockReason));
+        Assert.Equal((DownloadJobStatus.Submitted, (string?)null), (withinGrace.Status, TestTexts.En(withinGrace.BlockReason)));
         var row = await RowAsync(job.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Submitted, NotListedReason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App, (string?)null),
-            (row.Status, row.BlockReason, row.BlockReasonOrigin, row.ClientJobId));
+            (row.Status, TestTexts.En(row.BlockReason), row.BlockReasonOrigin, row.ClientJobId));
     }
 
     [Theory]
@@ -205,10 +206,10 @@ public sealed class DownloadJobMissingHttpTests : IClassFixture<MediaAcquisition
         // once, by the kind of failure, never the sentence.
         Assert.Equal(
             (DownloadJobStatus.Submitted, (double?)null, plantedUtc, Hash(1), expectedReason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.DownloadClient),
-            (failed.Status, failed.Progress, failed.StatusChangedUtc, failed.ClientJobId, failed.BlockReason, failed.BlockReasonOrigin));
+            (failed.Status, failed.Progress, failed.StatusChangedUtc, failed.ClientJobId, TestTexts.En(failed.BlockReason), failed.BlockReasonOrigin));
         Assert.Equal([$"The download jobs of integration {_client.Id} (qbittorrent) can't be followed for now: {status}."], logged);
         var row = await RowAsync(job.Id, cancellationToken);
-        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.4, (string?)null), (row.Status, row.Progress, row.BlockReason));
+        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.4, (string?)null), (row.Status, row.Progress, TestTexts.En(row.BlockReason)));
     }
 
     [Theory]
@@ -243,7 +244,7 @@ public sealed class DownloadJobMissingHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal([SignIn, Version, Lookup(Hash(1)), Version, MoviesListing], askedWhileFailing);
         Assert.Equal(
             (DownloadJobStatus.Submitted, expectedReason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.DownloadClient, Hash(1)),
-            (failed.Status, failed.BlockReason, failed.BlockReasonOrigin, failed.ClientJobId));
+            (failed.Status, TestTexts.En(failed.BlockReason), failed.BlockReasonOrigin, failed.ClientJobId));
         await AssertBlockedAsync(job.Id, MissingReason, DownloadJobErrorOrigin.App, cancellationToken);
     }
 
@@ -275,14 +276,14 @@ public sealed class DownloadJobMissingHttpTests : IClassFixture<MediaAcquisition
         // never adds to it. The job just shows why, as qBittorrent's sentence, until then.
         Assert.Equal(
             (DownloadJobStatus.Submitted, "qBittorrent refused the user name or password."),
-            (refused.Status, refused.BlockReason));
+            (refused.Status, TestTexts.En(refused.BlockReason)));
         Assert.Equal(
             (DownloadJobStatus.Submitted, "qBittorrent refused the user name or password the last time the app signed in, so the app won't try them again: each refused sign-in counts towards qBittorrent's ban of this app's address. Correct them under Integrations, or test the connection there once qBittorrent accepts them."),
-            (remembered.Status, remembered.BlockReason));
+            (remembered.Status, TestTexts.En(remembered.BlockReason)));
         Assert.Equal(0, sentWhileRemembered);
         Assert.Equal(HttpStatusCode.OK, tested.StatusCode);
         var row = await RowAsync(job.Id, cancellationToken);
-        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.4, (string?)null), (row.Status, row.Progress, row.BlockReason));
+        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.4, (string?)null), (row.Status, row.Progress, TestTexts.En(row.BlockReason)));
     }
 
     [Fact]
@@ -439,9 +440,9 @@ public sealed class DownloadJobMissingHttpTests : IClassFixture<MediaAcquisition
         //Assert
         Assert.Equal(
             "Couldn't reach qBittorrent at http://seedbox.test:8080: nothing accepted the connection. Check the address and port, and that qBittorrent is running.",
-            (await RowAsync(stuck.Id, cancellationToken)).BlockReason);
+            TestTexts.En((await RowAsync(stuck.Id, cancellationToken)).BlockReason));
         var row = await RowAsync(job.Id, cancellationToken);
-        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.6, (string?)null), (row.Status, row.Progress, row.BlockReason));
+        Assert.Equal((DownloadJobStatus.Downloading, (double?)0.6, (string?)null), (row.Status, row.Progress, TestTexts.En(row.BlockReason)));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -513,7 +514,7 @@ public sealed class DownloadJobMissingHttpTests : IClassFixture<MediaAcquisition
         var row = await RowAsync(jobId, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Submitted, reason, (DownloadJobErrorOrigin?)origin, (string?)null),
-            (row.Status, row.BlockReason, row.BlockReasonOrigin, row.Error));
+            (row.Status, TestTexts.En(row.BlockReason), row.BlockReasonOrigin, TestTexts.En(row.Error)));
     }
 
     /// <summary>The job as <paramref name="user"/> reads it over HTTP.</summary>

@@ -490,6 +490,6 @@ public sealed class SearchReleasesTvMatchingHttpTests : IClassFixture<MediaAcqui
         return (await response.Content.ReadFromJsonAsync<SearchReleaseListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!.Items;
     }
 
-    private static async Task<string?> ErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
-        (string?)JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken))!["error"];
+    private static Task<string?> ErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
+        response.ReadErrorAsync(cancellationToken);
 }

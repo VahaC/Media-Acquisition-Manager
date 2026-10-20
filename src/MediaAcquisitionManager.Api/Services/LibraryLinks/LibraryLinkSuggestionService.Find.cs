@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Matching;
 using MediaAcquisitionManager.Core.Media;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
@@ -14,28 +15,25 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 // ask the catalog now — the owner is looking — and both answer candidates ranked the way the suggestions are.
 public sealed partial class LibraryLinkSuggestionService
 {
-    private const string TitleMissingError = "Type a title to search for.";
+    private static readonly Message TitleMissingError = Message.Of("library-links.find.title-missing");
 
-    private const string PasteInvalidError = "Paste a TMDb or IMDb link, an IMDb id like tt0056164, or a TMDb number.";
+    private static readonly Message PasteInvalidError = Message.Of("library-links.find.paste-invalid");
 
-    private const string BareNumberKindError = "Choose film or show for a bare number.";
+    private static readonly Message BareNumberKindError = Message.Of("library-links.find.bare-number-kind");
 
     /// <summary>
     /// R21 — an IMDb id TMDb files no film or show under. The catalog contract reads only a find's films and shows, so an
     /// episode's id — the documentaries' usual case — and an unknown one look alike; the sentence names the likely fix.
     /// </summary>
-    private const string ImdbNotFoundError =
-        "TMDb has no film or show with that IMDb id. If it is an episode's, paste the show's link instead.";
+    private static readonly Message ImdbNotFoundError = Message.Of("library-links.find.imdb-not-found");
 
     /// <summary>The years TMDb's search takes (the TMDb adapter's rule).</summary>
     private const int MinimumYear = 1;
 
     private const int MaximumYear = 9999;
 
-    private static string YearInvalidError(string year) => $"“{Echo(year)}” is not a year.";
-
-    private static string CatalogWorkNotFoundError(LinkCandidateKey key) =>
-        $"TMDb has no {(key.Kind == MediaWorkKind.Series ? "show" : "film")} {key.CatalogId}.";
+    // The release search's own words for the same mistake (ReleaseSearchRules): one key per wording (MAM-47, ADR 0042).
+    private static Message YearInvalidError(string year) => Message.Of("releases.search.year-invalid", ("value", Echo(year)));
 
     public async Task<LinkCandidateListResult> SearchAsync(Guid workId, string? title, string? year, CancellationToken cancellationToken = default)
     {
@@ -107,7 +105,7 @@ public sealed partial class LibraryLinkSuggestionService
                 if (string.IsNullOrEmpty(kindText))
                     return LinkCandidateListResult.Invalid(BareNumberKindError);
                 if (CatalogKindOf(kindText) is not { } bareKind)
-                    return LinkCandidateListResult.Invalid(KindInvalidError(kindText));
+                    return LinkCandidateListResult.Invalid(LibraryLinkService.KindInvalidError(kindText));
                 named = new LinkCandidateKey(bareKind, reference.Value);
                 break;
             case MediaIdentifierScheme.Tmdb:
@@ -151,7 +149,8 @@ public sealed partial class LibraryLinkSuggestionService
 
         // R18 — an id TMDb doesn't have is a 404 with the sentence.
         if (read.Count == 0)
-            return LinkCandidateListResult.CatalogWorkNotFound(named is null ? ImdbNotFoundError : CatalogWorkNotFoundError(named));
+            return LinkCandidateListResult.CatalogWorkNotFound(
+                named is null ? ImdbNotFoundError : LibraryLinkService.CatalogWorkNotFoundError(named.Kind, named.CatalogId));
 
         var ranked = await suggestions.RankAsync(workId, read, reference.SeasonNumber, reference.EpisodeNumber, cancellationToken);
         return LinkCandidateListResult.Listed(new LinkCandidateListResponse(ranked));

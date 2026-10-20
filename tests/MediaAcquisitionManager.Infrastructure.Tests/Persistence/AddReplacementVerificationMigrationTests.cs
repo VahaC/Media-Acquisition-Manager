@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -82,7 +83,7 @@ public sealed class AddReplacementVerificationMigrationTests : DatabaseTestBase
             (file.Id, file.SeasonNumber, file.EpisodeNumber, file.DeviceId, file.Inode, file.SizeBytes, file.ModifiedUtc.Ticks));
         Assert.Equal(
             ((Guid?)null, (int?)null, (long?)null, (string?)null),
-            (file.PairedNewFileId, file.EpisodeNumberEnd, file.DurationMilliseconds, file.Problem));
+            (file.PairedNewFileId, file.EpisodeNumberEnd, file.DurationMilliseconds, TestTexts.En(file.Problem)));
         Assert.Empty(await check.ReplacementJobNewFiles.ToListAsync(cancellationToken));
     }
 

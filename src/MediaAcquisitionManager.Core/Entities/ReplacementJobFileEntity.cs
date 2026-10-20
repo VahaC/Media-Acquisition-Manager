@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -28,7 +29,8 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class ReplacementJobFileEntity : BaseEntity
 {
-    /// <summary>The longest <see cref="Problem"/> kept, as the job's own reason; a longer sentence is cut to it.</summary>
+    /// <summary>The longest <see cref="Problem"/> kept, as the job's own reason; a longer message is fitted to it (MAM-47:
+    /// its longest value cut).</summary>
     public const int ProblemMaximumLength = ReplacementJobEntity.ReasonMaximumLength;
 
     /// <summary>The job; the row is removed with it.</summary>
@@ -106,9 +108,10 @@ public class ReplacementJobFileEntity : BaseEntity
     /// </summary>
     public long? DurationMilliseconds { get; set; }
 
-    /// <summary>MAM-25 — why this copy stopped the job, one readable sentence; <c>null</c> when it didn't.</summary>
+    /// <summary>MAM-25 — why this copy stopped the job, as a message the Api renders (MAM-47, ADR 0042); <c>null</c> when
+    /// it didn't.</summary>
     [MaxLength(ProblemMaximumLength)]
-    public string? Problem { get; set; }
+    public Message? Problem { get; set; }
 
     /// <summary>
     /// MAM-27 — when the owner dropped the copy from the job; <c>null</c> while it is in it. A dropped copy stays where it

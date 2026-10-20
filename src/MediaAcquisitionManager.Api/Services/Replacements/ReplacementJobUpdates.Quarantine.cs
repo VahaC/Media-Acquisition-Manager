@@ -1,8 +1,8 @@
-using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -24,7 +24,7 @@ public static partial class ReplacementJobUpdates
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.State, ReplacementJobState.Quarantining)
-                    .SetProperty(job => job.Reason, (string?)null)
+                    .SetProperty(job => job.Reason, (Message?)null)
                     .SetProperty(job => job.StateChangedUtc, startedUtc)
                     .SetProperty(job => job.QuarantineCheckedUtc, startedUtc),
                 CancellationToken.None);
@@ -36,18 +36,15 @@ public static partial class ReplacementJobUpdates
     /// <see cref="ReplacementJobEntity.QuarantineCheckedUtc"/> then, so Retry is the owner's way on. How many it wrote (0 or
     /// 1).
     /// </summary>
-    public static Task<int> StopBeforeQuarantineAsync(this IQueryable<ReplacementJobEntity> jobs, Guid replacementJobId, string reason, DateTime changedUtc)
-    {
-        var storedReason = Stored(reason);
-        return jobs.Where(job => job.Id == replacementJobId && job.State == ReplacementJobState.Verified)
+    public static Task<int> StopBeforeQuarantineAsync(this IQueryable<ReplacementJobEntity> jobs, Guid replacementJobId, Message reason, DateTime changedUtc) =>
+        jobs.Where(job => job.Id == replacementJobId && job.State == ReplacementJobState.Verified)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.State, ReplacementJobState.NeedsReview)
-                    .SetProperty(job => job.Reason, storedReason)
+                    .SetProperty(job => job.Reason, reason)
                     .SetProperty(job => job.StateChangedUtc, changedUtc)
                     .SetProperty(job => job.QuarantineCheckedUtc, changedUtc),
                 CancellationToken.None);
-    }
 
     /// <summary>
     /// MAM-26 — ends the move of the replacement <paramref name="replacementJobId"/> while it is still
@@ -58,19 +55,18 @@ public static partial class ReplacementJobUpdates
     /// the library —, and the one owed before kept otherwise. How many it wrote (0 or 1).
     /// </summary>
     public static Task<int> SettleQuarantineAsync(
-        this IQueryable<ReplacementJobEntity> jobs, Guid replacementJobId, ReplacementJobState state, string? reason, DateTime changedUtc, bool noticeDue)
+        this IQueryable<ReplacementJobEntity> jobs, Guid replacementJobId, ReplacementJobState state, Message? reason, DateTime changedUtc, bool noticeDue)
     {
         if (state is not (ReplacementJobState.Quarantined or ReplacementJobState.Completed or ReplacementJobState.NeedsReview))
             throw new ArgumentOutOfRangeException(nameof(state), state, "A move ends Quarantined, Completed or NeedsReview.");
 
-        var storedReason = Stored(reason);
         return jobs.Where(job => job.Id == replacementJobId && job.State == ReplacementJobState.Quarantining)
             .ExecuteUpdateAsync(
                 setters =>
                 {
                     setters
                         .SetProperty(job => job.State, state)
-                        .SetProperty(job => job.Reason, storedReason)
+                        .SetProperty(job => job.Reason, reason)
                         .SetProperty(job => job.StateChangedUtc, changedUtc);
                     if (state == ReplacementJobState.Quarantined)
                         setters.SetProperty(job => job.QuarantinedUtc, changedUtc);
@@ -95,7 +91,7 @@ public static partial class ReplacementJobUpdates
         Guid replacementJobId,
         ReplacementJobState observedState,
         ReplacementJobState state,
-        string? reason,
+        Message? reason,
         DateTime changedUtc,
         bool noticeDue)
     {
@@ -105,7 +101,6 @@ public static partial class ReplacementJobUpdates
             || (observedState, state) is (ReplacementJobState.Restoring, ReplacementJobState.Restored) or (ReplacementJobState.Deleting, ReplacementJobState.Completed)))
             throw new ArgumentOutOfRangeException(nameof(state), state, "A cut write ends where the write would have, or in review.");
 
-        var storedReason = Stored(reason);
         DateTime? checkedUtc = state == ReplacementJobState.NeedsReview ? changedUtc : null;
         return jobs.Where(job => job.Id == replacementJobId && job.State == observedState)
             .ExecuteUpdateAsync(
@@ -113,7 +108,7 @@ public static partial class ReplacementJobUpdates
                 {
                     setters
                         .SetProperty(job => job.State, state)
-                        .SetProperty(job => job.Reason, storedReason)
+                        .SetProperty(job => job.Reason, reason)
                         .SetProperty(job => job.StateChangedUtc, changedUtc)
                         .SetProperty(job => job.QuarantineCheckedUtc, job => job.QuarantineCheckedUtc ?? checkedUtc);
                     if (noticeDue)
@@ -158,7 +153,7 @@ public static partial class ReplacementJobUpdates
                     .SetProperty(name => name.SizeBytes, sizeBytes)
                     .SetProperty(name => name.ModifiedUtc, modifiedUtc)
                     .SetProperty(name => name.LinkCount, linkCount)
-                    .SetProperty(name => name.Problem, (string?)null),
+                    .SetProperty(name => name.Problem, (Message?)null),
                 CancellationToken.None);
     }
 
@@ -168,18 +163,17 @@ public static partial class ReplacementJobUpdates
     /// with the write's own sentence as <paramref name="problem"/>; or, when the rename moved another file put at the name
     /// after the last look, it is <see cref="ReplacementNameState.Lost"/> with why. How many it wrote (0 or 1).
     /// </summary>
-    public static Task<int> RecordNameNotMovedAsync<TName>(this IQueryable<TName> names, Guid nameId, ReplacementNameState state, string problem)
+    public static Task<int> RecordNameNotMovedAsync<TName>(this IQueryable<TName> names, Guid nameId, ReplacementNameState state, Message problem)
         where TName : QuarantinedNameEntity
     {
         if (state is not (ReplacementNameState.Stayed or ReplacementNameState.Lost))
             throw new ArgumentOutOfRangeException(nameof(state), state, "A rename not done leaves a name Stayed, or Lost.");
 
-        var storedProblem = FileInspectionRunUpdates.Cut(problem, QuarantinedNameEntity.ProblemMaximumLength);
         return names.Where(name => name.Id == nameId && name.State == ReplacementNameState.Moving)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(name => name.State, state)
-                    .SetProperty(name => name.Problem, storedProblem),
+                    .SetProperty(name => name.Problem, problem),
                 CancellationToken.None);
     }
 
@@ -189,18 +183,17 @@ public static partial class ReplacementJobUpdates
     /// (<see cref="ReplacementNameState.Stayed"/>) or is gone from there (<see cref="ReplacementNameState.Lost"/>), with
     /// <paramref name="problem"/> saying why. How many it wrote (0 or 1).
     /// </summary>
-    public static Task<int> RecordNameLeftWaitingAsync<TName>(this IQueryable<TName> names, Guid nameId, ReplacementNameState state, string problem)
+    public static Task<int> RecordNameLeftWaitingAsync<TName>(this IQueryable<TName> names, Guid nameId, ReplacementNameState state, Message problem)
         where TName : QuarantinedNameEntity
     {
         if (state is not (ReplacementNameState.Stayed or ReplacementNameState.Lost))
             throw new ArgumentOutOfRangeException(nameof(state), state, "A name left waiting stays, or is lost.");
 
-        var storedProblem = FileInspectionRunUpdates.Cut(problem, QuarantinedNameEntity.ProblemMaximumLength);
         return names.Where(name => name.Id == nameId && name.State == ReplacementNameState.Planned)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(name => name.State, state)
-                    .SetProperty(name => name.Problem, storedProblem),
+                    .SetProperty(name => name.Problem, problem),
                 CancellationToken.None);
     }
 
@@ -216,18 +209,16 @@ public static partial class ReplacementJobUpdates
         Guid nameId,
         ReplacementNameState observedState,
         ReplacementNameState state,
-        string? problem,
+        Message? problem,
         DateTime foundUtc)
-        where TName : QuarantinedNameEntity
-    {
-        var storedProblem = problem is null ? null : FileInspectionRunUpdates.Cut(problem, QuarantinedNameEntity.ProblemMaximumLength);
-        return names.Where(name => name.Id == nameId && name.State == observedState)
+        where TName : QuarantinedNameEntity =>
+        names.Where(name => name.Id == nameId && name.State == observedState)
             .ExecuteUpdateAsync(
                 setters =>
                 {
                     setters
                         .SetProperty(name => name.State, state)
-                        .SetProperty(name => name.Problem, storedProblem);
+                        .SetProperty(name => name.Problem, problem);
                     switch ((observedState, state))
                     {
                         case (ReplacementNameState.Moving, ReplacementNameState.Quarantined):
@@ -242,5 +233,4 @@ public static partial class ReplacementJobUpdates
                     }
                 },
                 CancellationToken.None);
-    }
 }

@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -200,7 +201,7 @@ public sealed class DownloadJobTrackingTransmissionHttpTests : IClassFixture<Med
         await _factory.WithDbAsync(async db => row = await db.DownloadJobs.AsNoTracking().SingleAsync(stored => stored.Id == job.Id, cancellationToken));
         Assert.Equal(
             (DownloadJobStatus.Submitted, (string?)MissingReason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App),
-            (row!.Status, row.BlockReason, row.BlockReasonOrigin));
+            (row!.Status, TestTexts.En(row.BlockReason), row.BlockReasonOrigin));
         var reads = _transmission.Calls.Skip(mark).Where(call => call.Method == "torrent-get").ToList();
         Assert.Equal(2, reads.Count);
         Assert.All(reads, read => Assert.Equal($"[\"{_hash}\"]", read.Arguments["ids"]?.ToJsonString()));

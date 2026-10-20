@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 
@@ -10,7 +11,7 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 // here, for a category whose name holds a '+' — read the same way. Every request is the sign-in or a GET.
 internal sealed partial class QBittorrentAdapter
 {
-    private const string NotTorrentsError = "The service at this address answered, but not with qBittorrent's torrents.";
+    private static readonly Message NotTorrentsError = IntegrationAdapterMessages.NotTorrents(DisplayName);
 
     /// <summary>Longer than any release name worth showing, short enough that a hostile name can't fill a
     /// job's row.</summary>

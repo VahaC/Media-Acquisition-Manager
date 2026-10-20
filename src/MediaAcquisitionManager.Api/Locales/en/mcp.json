@@ -1,0 +1,6 @@
+{
+  "job-not-found": "There is no download job with this id among yours; list_jobs lists them with their ids.",
+  "search-not-found": "There is no search with this id among yours from the last day; run search_releases again.",
+  "send-held-folder-not-seen": "This destination's download client can't see its folder, so nothing will be sent there until the owner fixes the destination under Destinations in the user menu.",
+  "arguments-dont-fit": "The arguments don't fit {{tool}}: {{reason, vendor}} Check them against the tool's input schema and call it again."
+}

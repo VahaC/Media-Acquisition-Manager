@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,7 +21,7 @@ public sealed class RecommendationRunReconciler(
     TimeProvider time,
     ILogger<RecommendationRunReconciler> logger) : IHostedService
 {
-    private const string RestartedError = "The app restarted before these recommendations were computed. The previous ones are kept.";
+    private static readonly Message RestartedError = Message.Of("recommendations.run.restarted");
 
     public Task StartAsync(CancellationToken cancellationToken) => ReconcileAsync(cancellationToken);
 
@@ -44,7 +45,7 @@ public sealed class RecommendationRunReconciler(
         }
 
         // The queue lives in memory, so a run queued before the stop has no id in it any more. One the queue
-        // refuses is failed with the service's sentence: left queued with no id, every later trigger would join it
+        // refuses is failed with the service's reason: left queued with no id, every later trigger would join it
         // and nothing would run until the next start.
         var queued = await db.RecommendationRuns
             .Where(run => run.Status == RecommendationRunStatus.Queued)

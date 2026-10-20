@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Integrations;
@@ -13,8 +14,7 @@ namespace MediaAcquisitionManager.Api.Services.Integrations;
 // Tested whatever the service said (ADR 0005).
 public sealed partial class IntegrationConnectionService
 {
-    private const string EditedIntegrationMissingError =
-        "The integration you are editing no longer exists. Close the dialog and reload the page.";
+    private static readonly Message EditedIntegrationMissingError = Message.Of("integrations.connection-test.edited-integration-missing");
 
     public async Task<IntegrationTestResult> TestAsync(Guid integrationId, CancellationToken cancellationToken = default)
     {
@@ -96,7 +96,7 @@ public sealed partial class IntegrationConnectionService
         var outcome = await adapter.TestConnectionAsync(settings, cancellationToken);
         // MAM-7 — a second pass after the adapter's own: one line here covers every adapter, a future
         // one that isn't HTTP included, whose message might repeat a secret it was handed.
-        var message = SecretRedaction.Redact(outcome.Message, settings.Secrets)!;
+        var message = outcome.Message.Redacted(settings.Secrets);
 
         // Information: the owner asked, and the answer is on their screen. Never the address or the
         // message — either may carry what a service said back about a credential.
@@ -107,13 +107,13 @@ public sealed partial class IntegrationConnectionService
 
     // Set sends the new value, Clear sends none, Keep sends the stored one, opened by the settings
     // factory — the one implementation a library sync uses too (MAM-8). False only for a stored value
-    // that can't be decrypted, with the sentence for the owner; the column is never cleared for it.
+    // that can't be decrypted, with the message for the owner; the column is never cleared for it.
     private bool TryResolveSecret(
         SecretChange change,
         IntegrationConnectionEntity? stored,
         IntegrationSecretField field,
         out string? secret,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(false)] out Message? error)
     {
         secret = null;
         error = null;
@@ -126,6 +126,9 @@ public sealed partial class IntegrationConnectionService
                 return true;
         }
 
-        return stored is null || settingsFactory.TryReadSecret(stored, field, out secret, out error);
+        if (stored is null || settingsFactory.TryReadSecret(stored, field, out secret, out var unreadable))
+            return true;
+        error = unreadable;
+        return false;
     }
 }

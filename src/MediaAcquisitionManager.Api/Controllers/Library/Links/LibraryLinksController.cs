@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Http;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -68,13 +69,13 @@ public class LibraryLinksController(ILibraryLinkService links) : ControllerBase
     private ActionResult Answer(LibraryLinkResult result) =>
         result.Status == LibraryLinkStatus.Succeeded ? Ok(result.Dialog) : Failure(result.Status, result.Error);
 
-    private ActionResult Failure(LibraryLinkStatus status, string? error) => status switch
+    private ActionResult Failure(LibraryLinkStatus status, Message? error) => status switch
     {
         LibraryLinkStatus.NotFound => NotFound(),
-        LibraryLinkStatus.Invalid => this.BadRequestError(error),
-        LibraryLinkStatus.CatalogWorkNotFound => this.NotFoundError(error),
-        LibraryLinkStatus.Conflict => this.ConflictError(error),
+        LibraryLinkStatus.Invalid => this.BadRequestError(error!),
+        LibraryLinkStatus.CatalogWorkNotFound => this.NotFoundError(error!),
+        LibraryLinkStatus.Conflict => this.ConflictError(error!),
         LibraryLinkStatus.NothingToRemove => NoContent(),
-        _ => this.BadGatewayError(error),
+        _ => this.BadGatewayError(error!),
     };
 }

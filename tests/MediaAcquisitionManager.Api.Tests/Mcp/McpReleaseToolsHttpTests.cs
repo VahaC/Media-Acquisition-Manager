@@ -12,6 +12,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Client;
 
@@ -259,7 +260,7 @@ public sealed class McpReleaseToolsHttpTests : IClassFixture<MediaAcquisitionMan
                     ("Other", 0, (IntegrationCallStatus?)IntegrationCallStatus.Unreachable, (string?)UnreachableError),
                     ("Toloka", 1, IntegrationCallStatus.Succeeded, null),
                 ],
-                sources.Select(source => (source.Name, source.Position, source.Status, source.Error)));
+                sources.Select(source => (source.Name, source.Position, source.Status, TestTexts.En(source.Error))));
             Assert.All(sources, source => Assert.Equal(search.Id, source.SearchId));
             // Every release Toloka listed, under its source: the ids the tool and the page give are the stored rows'.
             var releases = await db.Releases.AsNoTracking().OrderBy(release => release.Position).ToListAsync(cancellationToken);

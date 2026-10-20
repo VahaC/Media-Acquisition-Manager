@@ -1,11 +1,13 @@
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Recommendations;
 
 /// <summary>
 /// MAM-33 — which work a "Not interested" mark (Vasyl's decision 3) may name: a film or a show by its kind, and its
-/// catalog id. One readable sentence for a value refused, <c>null</c> for one accepted — the MAM-4 rules-class pattern.
+/// catalog id. A message the Api renders (ADR 0042) for a value refused, <c>null</c> for one accepted — the MAM-4
+/// rules-class pattern.
 /// </summary>
 /// <remarks>
 /// The id is checked as an id of the catalog in use (TMDb's: 1 to 12 digits, <see cref="MediaIdentifierRules.IsTmdbId"/>),
@@ -17,10 +19,10 @@ public static class RecommendationDismissalRules
     private const int EchoLength = 32;
 
     /// <summary>
-    /// The sentence saying what is wrong with <paramref name="kind"/>, then <paramref name="catalogId"/>, or <c>null</c>
+    /// Why <paramref name="kind"/>, then <paramref name="catalogId"/>, is refused, or <c>null</c>
     /// with the kind and the id, trimmed, in <paramref name="workKind"/> and <paramref name="workCatalogId"/>.
     /// </summary>
-    public static string? Validate(string? kind, string? catalogId, out MediaWorkKind? workKind, out string? workCatalogId)
+    public static Message? Validate(string? kind, string? catalogId, out MediaWorkKind? workKind, out string? workCatalogId)
     {
         workCatalogId = null;
         if (RecommendationListRules.ValidateKind(kind, out workKind) is { } kindError)
@@ -30,7 +32,7 @@ public static class RecommendationDismissalRules
         if (!MediaIdentifierRules.IsTmdbId(id))
         {
             workKind = null;
-            return $"“{Echo(id)}” is not a catalog id, which is a number such as 603.";
+            return Message.Of("recommendations.dismissal.catalog-id-invalid", ("value", Echo(id)));
         }
 
         workCatalogId = id;

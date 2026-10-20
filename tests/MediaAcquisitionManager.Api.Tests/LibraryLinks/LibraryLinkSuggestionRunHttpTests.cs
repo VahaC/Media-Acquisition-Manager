@@ -4,10 +4,12 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -270,7 +272,7 @@ public sealed class LibraryLinkSuggestionRunHttpTests : IClassFixture<MediaAcqui
         await _factory.WithDbAsync(async db =>
         {
             var run = await db.LibraryLinkSuggestionRuns.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal((LibraryLinkSuggestionRunStatus.Failed, QueueFullError), (run.Status, run.Error));
+            Assert.Equal((LibraryLinkSuggestionRunStatus.Failed, QueueFullError), (run.Status, TestTexts.En(run.Error)));
         });
         var warning = Assert.Single(_factory.Logs.Entries, entry => entry.Category == typeof(LibraryLinkSuggestionRunQueue).FullName);
         Assert.Equal(LogLevel.Warning, warning.Level);
@@ -294,7 +296,7 @@ public sealed class LibraryLinkSuggestionRunHttpTests : IClassFixture<MediaAcqui
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var now = _factory.Time.GetUtcNow().UtcDateTime;
-        await _runs.Create(LibraryLinkSuggestionRunStatus.Failed, createdUtc: now.AddMinutes(-30), error: "TMDb answered 500.");
+        await _runs.Create(LibraryLinkSuggestionRunStatus.Failed, createdUtc: now.AddMinutes(-30), error: Message.Legacy("TMDb answered 500."));
         var running = await _runs.Create(
             LibraryLinkSuggestionRunStatus.Running, requestedBy: _owner.User, createdUtc: now.AddMinutes(-10), worksTotal: 12, worksDone: 5);
         await _runs.Create(LibraryLinkSuggestionRunStatus.Queued, LibraryLinkSuggestionRunTrigger.LibrarySynced, createdUtc: now);

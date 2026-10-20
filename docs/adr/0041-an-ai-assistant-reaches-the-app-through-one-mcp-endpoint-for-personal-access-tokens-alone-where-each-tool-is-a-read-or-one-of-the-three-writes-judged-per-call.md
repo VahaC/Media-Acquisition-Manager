@@ -223,3 +223,10 @@ quarantine, a copy's removal, a setting, a user, a token, undoing Not interested
 without the mark, `[PersonalAccessTokenOnly]` on an endpoint that doesn't judge each call itself, or a
 session on `/mcp`. The hints and the instructions are advice to the client and the model; the gate
 is the filter, and nothing else may stand in for it.
+
+## The answers in the request's language (added 0.5.0, MAM-47)
+
+The tools' summaries and errors are rendered per call in the language of the request's `Accept-Language`, English
+without it, as every API answer is (ADR 0042); a client adds the header to its line to read them in Ukrainian. The
+instructions, the server's title and the tools' titles and descriptions stay English, as the model reads them. No
+`_meta` code is added to a tool's error. The Consequences' "in English until MAM-47" no longer holds.

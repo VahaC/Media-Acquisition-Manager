@@ -175,7 +175,7 @@ public sealed class McpToolAccessHttpTests : IClassFixture<MediaAcquisitionManag
         //Assert
         // Not "The arguments don't fit": the arguments were right, and a model told otherwise would only change them.
         Assert.True(result.IsError);
-        Assert.Equal("An error occurred invoking 'list_jobs'.", result.ReadText());
+        Assert.Equal("An error occurred invoking 'list_jobs'.", result.ReadRawText());
         // The SDK's own Error entry, with the exception: a server bug must show in the log.
         var logged = Assert.Single(_factory.Logs.Entries, entry => entry.Category == typeof(McpServer).FullName && entry.Level >= LogLevel.Error);
         Assert.Equal(((LogLevel?)LogLevel.Error, "\"list_jobs\" threw an unhandled exception."), ((LogLevel?)logged.Level, logged.Message));

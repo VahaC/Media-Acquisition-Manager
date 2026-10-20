@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -30,7 +31,7 @@ namespace MediaAcquisitionManager.Core.Entities;
 public class FileInspectionRunEntity : AuditableEntity
 {
     /// <summary>The longest <see cref="Error"/> and <see cref="HashProblem"/> the columns hold; a longer
-    /// sentence is cut to it.</summary>
+    /// message is fitted into it (ADR 0042).</summary>
     public const int ErrorMaximumLength = 1000;
 
     /// <summary>What started it.</summary>
@@ -82,12 +83,12 @@ public class FileInspectionRunEntity : AuditableEntity
     /// Never a failure of the run.</summary>
     public int HashProblemCount { get; set; }
 
-    /// <summary>Why the first of them it could not hash wasn't hashed, one sentence — quoting its path when
-    /// the file inventory gave the reason; <c>null</c> when there was none.</summary>
+    /// <summary>Why the first of them it could not hash wasn't hashed, as a message the Api renders (ADR 0042) —
+    /// quoting its path when the file inventory gave the reason; <c>null</c> when there was none.</summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? HashProblem { get; set; }
+    public Message? HashProblem { get; set; }
 
-    /// <summary>A readable sentence saying why the run failed; <c>null</c> unless it failed.</summary>
+    /// <summary>Why the run failed, as a message the Api renders (ADR 0042); <c>null</c> unless it failed.</summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? Error { get; set; }
+    public Message? Error { get; set; }
 }

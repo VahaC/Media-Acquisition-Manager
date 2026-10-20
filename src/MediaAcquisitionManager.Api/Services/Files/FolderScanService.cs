@@ -1,8 +1,10 @@
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,16 +15,16 @@ public sealed class FolderScanService(
     ApplicationDbContext db,
     FolderScanQueue queue,
     ILibraryMapper mapper,
+    IRequestTexts texts,
     TimeProvider time,
     ILogger<FolderScanService> logger) : IFolderScanService
 {
-    /// <summary>The sentence the owner's Scan folders gets with no folder allowed; the page offers the way
-    /// to the settings next to it.</summary>
-    internal const string NoAllowedRootsError =
-        "No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then scan again.";
+    /// <summary>What the owner's Scan folders gets with no folder allowed; the page offers the way to the settings next
+    /// to it.</summary>
+    internal static readonly Message NoAllowedRootsError = Message.Of("files.scan.no-allowed-roots");
 
-    /// <summary>The sentence of a run the queue refused; the reconciler fails one with it too.</summary>
-    internal const string QueueFullError = "Too many folder scans are waiting. Try again in a minute.";
+    /// <summary>Why the queue refused a run; the reconciler fails one with it too.</summary>
+    internal static readonly Message QueueFullError = Message.Of("files.scan.queue-full");
 
     public async Task<FolderScanStartResult> StartAsync(Guid requestedByUserId, CancellationToken cancellationToken = default)
     {
@@ -114,7 +116,8 @@ public sealed class FolderScanService(
             hasQueuedRun,
             FileInspectionCounts.Of(
                 [.. counted.Select(name => (name.InspectionStatus, name.InspectionError, UnreportedFileReader.HasAppPathOf(name)))],
-                forOwner),
+                forOwner,
+                texts),
             // MAM-19 — the room the files behind those same names take, by the same rule.
             FileSpace.Of(unreported.All.Select(name => (name.DeviceId, name.Inode, name.ReadSizeBytes))),
             unreported.Ignored.Count,

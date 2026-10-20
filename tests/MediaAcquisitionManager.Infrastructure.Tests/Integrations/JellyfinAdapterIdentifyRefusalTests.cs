@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using static MediaAcquisitionManager.TestInfrastructure.Integrations.JellyfinIdentifyHarness;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
@@ -39,7 +40,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         Assert.False(identification.Sent);
         Assert.Equal(
             "Jellyfin holds an item of type “Series” under this id, not a movie, so the app didn't identify it. Sync the library and link it again.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
         Assert.Empty(identification.IdsBefore);
         // The users and the item, and nothing after.
         Assert.Equal(2, _jellyfin.Http.Requests.Count);
@@ -59,7 +60,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         Assert.Equal(LibraryIdentifyRefusal.KindNotIdentifiable, result.Value!.Refusal);
         Assert.Equal(
             "Jellyfin holds an item of type “Movie” under this id, not a series, so the app didn't identify it. Sync the library and link it again.",
-            result.Value.Sentence);
+            TestTexts.En(result.Value.Sentence));
         Assert.Empty(_jellyfin.Server.RemoteSearches);
     }
 
@@ -78,7 +79,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
 
         //Assert
         Assert.Equal(LibraryIdentifyRefusal.KindNotIdentifiable, result.Value!.Refusal);
-        Assert.Contains("type “Episode”", result.Value.Sentence, StringComparison.Ordinal);
+        Assert.Contains("type “Episode”", TestTexts.En(result.Value.Sentence), StringComparison.Ordinal);
         Assert.Empty(_jellyfin.Server.Applied);
     }
 
@@ -112,7 +113,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         Assert.Equal(LibraryIdentifyOutcome.Refused, identification.Outcome);
         Assert.Equal(LibraryIdentifyRefusal.ItemProtected, identification.Refusal);
         Assert.False(identification.Sent);
-        Assert.Equal(ItemProtectedSentence, identification.Sentence);
+        Assert.Equal(ItemProtectedSentence, TestTexts.En(identification.Sentence));
         // The users, the item and the libraries: the library's options are read first, then the item's lock.
         Assert.Equal(3, _jellyfin.Http.Requests.Count);
         Assert.Empty(_jellyfin.Server.RemoteSearches);
@@ -168,7 +169,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         Assert.False(identification.Sent);
         Assert.Equal(
             "Jellyfin found no film with TMDb id 223021. Check the id, and that TheMovieDb is among this library's metadata sources in Jellyfin.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
         Assert.Empty(identification.IdsBefore);
         Assert.Empty(_jellyfin.ApplyRequests());
     }
@@ -203,7 +204,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         Assert.Equal(LibraryIdentifyOutcome.NoMatch, result.Value!.Outcome);
         Assert.Equal(
             "Jellyfin found no show with TMDb id 7869. Check the id, and that TheMovieDb is among this library's metadata sources in Jellyfin.",
-            result.Value.Sentence);
+            TestTexts.En(result.Value.Sentence));
     }
 
     [Fact]
@@ -219,7 +220,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         Assert.Equal(LibraryIdentifyOutcome.NoMatch, result.Value!.Outcome);
         Assert.Equal(
             "Jellyfin's Open Movie Database found no title with IMDb id tt9103946. Check that it is among this library's metadata sources in Jellyfin.",
-            result.Value.Sentence);
+            TestTexts.En(result.Value.Sentence));
     }
 
     [Fact]
@@ -254,7 +255,42 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         //Assert
         var identification = result.Value!;
         Assert.Equal(LibraryIdentifyOutcome.NoMatch, identification.Outcome);
-        Assert.Equal("Jellyfin found more than one result for TMDb id 223021, so the app picked none.", identification.Sentence);
+        Assert.Equal("Jellyfin found more than one result for TMDb id 223021, so the app picked none.", TestTexts.En(identification.Sentence));
+        Assert.Empty(_jellyfin.Server.Applied);
+    }
+
+    [Fact]
+    public async Task Identify_of_an_episode_movie_with_two_rows_carrying_its_imdb_id_is_no_match_ambiguous()
+    {
+        //Arrange
+        // MAM-47 — the registry is part of the sentence's key (no-match.ambiguous-imdb), so the IMDb wording is pinned too.
+        var row = JellyfinSamples.RemoteSearchOmdbRows()[0]!.ToJsonString();
+        _jellyfin.Server.Intercept = request => IsSearch(request) ? JsonAnswer($"[{row},{row}]") : null;
+
+        //Act
+        var result = await _jellyfin.IdentifyAsync(EpisodeMovieRequest(), TestContext.Current.CancellationToken);
+
+        //Assert
+        var identification = result.Value!;
+        Assert.Equal(LibraryIdentifyOutcome.NoMatch, identification.Outcome);
+        Assert.Equal("Jellyfin found more than one result for IMDb id tt9103946, so the app picked none.", TestTexts.En(identification.Sentence));
+        Assert.Empty(_jellyfin.Server.Applied);
+    }
+
+    [Fact]
+    public async Task Identify_of_an_episode_movie_with_a_row_without_a_name_is_no_match()
+    {
+        //Arrange
+        _jellyfin.Server.Intercept = request => IsSearch(request)
+            ? JsonAnswer("""[{"ProviderIds":{"Imdb":"tt9103946"},"SearchProviderName":"The Open Movie Database"}]""")
+            : null;
+
+        //Act
+        var result = await _jellyfin.IdentifyAsync(EpisodeMovieRequest(), TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(LibraryIdentifyOutcome.NoMatch, result.Value!.Outcome);
+        Assert.Equal("Jellyfin's result for IMDb id tt9103946 has no name, so the app picked none.", TestTexts.En(result.Value.Sentence));
         Assert.Empty(_jellyfin.Server.Applied);
     }
 
@@ -272,7 +308,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
 
         //Assert
         Assert.Equal(LibraryIdentifyOutcome.NoMatch, result.Value!.Outcome);
-        Assert.Equal("Jellyfin's result for TMDb id 223021 has no name, so the app picked none.", result.Value.Sentence);
+        Assert.Equal("Jellyfin's result for TMDb id 223021 has no name, so the app picked none.", TestTexts.En(result.Value.Sentence));
         Assert.Empty(_jellyfin.Server.Applied);
     }
 
@@ -303,7 +339,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         Assert.False(identification.Sent);
         Assert.Equal(
             $"Jellyfin holds {scheme} id {heldValue} for this item, not {wantedValue}, and the app doesn't replace a library's own ids on its own. If the link is right, press Retry to identify it anyway; otherwise change the link.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
         // Nothing sent: the item read and the search made, no more.
         Assert.Equal(4, _jellyfin.Http.Requests.Count);
         Assert.Empty(_jellyfin.Server.Applied);
@@ -324,7 +360,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         Assert.Equal(LibraryIdentifyRefusal.ConflictingId, identification.Refusal);
         Assert.Equal(
             "Jellyfin holds IMDb id tt6486762 for this item, not tt9103946, and the app doesn't replace a library's own ids on its own. If the link is right, press Retry to identify it anyway; otherwise change the link.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
         Assert.Empty(_jellyfin.Server.Applied);
     }
 
@@ -355,7 +391,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
 
         //Assert
         Assert.Equal(LibraryIdentifyRefusal.ConflictingId, result.Value!.Refusal);
-        Assert.Contains("IMDb id tt29669983", result.Value.Sentence, StringComparison.Ordinal);
+        Assert.Contains("IMDb id tt29669983", TestTexts.En(result.Value.Sentence), StringComparison.Ordinal);
         Assert.Empty(_jellyfin.Server.Applied);
     }
 
@@ -377,7 +413,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         Assert.Equal(LibraryIdentifyRefusal.ConflictingId, identification.Refusal);
         Assert.Equal(
             "Jellyfin holds IMDb id tt1163854 for this item and TMDb gives no IMDb id for this link to compare it with, so the app doesn't replace a library's own id on its own. If the link is right, press Retry to identify it anyway; otherwise change the link.",
-            identification.Sentence);
+            TestTexts.En(identification.Sentence));
         Assert.Empty(_jellyfin.Server.Applied);
     }
 
@@ -468,7 +504,7 @@ public sealed class JellyfinAdapterIdentifyRefusalTests : IDisposable
         Assert.Equal(LibraryIdentifyRefusal.ConflictingId, result.Value!.Refusal);
         Assert.Equal(
             "Jellyfin holds TMDb id 1001 for this item, not 7869, and the app doesn't replace a library's own ids on its own. If the link is right, press Retry to identify it anyway; otherwise change the link.",
-            result.Value.Sentence);
+            TestTexts.En(result.Value.Sentence));
         Assert.Empty(_jellyfin.Server.Applied);
     }
 

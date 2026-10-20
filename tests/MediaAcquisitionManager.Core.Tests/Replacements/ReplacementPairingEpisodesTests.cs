@@ -1,5 +1,8 @@
+using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using static MediaAcquisitionManager.TestInfrastructure.Replacements.ReplacementPairingInputs;
 
 namespace MediaAcquisitionManager.Core.Tests.Replacements;
@@ -33,15 +36,15 @@ public sealed class ReplacementPairingEpisodesTests
         var result = ReplacementPairing.Pair([Penguins], [first, second], [newFirst, newSecond, extra], [], LibraryName, libraryWaitPassed: false);
 
         //Assert
-        Assert.Equal((ReplacementPairingVerdict.Pass, (string?)null), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(first.Id, newFirst.Id, null), new ReplacementOldCopyOutcome(second.Id, newSecond.Id, null)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Pass, (string?)null), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(first.Id, newFirst.Id, null), new EnglishOldCopyOutcome(second.Id, newSecond.Id, null)], result.OldCopies.InEnglish());
         Assert.Equal(
             [
-                new ReplacementNewFileOutcome(newFirst.Id, Penguins.WorkId, null),
-                new ReplacementNewFileOutcome(newSecond.Id, Penguins.WorkId, null),
-                new ReplacementNewFileOutcome(extra.Id, Penguins.WorkId, null),
+                new EnglishNewFileOutcome(newFirst.Id, Penguins.WorkId, null),
+                new EnglishNewFileOutcome(newSecond.Id, Penguins.WorkId, null),
+                new EnglishNewFileOutcome(extra.Id, Penguins.WorkId, null),
             ],
-            result.NewFiles);
+            result.NewFiles.InEnglish());
     }
 
     [Theory]
@@ -75,7 +78,7 @@ public sealed class ReplacementPairingEpisodesTests
         Assert.Equal(
             (ReplacementPairingVerdict.Review,
                 "“Jellyfin” placed “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.mkv” in another series (TVDB 76703), not The Penguins of Madagascar."),
-            (result.Verdict, result.Reason));
+            (result.Verdict, TestTexts.En(result.Reason)));
     }
 
     [Fact]
@@ -93,9 +96,9 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         const string reason =
             "“Jellyfin” placed “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E02.1080p.mkv” in another series (TVDB 76703), not The Penguins of Madagascar.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, newFirst.Id, null)], result.OldCopies);
-        Assert.Equal([new ReplacementNewFileOutcome(newFirst.Id, Penguins.WorkId, null), new ReplacementNewFileOutcome(another.Id, null, reason)], result.NewFiles);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, newFirst.Id, null)], result.OldCopies.InEnglish());
+        Assert.Equal([new EnglishNewFileOutcome(newFirst.Id, Penguins.WorkId, null), new EnglishNewFileOutcome(another.Id, null, reason)], result.NewFiles.InEnglish());
     }
 
     [Fact]
@@ -114,7 +117,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“Jellyfin” gave the series of “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.mkv” conflicting ids: TVDB 80703 is The Penguins of Madagascar's, TMDb TV 999 is not.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -149,10 +152,10 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         const string reason =
             "“Jellyfin” gave the series of “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.mkv” TMDb TV 1044 within an hour, but The Penguins of Madagascar is known here only by TVDB 80703.";
-        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (waiting.Verdict, waiting.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, null)], waiting.NewFiles);
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (stopped.Verdict, stopped.Reason));
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, null, reason)], stopped.NewFiles);
+        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (waiting.Verdict, TestTexts.En(waiting.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, null)], waiting.NewFiles.InEnglish());
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (stopped.Verdict, TestTexts.En(stopped.Reason)));
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, null, reason)], stopped.NewFiles.InEnglish());
     }
 
     [Fact]
@@ -172,10 +175,34 @@ public sealed class ReplacementPairingEpisodesTests
         Assert.Equal(
             (ReplacementPairingVerdict.Review,
                 "“Jellyfin” gave the series of the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” IMDb tt0892700, TVDB 80703 and TMDb TV 1044, but The Penguins of Madagascar has no TMDb, TVDB or IMDb id here to compare them with."),
-            (result.Verdict, result.Reason));
+            (result.Verdict, TestTexts.En(result.Reason)));
         Assert.Equal(
             "“Jellyfin” gave the series of “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.mkv” TVDB 80703, but The Penguins of Madagascar has no TMDb, TVDB or IMDb id here to compare it with.",
-            Assert.Single(result.NewFiles).Problem);
+            TestTexts.En(Assert.Single(result.NewFiles).Problem));
+    }
+
+    [Theory]
+    // MAM-47 — "has"/"have" and "it"/"them" became a key per shape (no-id-to-compare.series.*): two shows without an id.
+    [InlineData(false, "TVDB 80703, but The Penguins of Madagascar and All Hail King Julien have no TMDb, TVDB or IMDb id here to compare it with.")]
+    [InlineData(true, "TVDB 80703 and TMDb TV 1044, but The Penguins of Madagascar and All Hail King Julien have no TMDb, TVDB or IMDb id here to compare them with.")]
+    public void Pair_of_an_episode_with_series_ids_for_shows_without_any_names_every_show(bool twoIds, string tail)
+    {
+        //Arrange
+        var penguins = Penguins with { Identifiers = [] };
+        var julien = Show(new Guid("b1000000-0000-0000-0000-000000000002"), "All Hail King Julien");
+        var copy = EpisodeCopy(0, 2, 5, $"{Season2}/Penguins.S02E05.mkv");
+        MediaIdentifier[] seriesIds = twoIds
+            ? [Id(MediaIdentifierScheme.Tvdb, "80703"), Id(MediaIdentifierScheme.TmdbTv, "1044")]
+            : [Id(MediaIdentifierScheme.Tvdb, "80703")];
+        var file = NewFile(0, $"{Downloads}/Penguins.S02E05.mkv", EpisodeItem(2, 5, seriesIdentifiers: seriesIds));
+
+        //Act
+        var result = ReplacementPairing.Pair([penguins, julien], [copy], [file], [], LibraryName, libraryWaitPassed: false);
+
+        //Assert
+        Assert.Equal(
+            $"“Jellyfin” gave the series of “{Downloads}/Penguins.S02E05.mkv” {tail}",
+            TestTexts.En(Assert.Single(result.NewFiles).Problem));
     }
 
     [Fact]
@@ -195,7 +222,7 @@ public sealed class ReplacementPairingEpisodesTests
         Assert.Equal(
             (ReplacementPairingVerdict.Review,
                 "“Jellyfin” gave “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.mkv” no series with a TMDb, TVDB or IMDb id within an hour, so it can't be told to be an episode of The Penguins of Madagascar."),
-            (stopped.Verdict, stopped.Reason));
+            (stopped.Verdict, TestTexts.En(stopped.Reason)));
     }
 
     [Fact]
@@ -209,7 +236,7 @@ public sealed class ReplacementPairingEpisodesTests
         var result = ReplacementPairing.Pair([Penguins], [copy], [file], [], LibraryName, libraryWaitPassed: false);
 
         //Assert
-        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (result.Verdict, result.Reason));
+        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (result.Verdict, TestTexts.En(result.Reason)));
     }
 
     [Fact]
@@ -227,7 +254,7 @@ public sealed class ReplacementPairingEpisodesTests
         Assert.Equal(ReplacementPairingVerdict.Wait, waiting.Verdict);
         Assert.Equal(
             "“Jellyfin” gave “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.mkv” no season and episode number within an hour, so it can't be paired with an old copy.",
-            stopped.Reason);
+            TestTexts.En(stopped.Reason));
         // Identified, though: its series is the copy's.
         Assert.Equal(Penguins.WorkId, Assert.Single(stopped.NewFiles).WorkId);
     }
@@ -245,7 +272,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“Jellyfin” made “/media/movies/Alien (1979)/Alien.1979.2160p.mkv” an episode, while the old copies are of the film Alien (1979).",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -261,7 +288,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“Jellyfin” gave the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins - Special.mkv” no season and episode number, so the app can't tell which new file replaces it.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -277,8 +304,8 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         const string reason =
             "“/media/cartoons/Mickey/Season 03/Mickey Mouse Clubhouse_S03E09a_-_Road Rally.mkv” is one half of an episode (its name gives the episode the letter “a”), so it can't be replaced on its own.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -294,7 +321,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins - Double Episode.mkv” covers episodes 5–6 of season 2, so one new episode can't replace it.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -310,7 +337,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05-E06.mkv” covers episodes 5–6 of season 2, so one new episode can't replace it.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -326,7 +353,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“Jellyfin” lists the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” as a film, while its new file would be an episode, so the two can't be paired.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -342,7 +369,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“Jellyfin” lists the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” as neither a film nor an episode, so no new episode can replace it.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Theory]
@@ -364,8 +391,8 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         var reason =
             $"“Living room” now numbers the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” {now}, not season 2, episode 5 as when it was scheduled.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -382,7 +409,7 @@ public sealed class ReplacementPairingEpisodesTests
         Assert.Equal(
             (ReplacementPairingVerdict.Review,
                 "“Jellyfin” now gives the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” no season and episode number, not season 2, episode 5 as when it was scheduled."),
-            (result.Verdict, result.Reason));
+            (result.Verdict, TestTexts.En(result.Reason)));
     }
 
     [Fact]
@@ -399,8 +426,8 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         const string reason =
             "“Living room” placed the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” in another series (TVDB 999), not The Penguins of Madagascar.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -421,7 +448,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“Jellyfin” gave the series of the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” conflicting ids: TVDB 80703 is The Penguins of Madagascar's, TMDb TV 999 is not.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -439,11 +466,11 @@ public sealed class ReplacementPairingEpisodesTests
         // A missing id waits as a new file's does: the library or the owner may still give the series one.
         const string reason =
             "“Jellyfin” gave the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” no series with a TMDb, TVDB or IMDb id within an hour, so it can't be told to be an episode of The Penguins of Madagascar.";
-        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (waiting.Verdict, waiting.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, null)], waiting.OldCopies);
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (stopped.Verdict, stopped.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason)], stopped.OldCopies);
-        Assert.Equal([new ReplacementNewFileOutcome(file.Id, Penguins.WorkId, null)], stopped.NewFiles);
+        Assert.Equal((ReplacementPairingVerdict.Wait, (string?)null), (waiting.Verdict, TestTexts.En(waiting.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, null)], waiting.OldCopies.InEnglish());
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (stopped.Verdict, TestTexts.En(stopped.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, file.Id, reason)], stopped.OldCopies.InEnglish());
+        Assert.Equal([new EnglishNewFileOutcome(file.Id, Penguins.WorkId, null)], stopped.NewFiles.InEnglish());
     }
 
     [Fact]
@@ -463,7 +490,7 @@ public sealed class ReplacementPairingEpisodesTests
         Assert.Equal(
             (ReplacementPairingVerdict.Review,
                 "“Jellyfin” gave the series of the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” IMDb tt0892700 within an hour, but The Penguins of Madagascar is known here only by TVDB 80703."),
-            (stopped.Verdict, stopped.Reason));
+            (stopped.Verdict, TestTexts.En(stopped.Reason)));
     }
 
     [Fact]
@@ -479,7 +506,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.mkv” covers episodes 5–6 of season 2, so it can't replace “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E06.mkv” alone.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -495,7 +522,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05E06.mkv” covers episodes 5–6 of season 2, so it can't replace “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” alone.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -512,7 +539,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E06-E07.mkv” covers episodes 5–7 of season 2, so it can't replace “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E07.mkv” alone.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -528,7 +555,7 @@ public sealed class ReplacementPairingEpisodesTests
 
         //Assert
         Assert.Equal(ReplacementPairingVerdict.Pass, result.Verdict);
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, newFirst.Id, null)], result.OldCopies);
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, newFirst.Id, null)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -544,7 +571,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "“/media/cartoons/Mickey/Season 03 [new]/Mickey Mouse Clubhouse_S03E09b_-_Road Rally.mkv” is one half of an episode (its name gives the episode the letter “b”), so it can't replace “/media/cartoons/Mickey/Season 03/Mickey.S03E09.mkv” on its own.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -561,7 +588,7 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         Assert.Equal(
             "Two new files are The Penguins of Madagascar, season 2, episode 5: “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.1080p.mkv” and “/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.720p.mkv”; the app can't tell which one replaces the old copy.",
-            result.Reason);
+            TestTexts.En(result.Reason));
     }
 
     [Fact]
@@ -578,8 +605,8 @@ public sealed class ReplacementPairingEpisodesTests
         //Assert
         const string reason =
             "No new file is The Penguins of Madagascar, season 2, episode 7, so “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E07.mkv” has nothing to replace it.";
-        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
+        Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, TestTexts.En(result.Reason)));
+        Assert.Equal([new EnglishOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies.InEnglish());
     }
 
     [Fact]
@@ -599,7 +626,7 @@ public sealed class ReplacementPairingEpisodesTests
         Assert.Equal(ReplacementPairingVerdict.Pass, result.Verdict);
         Assert.Equal(
             "“/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.The.Final.Cut.1080p.mkv” claims Final cut, while the release claimed none.",
-            withoutTitles.Reason);
+            TestTexts.En(withoutTitles.Reason));
     }
 
     [Fact]
@@ -615,6 +642,6 @@ public sealed class ReplacementPairingEpisodesTests
         var result = ReplacementPairing.Pair([Penguins], [copy], [first, second], [], LibraryName, libraryWaitPassed: false);
 
         //Assert
-        Assert.StartsWith("“/media/cartoons/Mickey/Season 03/Mickey_S03E09a.mkv” is one half of an episode", result.Reason, StringComparison.Ordinal);
+        Assert.StartsWith("“/media/cartoons/Mickey/Season 03/Mickey_S03E09a.mkv” is one half of an episode", TestTexts.En(result.Reason), StringComparison.Ordinal);
     }
 }

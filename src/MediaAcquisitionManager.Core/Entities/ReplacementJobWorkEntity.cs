@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -46,7 +47,8 @@ public class ReplacementJobWorkEntity : BaseEntity
     public bool ConfirmedByOwner { get; set; }
 
     /// <summary>The confirmation's own words as the dialog showed them — "This release is Alien (1979)" —, whether or
-    /// not this match needed it.</summary>
+    /// not this match needed it; MAM-47 (ADR 0042, design §5.5) — as the claim they say (the work, the seasons and
+    /// episodes, which twin), a message the Api renders in the reader's language.</summary>
     [Required, MaxLength(ConfirmationTextMaximumLength)]
-    public string ConfirmationText { get; set; } = default!;
+    public Message ConfirmationText { get; set; } = default!;
 }

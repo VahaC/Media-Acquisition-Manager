@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -20,5 +21,5 @@ public interface IRecommendationRunDataFactory
         DateTime? createdUtc = null,
         int? seedCount = null,
         int? candidateCount = null,
-        string? error = null);
+        Message? error = null);
 }

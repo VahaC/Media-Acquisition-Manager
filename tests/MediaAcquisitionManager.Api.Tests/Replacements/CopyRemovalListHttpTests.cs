@@ -59,7 +59,7 @@ public sealed class CopyRemovalListHttpTests : IClassFixture<MediaAcquisitionMan
         var heat = await _removals.PlantAsync(
             CopyRemovalState.NeedsReview,
             [new PlantedName(ReplacementNameKind.Video, HeatPath, TestMedia.File(inode: 3, linkCount: 2))],
-            reason: "The app stopped while putting this copy back.",
+            reason: PlantedMessage.Of("The app stopped while putting this copy back."),
             createdUtc: now.AddHours(-2),
             title: "Heat (1995)");
         await _removals.PlantAsync(
@@ -68,7 +68,7 @@ public sealed class CopyRemovalListHttpTests : IClassFixture<MediaAcquisitionMan
             createdUtc: now.AddHours(-1));
         await _removals.PlantAsync(
             CopyRemovalState.NotMoved,
-            [new PlantedName(ReplacementNameKind.Video, TakenPath, TestMedia.File(inode: 5), ReplacementNameState.Stayed, "Refused.")],
+            [new PlantedName(ReplacementNameKind.Video, TakenPath, TestMedia.File(inode: 5), ReplacementNameState.Stayed, PlantedMessage.Of("The file system gave no reason."))],
             createdUtc: now);
 
         //Act

@@ -4,10 +4,12 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
@@ -88,7 +90,7 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
             configure: row => (row.SeasonNumber, row.EpisodeNumber) = (1, 1));
         await _links.Create(
             _jellyfinIntegration, ItemId(4), works[FilmItemId], MediaIdentifierScheme.Tmdb, FilmId, writeState: LibraryLinkWriteState.NotWritten,
-            configure: row => row.WriteError = "Jellyfin refused the search for the match; nothing was changed.");
+            configure: row => row.WriteError = Message.Of("jellyfin.identify.search-refused"));
         var replaced = await _links.Create(_jellyfinIntegration, ItemId(5), works[FilmItemId], MediaIdentifierScheme.Tmdb, FilmId, writeState: LibraryLinkWriteState.NotWritten);
         await AppliedAuditRowAsync(replaced, identifiedAt.AddHours(-1));
         // Not counted: identified; waiting or being identified; unattached; an episode item; a numberless or episode TMDb
@@ -138,7 +140,7 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
         var series = await _links.Create(_jellyfinIntegration, PenguinsId, works[PenguinsId], MediaIdentifierScheme.TmdbTv, JellyfinSamples.PenguinsTmdbTvId);
         var refused = await _links.Create(
             _jellyfinIntegration, OtherFilmItemId, works[OtherFilmItemId], MediaIdentifierScheme.Tmdb, OtherFilmId, writeState: LibraryLinkWriteState.NotWritten,
-            configure: row => row.WriteError = "Jellyfin holds a library of its own.");
+            configure: row => row.WriteError = Message.Legacy("Jellyfin holds a library of its own."));
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
         var sentBefore = _factory.JellyfinHttp.Requests.Count;
 
@@ -155,7 +157,7 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
         var links = (await _factory.LinksAsync(cancellationToken)).ToDictionary(link => link.Id);
         Assert.All(
             new[] { written.Id, series.Id, refused.Id },
-            id => Assert.Equal((LibraryLinkWriteState.Queued, (Guid?)batchId, (string?)null, _factory.Time.GetUtcNow().UtcDateTime), (links[id].WriteState, links[id].BatchId, links[id].WriteError, links[id].WriteStateUtc!.Value)));
+            id => Assert.Equal((LibraryLinkWriteState.Queued, (Guid?)batchId, (string?)null, _factory.Time.GetUtcNow().UtcDateTime), (links[id].WriteState, links[id].BatchId, TestTexts.En(links[id].WriteError), links[id].WriteStateUtc!.Value)));
         // The click only queues and wakes the writer: nothing is sent to Jellyfin, and no audit row is written for the click.
         Assert.Equal(sentBefore, _factory.JellyfinHttp.Requests.Count);
         Assert.True(_factory.Resolve<LibraryLinkWriteQueue>().Reader.TryPeek(out _));
@@ -201,7 +203,7 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
         var links = (await _factory.LinksAsync(cancellationToken)).ToDictionary(link => link.Id);
         Assert.All(
             new[] { film.Id, other.Id, series.Id, episode.Id },
-            id => Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (links[id].WriteState, links[id].WriteError)));
+            id => Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (links[id].WriteState, TestTexts.En(links[id].WriteError))));
         Assert.All(links.Values, link => Assert.NotNull(link.IdentifiedUtc));
         // The episode's own IMDb id, asked of TMDb by the writer.
         Assert.Equal(EpisodeImdbId, links[episode.Id].EpisodeImdbId);
@@ -242,7 +244,7 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
         Assert.All(links, link =>
         {
             Assert.Equal(LibraryLinkWriteState.NotWritten, link.WriteState);
-            Assert.StartsWith("Jellyfin", link.WriteError, StringComparison.Ordinal);
+            Assert.StartsWith("Jellyfin", TestTexts.En(link.WriteError), StringComparison.Ordinal);
             Assert.Null(link.IdentifiedUtc);
         });
         Assert.DoesNotContain(_factory.JellyfinHttp.Requests, request => request.Method == HttpMethod.Post);
@@ -306,7 +308,7 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
         // A link refused with a sentence and one that failed with none: no Apply was sent for either.
         var refused = await _links.Create(
             _jellyfinIntegration, FilmItemId, works[FilmItemId], MediaIdentifierScheme.Tmdb, FilmId, writeState: LibraryLinkWriteState.NotWritten, setBy: _owner.User,
-            configure: row => row.WriteError = "Jellyfin holds a library of its own.");
+            configure: row => row.WriteError = Message.Legacy("Jellyfin holds a library of its own."));
         var plain = await _links.Create(
             _jellyfinIntegration, OtherFilmItemId, works[OtherFilmItemId], MediaIdentifierScheme.Tmdb, OtherFilmId, writeState: LibraryLinkWriteState.NotWritten, setBy: _owner.User);
         await _factory.Resolve<LibraryLinkWriteReconciler>().ReconcileAsync(cancellationToken);
@@ -331,6 +333,43 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal(HttpStatusCode.OK, retried.StatusCode);
         Assert.Equal(LibraryLinkWriteState.Written, (await _factory.LinksAsync(cancellationToken)).Single(link => link.Id == cut.Id).WriteState);
         Assert.Single(_jellyfin.Applied, applied => applied.ItemId == PenguinsId);
+    }
+
+    [Fact]
+    public async Task CatchUp_leaves_a_link_whose_stored_error_is_the_restart_key_and_counts_one_with_another_error_or_none()
+    {
+        //Arrange
+        // MAM-47 (ADR 0042) — the repair's query compares the column with the restart message in SQL. The cut link's error is
+        // written here as raw text, as the startup converter writes an older build's restart sentence: the key's canonical
+        // JSON with no values. A link refused with another message and one that failed with none are candidates, as before.
+        const string storedRestart = """{"k":"library-links.write.restarted"}""";
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var works = await SyncLibraryAsync(cancellationToken);
+        var cut = await _links.Create(
+            _jellyfinIntegration, PenguinsId, works[PenguinsId], MediaIdentifierScheme.TmdbTv, JellyfinSamples.PenguinsTmdbTvId, writeState: LibraryLinkWriteState.NotWritten,
+            setBy: _owner.User);
+        await _links.Create(
+            _jellyfinIntegration, FilmItemId, works[FilmItemId], MediaIdentifierScheme.Tmdb, FilmId, writeState: LibraryLinkWriteState.NotWritten, setBy: _owner.User,
+            configure: row => row.WriteError = Message.Of("jellyfin.identify.search-refused"));
+        await _links.Create(
+            _jellyfinIntegration, OtherFilmItemId, works[OtherFilmItemId], MediaIdentifierScheme.Tmdb, OtherFilmId, writeState: LibraryLinkWriteState.NotWritten, setBy: _owner.User);
+        await _factory.WithDbAsync(db => db.Database.ExecuteSqlAsync(
+            $"UPDATE \"LibraryItemLinks\" SET \"WriteError\" = {storedRestart} WHERE \"SourceItemId\" = {PenguinsId}",
+            cancellationToken));
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+
+        //Act
+        var read = await (await _factory.GetHttpRequest(CatchUpUrl, _owner.AccessToken)).ReadAsync<LibraryLinkCatchUpResponse>(cancellationToken);
+
+        //Assert
+        // The two candidates, not the cut one: "WriteError" <> the restart JSON, or NULL — the comparison's null semantics.
+        Assert.Equal(new LibraryLinkCatchUpResponse(2, null), read);
+        // The raw text is exactly what the app writes for the restart, and reads back as it.
+        Assert.Equal(storedRestart, MessageJson.Write(LibraryLinkWriteReconciler.RestartedError));
+        var stored = (await _factory.LinksAsync(cancellationToken)).Single(link => link.Id == cut.Id).WriteError;
+        Assert.Equal(
+            (LibraryLinkWriteReconciler.RestartedKey, "The app restarted while identifying the item in Jellyfin. Jellyfin may still be working on it: Retry in a few minutes checks what it holds before anything is sent."),
+            (stored?.Key, TestTexts.En(stored)));
     }
 
     [Fact]
@@ -436,12 +475,12 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
             (LibraryLinkWriteState.NotWritten,
                 "Jellyfin holds IMDb id tt29669983 for this item, not tt13217676, and the app doesn't replace a library's own ids on its own. If the link is right, press Retry to identify it anyway; otherwise change the link.",
                 (DateTime?)null),
-            (links[continental.Id].WriteState, links[continental.Id].WriteError, links[continental.Id].IdentifiedUtc));
+            (links[continental.Id].WriteState, TestTexts.En(links[continental.Id].WriteError), links[continental.Id].IdentifiedUtc));
         Assert.Equal(
             (LibraryLinkWriteState.NotWritten,
                 "Jellyfin holds IMDb id tt1163854 for this item, not tt0056291, and the app doesn't replace a library's own ids on its own. If the link is right, press Retry to identify it anyway; otherwise change the link.",
                 (DateTime?)null),
-            (links[polanski.Id].WriteState, links[polanski.Id].WriteError, links[polanski.Id].IdentifiedUtc));
+            (links[polanski.Id].WriteState, TestTexts.En(links[polanski.Id].WriteError), links[polanski.Id].IdentifiedUtc));
         // Nothing was sent for them and their items are as they were; the ordinary link in the same batch was identified.
         Assert.Equal([FilmItemId], _jellyfin.Applied.Select(applied => applied.ItemId));
         Assert.True(JsonNode.DeepEquals(continentalBefore, Movie(ContinentalId)));
@@ -483,7 +522,7 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal(
             (LibraryLinkWriteState.NotWritten,
                 "Jellyfin holds IMDb id tt1163854 for this item and TMDb gives no IMDb id for this link to compare it with, so the app doesn't replace a library's own id on its own. If the link is right, press Retry to identify it anyway; otherwise change the link."),
-            (stored.WriteState, stored.WriteError));
+            (stored.WriteState, TestTexts.En(stored.WriteError)));
         Assert.Empty(_jellyfin.Applied);
     }
 
@@ -509,7 +548,7 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
             (LibraryLinkWriteState.NotWritten,
                 "Jellyfin's library “Мульфільми” saves artwork and metadata next to the media, so identifying this item could change files in your media folders; the app left it alone. Switch that off in the library's settings in Jellyfin, then retry.",
                 (DateTime?)null),
-            (link.WriteState, link.WriteError, link.IdentifiedUtc));
+            (link.WriteState, TestTexts.En(link.WriteError), link.IdentifiedUtc));
         // Read first, then nothing: no search, no Apply, and the files and folders were never touched.
         Assert.Empty(_jellyfin.RemoteSearches);
         Assert.Empty(_jellyfin.Applied);
@@ -562,7 +601,7 @@ public sealed class LibraryLinkCatchUpHttpTests : IClassFixture<MediaAcquisition
         var link = Assert.Single(await _factory.LinksAsync(cancellationToken));
         Assert.Equal(
             (LibraryLinkWriteState.KeptInApp, (string?)"TMDb knows no IMDb id of this episode, so its link stays in the app.", (string?)null),
-            (link.WriteState, link.WriteError, link.EpisodeImdbId));
+            (link.WriteState, TestTexts.En(link.WriteError), link.EpisodeImdbId));
         Assert.DoesNotContain(_factory.JellyfinHttp.Requests, request => request.Method == HttpMethod.Post);
         // Asked once: a second click would keep it in the app all the same.
         Assert.Equal(new LibraryLinkCatchUpResponse(0, null), await after.ReadAsync<LibraryLinkCatchUpResponse>(cancellationToken));

@@ -1,0 +1,97 @@
+{
+  "adapter": {
+    "connected": "Connected to {{service}} {{version, vendor}}.",
+    "credentials-refused": "{{service}} refused the user name or password.",
+    "not-files": "The service at this address answered, but not with {{service}}'s files.",
+    "not-torrents": "The service at this address answered, but not with {{service}}'s torrents.",
+    "not-an-add-answer": "The service at this address answered, but not the way {{service}} answers a new torrent.",
+    "torrent-gone": "{{service}} doesn't have this torrent any more.",
+    "holdings-too-large": "{{service}}'s list of every torrent with its files is larger than the app reads ({{limit, size}}), so the app couldn't tell which torrents hold these copies.",
+    "unreadable-answer": "The app couldn't read what “{{name}}” answered."
+  },
+  "catalog-language": {
+    "none": "{{service}} has no catalog language to choose. Leave catalogLanguage out.",
+    "unknown": "“{{value}}” is not one of {{service}}'s catalog languages. Use one of the tags its adapter type lists, such as {{examples, list:or}}."
+  },
+  "connection": {
+    "name-missing": "An integration needs a name.",
+    "name-too-long_one": "An integration name can be at most {{count, number}} character long.",
+    "name-too-long_other": "An integration name can be at most {{count, number}} characters long.",
+    "name-control-characters": "An integration name can't contain line breaks or other control characters.",
+    "address-missing": "An integration needs the address of the service, such as http://192.168.1.10:8096.",
+    "address-too-long_one": "The address can be at most {{count, number}} character long.",
+    "address-too-long_other": "The address can be at most {{count, number}} characters long.",
+    "address-not-http": "The address must be a full http:// or https:// address, such as http://192.168.1.10:8096.",
+    "address-user-info": "Leave the user name and password out of the address; they have fields of their own.",
+    "address-query": "The address can't have a query (the part from ?). An API key has a field of its own.",
+    "address-fragment": "The address can't have a fragment (the part from #).",
+    "user-name-too-long_one": "A user name can be at most {{count, number}} character long.",
+    "user-name-too-long_other": "A user name can be at most {{count, number}} characters long.",
+    "user-name-control-characters": "A user name can't contain line breaks or other control characters.",
+    "user-name-not-used": "{{service}} doesn't use a user name.",
+    "password-not-used": "{{service}} doesn't use a password.",
+    "api-key-not-used": "{{service}} doesn't use an API key.",
+    "user-name-needed": "{{service}} needs a user name.",
+    "password-needed": "{{service}} needs a password.",
+    "api-key-needed": "{{service}} needs an API key.",
+    "password-without-user-name": "Enter the user name that goes with the password.",
+    "user-name-without-password": "Enter the password that goes with the user name, or leave both empty if {{service}} lets this app in without signing in."
+  },
+  "secret": {
+    "api-key-blank": "A new API key can't be blank.",
+    "api-key-too-short_one": "An API key must be at least {{count, number}} character long.",
+    "api-key-too-short_other": "An API key must be at least {{count, number}} characters long.",
+    "api-key-too-long_one": "An API key can be at most {{count, number}} character long.",
+    "api-key-too-long_other": "An API key can be at most {{count, number}} characters long.",
+    "api-key-characters": "An API key can contain only visible characters, without spaces, quotes or backslashes.",
+    "password-blank": "A new password can't be blank.",
+    "password-control-characters": "A password can't contain line breaks or other control characters."
+  },
+  "path": {
+    "dot-segment": "“{{path}}” contains . or .. as a folder name. Write the folder's full path without them."
+  },
+  "path-map": {
+    "not-full-path": "“{{path}}” is not a full path the app can map.",
+    "not-full-path-back": "“{{path}}” is not a full path the app can map back.",
+    "unwritable-folder-name": "“{{path}}” can't be written under “{{prefix}}”: its folder name “{{name}}” contains \\, which separates folders in a Windows path.",
+    "not-covered": "No path mapping of this integration covers “{{path}}”.",
+    "not-covered-back": "No path mapping of this integration leads to “{{path}}”.",
+    "ambiguous": "The path mappings of this integration send “{{path}}” to different places: “{{first}}” and “{{second}}”.",
+    "ambiguous-back": "The path mappings of this integration lead to “{{path}}” from different places: “{{first}}” and “{{second}}”."
+  },
+  "path-mapping": {
+    "no-file-paths": "{{service}} reports no file paths, so it takes no path mappings.",
+    "too-many_one": "An integration can have at most {{count, number}} path mapping.",
+    "too-many_other": "An integration can have at most {{count, number}} path mappings.",
+    "service-path-missing": "Each path mapping needs the folder as {{service}} sees it.",
+    "app-path-missing": "Each path mapping needs the folder as this app sees it.",
+    "too-long_one": "A path in a path mapping can be at most {{count, number}} character long.",
+    "too-long_other": "A path in a path mapping can be at most {{count, number}} characters long.",
+    "control-characters": "A path in a path mapping can't contain line breaks or other control characters.",
+    "not-full-path": "“{{path}}” is not a full path. Start it with / (Linux) or a drive letter such as D:\\ (Windows).",
+    "mixed-styles": "All the paths of {{service}} in one integration must be of one kind: Linux-style (/…) or Windows-style (D:\\…).",
+    "mapped-twice": "The path “{{path}}” of {{service}} is mapped twice. Keep one mapping for it.",
+    "nested-windows-on-linux": "“{{inner}}” is inside “{{outer}}”. With Windows paths on the {{service}} side and Linux paths in this app, keep only one of them.",
+    "nested-disagree": "The mappings for “{{outer}}” and “{{inner}}” send “{{inner}}” to different places: “{{viaOuter}}” and “{{innerApp}}”. Remove one, or make them agree."
+  },
+  "stored-secret": {
+    "password-unreadable": "The stored password of “{{name}}” can't be read with this installation's encryption key. Enter the password again and save.",
+    "api-key-unreadable": "The stored API key of “{{name}}” can't be read with this installation's encryption key. Enter the API key again and save."
+  },
+  "catalog": {
+    "not-connected": "Connect a metadata catalog under Integrations first."
+  },
+  "list": {
+    "kind-unknown": "“{{value}}” is not a kind of integration. Use MediaLibrary, ReleaseSearch, DownloadClient or Metadata."
+  },
+  "service": {
+    "adapter-type-missing": "Choose the service to connect to.",
+    "adapter-type-unknown": "“{{value}}” is not a service this app can connect to.",
+    "secret-mode-invalid": "A secret change must be Keep, Set or Clear.",
+    "name-taken": "An integration named “{{name}}” already exists.",
+    "adapter-unavailable": "This version of the app can't connect to “{{type}}”, so this integration can only be removed."
+  },
+  "connection-test": {
+    "edited-integration-missing": "The integration you are editing no longer exists. Close the dialog and reload the page."
+  }
+}

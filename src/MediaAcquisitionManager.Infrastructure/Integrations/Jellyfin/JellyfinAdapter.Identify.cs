@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 
@@ -42,83 +43,35 @@ internal sealed partial class JellyfinAdapter
     /// library lists as a film ("TheMovieDb" answered <c>[]</c> for the same id).</summary>
     private const string SearchProviderOmdb = "The Open Movie Database";
 
-    /// <summary>
-    /// The longest an Apply answer's minutes are written to: a production timeout is whole minutes ("20"), a test's
-    /// 100 milliseconds is "0.0017" rather than a silly "0".
-    /// </summary>
-    private const string MinutesFormat = "0.####";
+    // MAM-47 (ADR 0042) — each sentence a key of jellyfin.json (identify.*) with its values: the ids, the status and the
+    // type Jellyfin holds are values; which registry an id belongs to ("TMDb id", "IMDb id") and which kind the link needs
+    // ("not a movie") are part of the key, never words put into a sentence.
+    private static readonly Message EpisodeUnidentifiableReason = Message.Of("jellyfin.identify.episode-unidentifiable");
 
-    // {0} is the kind as a sentence names it ("an episode").
-    private const string KindUnidentifiableReason = "Jellyfin identifies movie and series items only, so a link on {0} stays in the app.";
+    private static readonly Message NoAdministratorError = Message.Of("jellyfin.identify.no-administrator");
 
-    // {0} is the type Jellyfin holds under the id, cleaned; {1} what the link needs ("a movie", "a series").
-    private const string WrongTypeError =
-        "Jellyfin holds an item of type “{0}” under this id, not {1}, so the app didn't identify it. Sync the library and link it again.";
+    private static readonly Message ItemGoneError = Message.Of("jellyfin.identify.item-gone");
 
-    private const string NoAdministratorError = "Jellyfin has no enabled administrator account to read the item as.";
+    private static readonly Message HiddenFromAdministratorError = Message.Of("jellyfin.identify.hidden-from-administrator");
 
-    private const string ItemGoneError = "Jellyfin no longer has this item; sync the library and link it again.";
+    private static readonly Message SearchForbiddenError = Message.Of("jellyfin.identify.search-forbidden");
 
-    private const string HiddenFromAdministratorError =
-        "Jellyfin's administrator account can't see this item (a parental limit, a blocked tag or no access to its library), so the app can't read it as that account.";
+    private static readonly Message SearchRefusedError = Message.Of("jellyfin.identify.search-refused");
 
-    private const string SearchForbiddenError =
-        "Jellyfin refused the search for the match. Check that the API key belongs to an administrator.";
+    private static readonly Message ApplyForbiddenError = Message.Of("jellyfin.identify.apply-forbidden");
 
-    private const string SearchRefusedError = "Jellyfin refused the search for the match; nothing was changed.";
-
-    private const string ApplyForbiddenError =
-        "Jellyfin refused to identify the item. Check that the API key belongs to an administrator.";
-
-    private const string ApplyRefusedError = "Jellyfin refused the match it was sent; nothing was changed.";
-
-    // {0} is the id the link names ("223021").
-    private const string NoMatchTmdbFilmError =
-        "Jellyfin found no film with TMDb id {0}. Check the id, and that TheMovieDb is among this library's metadata sources in Jellyfin.";
-
-    private const string NoMatchTmdbShowError =
-        "Jellyfin found no show with TMDb id {0}. Check the id, and that TheMovieDb is among this library's metadata sources in Jellyfin.";
-
-    private const string NoMatchOmdbError =
-        "Jellyfin's Open Movie Database found no title with IMDb id {0}. Check that it is among this library's metadata sources in Jellyfin.";
-
-    // {0} is the id as a sentence names it ("TMDb id 223021", "IMDb id tt9103946").
-    private const string NoMatchAmbiguousError = "Jellyfin found more than one result for {0}, so the app picked none.";
-
-    private const string NoMatchNoNameError = "Jellyfin's result for {0} has no name, so the app picked none.";
+    private static readonly Message ApplyRefusedError = Message.Of("jellyfin.identify.apply-refused");
 
     // The word the owner reads is "locked", the contract's member is ItemProtected (the convention test forbids the word in
     // member names).
-    private const string ItemProtectedError =
-        "This item is locked in Jellyfin (the whole item, its name or its overview), so Jellyfin wouldn't take the match. Unlock it there, then retry.";
-
-    // {0} is "IMDb" or "TMDb", {1} the id the item holds, {2} the id the link names.
-    private const string ConflictingIdError =
-        "Jellyfin holds {0} id {1} for this item, not {2}, and the app doesn't replace a library's own ids on its own. If the link is right, press Retry to identify it anyway; otherwise change the link.";
-
-    // {0} is the IMDb id the item holds.
-    private const string ConflictingIdUncheckableError =
-        "Jellyfin holds IMDb id {0} for this item and TMDb gives no IMDb id for this link to compare it with, so the app doesn't replace a library's own id on its own. If the link is right, press Retry to identify it anyway; otherwise change the link.";
+    private static readonly Message ItemProtectedError = Message.Of("jellyfin.identify.item-locked");
 
     // R10 — Apply left the app and what became of it is unknown: the identification is still a value, sent and not
     // confirmed, so the caller records it as one that may have landed. Never sent again (house rule 8): the owner's Retry reads
     // the item first and only sends again when it still doesn't show the match.
-    private const string AnswerLostProblem =
-        "The match was sent to Jellyfin, but its answer never came, and the item read again doesn't show it. Jellyfin may still be working on it: Retry in a few minutes checks again before sending anything.";
+    private static readonly Message AnswerLostProblem = Message.Of("jellyfin.identify.answer-lost");
 
-    // {0} is the Apply client's timeout in minutes.
-    private const string AnswerTimedOutProblem =
-        "The match was sent to Jellyfin, but it didn't answer within {0} minutes, and the item read again doesn't show it. Jellyfin may still be working on it: Retry in a few minutes checks again before sending anything.";
-
-    // {0} is the status, such as "500 Internal Server Error".
-    private const string AnswerFailedProblem =
-        "Jellyfin answered the match with {0}, and the item read again doesn't show it. Its own log says why; the item may have lost its images. Retry checks again before sending anything.";
-
-    private const string NotConfirmedProblem =
-        "Jellyfin took the match, but the item read again doesn't show it (its name, year or id): it may be locked, or its metadata sources failed. Its own log says why; Retry checks again.";
-
-    // {0} is the failed read's own sentence.
-    private const string ReadAgainFailedProblem = "Jellyfin took the match, but the app couldn't read the item again to confirm it. {0}";
+    private static readonly Message NotConfirmedProblem = Message.Of("jellyfin.identify.not-confirmed");
 
     /// <inheritdoc/>
     /// <remarks>Films and series; an episode item is never identified: Jellyfin has no search for an episode, and its Apply
@@ -126,7 +79,13 @@ internal sealed partial class JellyfinAdapter
     public IReadOnlyList<MediaWorkKind> IdentifiableKinds { get; } = [MediaWorkKind.Movie, MediaWorkKind.Series];
 
     /// <inheritdoc/>
-    public string UnidentifiableKindReason(MediaWorkKind kind) => Sentence(KindUnidentifiableReason, kind);
+    /// <remarks>MAM-47 — an episode's is the one there is: films and series are what it identifies
+    /// (<see cref="IdentifiableKinds"/>), so asking why one of them stays in the app is the caller's mistake, never a
+    /// sentence a translator writes for nothing.</remarks>
+    public Message UnidentifiableKindReason(MediaWorkKind kind) =>
+        kind == MediaWorkKind.Episode
+            ? EpisodeUnidentifiableReason
+            : throw new ArgumentOutOfRangeException(nameof(kind), kind, "Only an episode item's link stays in the app: Jellyfin identifies movie and series items.");
 
     /// <inheritdoc/>
     /// <remarks>
@@ -187,7 +146,8 @@ internal sealed partial class JellyfinAdapter
                     Sent: true,
                     ready.IdsBefore,
                     ready.IdsIntended,
-                    string.Format(CultureInfo.InvariantCulture, ReadAgainFailedProblem, readAgain.Error)),
+                    // The failed read's own sentence after it, whatever it is (a shared transport one included).
+                    Message.Of("jellyfin.identify.read-again-failed", ("error", readAgain.Error!))),
                 settings));
         }
 
@@ -335,7 +295,7 @@ internal sealed partial class JellyfinAdapter
     /// row found by another id — the namespace trap recorded live: a TV id searched as a film answers an unrelated film —
     /// never counts), or the sentence saying there is none: no row, more than one, or one without a name.
     /// </summary>
-    private static (ChosenRow? Row, string? NoMatch) ChooseRow(List<SearchRow> rows, IdentifyPlan plan)
+    private static (ChosenRow? Row, Message? NoMatch) ChooseRow(List<SearchRow> rows, IdentifyPlan plan)
     {
         List<ChosenRow> carrying = [];
         foreach (var searchRow in rows)
@@ -364,10 +324,10 @@ internal sealed partial class JellyfinAdapter
 
         return carrying.Count switch
         {
-            0 => (null, plan.NoMatchSentence),
-            1 when string.IsNullOrWhiteSpace(carrying[0].Name) => (null, string.Format(CultureInfo.InvariantCulture, NoMatchNoNameError, plan.Description)),
+            0 => (null, plan.NoMatch),
+            1 when string.IsNullOrWhiteSpace(carrying[0].Name) => (null, plan.NoName),
             1 => (carrying[0], null),
-            _ => (null, string.Format(CultureInfo.InvariantCulture, NoMatchAmbiguousError, plan.Description)),
+            _ => (null, plan.Ambiguous),
         };
     }
 
@@ -386,28 +346,28 @@ internal sealed partial class JellyfinAdapter
     /// film item (its IMDb id): only a different held IMDb id conflicts — a film's TMDb id on such an item is the one that is
     /// wrong, and Apply drops it (recorded live) —, and a held IMDb id there is typically the show's.
     /// </remarks>
-    private static string? ConflictOf(List<(string Key, string? Value)> held, ChosenRow row, IdentifyPlan plan)
+    private static Message? ConflictOf(List<(string Key, string? Value)> held, ChosenRow row, IdentifyPlan plan)
     {
         var heldImdb = HeldId(held, "Imdb");
         if (string.Equals(plan.Key, "Imdb", StringComparison.Ordinal))
         {
             return heldImdb is not null && !SameValue(heldImdb, plan.Value)
-                ? string.Format(CultureInfo.InvariantCulture, ConflictingIdError, "IMDb", heldImdb, plan.Value)
+                ? Message.Of("jellyfin.identify.conflicting-id.imdb", ("held", heldImdb), ("wanted", plan.Value))
                 : null;
         }
 
         var heldTmdb = HeldId(held, "Tmdb");
         if (heldTmdb is not null && !SameValue(heldTmdb, plan.Value))
-            return string.Format(CultureInfo.InvariantCulture, ConflictingIdError, "TMDb", heldTmdb, plan.Value);
+            return Message.Of("jellyfin.identify.conflicting-id.tmdb", ("held", heldTmdb), ("wanted", plan.Value));
 
         if (heldImdb is null)
             return null;
         var wantedImdb = row.Ids.FirstOrDefault(id => id.Scheme == MediaIdentifierScheme.Imdb)?.Value;
         if (wantedImdb is null)
-            return string.Format(CultureInfo.InvariantCulture, ConflictingIdUncheckableError, heldImdb);
+            return Message.Of("jellyfin.identify.conflicting-id.imdb-uncheckable", ("held", heldImdb));
         return SameValue(heldImdb, wantedImdb)
             ? null
-            : string.Format(CultureInfo.InvariantCulture, ConflictingIdError, "IMDb", heldImdb, wantedImdb);
+            : Message.Of("jellyfin.identify.conflicting-id.imdb", ("held", heldImdb), ("wanted", wantedImdb));
     }
 
     // ── the shortcut and the confirmation ────────────────────────────────────
@@ -499,8 +459,8 @@ internal sealed partial class JellyfinAdapter
             // The client's timeout ran out after the connection was made: Jellyfin may be working still. The handler's
             // connect timeout, a TimeoutException with nothing inside (see HttpIntegrationAdapter), sent nothing, and is left
             // to the shared sentence.
-            var minutes = client.Timeout.TotalMinutes.ToString(MinutesFormat, CultureInfo.InvariantCulture);
-            return IntegrationCallResult<ApplyAnswer>.Succeeded(new ApplyAnswer(string.Format(CultureInfo.InvariantCulture, AnswerTimedOutProblem, minutes)));
+            return IntegrationCallResult<ApplyAnswer>.Succeeded(
+                new ApplyAnswer(Message.Of("jellyfin.identify.answer-timed-out", ("count", Minutes(client.Timeout)))));
         }
 
         using (response)
@@ -515,7 +475,7 @@ internal sealed partial class JellyfinAdapter
                 404 => IntegrationCallResult<ApplyAnswer>.Failed(IntegrationCallStatus.NotFound, ItemGoneError),
                 // The server failed while handling it, perhaps after deleting the images and before fetching new ones.
                 >= 500 and < 600 => IntegrationCallResult<ApplyAnswer>.Succeeded(
-                    new ApplyAnswer(string.Format(CultureInfo.InvariantCulture, AnswerFailedProblem, StatusText(response)))),
+                    new ApplyAnswer(Message.Of("jellyfin.identify.answer-failed", ("status", StatusText(response))))),
                 _ => DescribeUnexpectedStatus<ApplyAnswer>(response, settings, sessionSecrets),
             };
         }
@@ -553,16 +513,20 @@ internal sealed partial class JellyfinAdapter
         if (!Guid.TryParse(request.SourceItemId, out var itemId))
             throw new ArgumentException("The item id is not one Jellyfin gives.", nameof(request));
         if (!IdentifiableKinds.Contains(request.Kind))
-            throw new ArgumentException(UnidentifiableKindReason(request.Kind), nameof(request));
+            throw new ArgumentException("Jellyfin identifies movie and series items only.", nameof(request));
         if (request.Identifier is null)
             throw new ArgumentException("The request names no id.", nameof(request));
 
         var (scheme, value) = (request.Identifier.Scheme, request.Identifier.Value);
-        var (key, provider, description, noMatch) = (request.Kind, scheme) switch
+        // MAM-47 — the sentences of no match name the registry by their key: "for TMDb id 223021", "for IMDb id tt9103946".
+        var (key, provider, noMatch, ambiguous, noName) = (request.Kind, scheme) switch
         {
-            (MediaWorkKind.Movie, MediaIdentifierScheme.Tmdb) => ("Tmdb", SearchProviderTmdb, $"TMDb id {value}", NoMatchTmdbFilmError),
-            (MediaWorkKind.Series, MediaIdentifierScheme.TmdbTv) => ("Tmdb", SearchProviderTmdb, $"TMDb id {value}", NoMatchTmdbShowError),
-            (MediaWorkKind.Movie, MediaIdentifierScheme.Imdb) => ("Imdb", SearchProviderOmdb, $"IMDb id {value}", NoMatchOmdbError),
+            (MediaWorkKind.Movie, MediaIdentifierScheme.Tmdb) => (
+                "Tmdb", SearchProviderTmdb, "jellyfin.identify.no-match.tmdb-film", "jellyfin.identify.no-match.ambiguous-tmdb", "jellyfin.identify.no-match.no-name-tmdb"),
+            (MediaWorkKind.Series, MediaIdentifierScheme.TmdbTv) => (
+                "Tmdb", SearchProviderTmdb, "jellyfin.identify.no-match.tmdb-show", "jellyfin.identify.no-match.ambiguous-tmdb", "jellyfin.identify.no-match.no-name-tmdb"),
+            (MediaWorkKind.Movie, MediaIdentifierScheme.Imdb) => (
+                "Imdb", SearchProviderOmdb, "jellyfin.identify.no-match.omdb", "jellyfin.identify.no-match.ambiguous-imdb", "jellyfin.identify.no-match.no-name-imdb"),
             _ => throw new ArgumentException($"A {request.Kind} item is not identified by a {scheme} id.", nameof(request)),
         };
         if (value is null || !(scheme == MediaIdentifierScheme.Imdb ? MediaIdentifierRules.IsImdbId(value) : MediaIdentifierRules.IsTmdbId(value)))
@@ -574,8 +538,9 @@ internal sealed partial class JellyfinAdapter
             key,
             value,
             provider,
-            description,
-            string.Format(CultureInfo.InvariantCulture, noMatch, value),
+            Message.Of(noMatch, ("id", value)),
+            Message.Of(ambiguous, ("id", value)),
+            Message.Of(noName, ("id", value)),
             request.Kind == MediaWorkKind.Series ? "Items/RemoteSearch/Series" : "Items/RemoteSearch/Movie",
             request.ProtectHeldIds);
     }
@@ -583,18 +548,33 @@ internal sealed partial class JellyfinAdapter
     private static IntegrationCallResult<Preparation> Decided(
         LibraryIdentifyOutcome outcome,
         LibraryIdentifyRefusal? refusal,
-        string sentence,
+        Message sentence,
         IReadOnlyList<MediaIdentifier> idsBefore,
         IReadOnlyList<MediaIdentifier> idsAfter) =>
         IntegrationCallResult<Preparation>.Succeeded(new Preparation(new LibraryIdentification(outcome, refusal, Sent: false, idsBefore, idsAfter, sentence), null));
 
-    private static string WrongType(string type, MediaWorkKind kind, string?[] secrets) =>
-        string.Format(CultureInfo.InvariantCulture, WrongTypeError, RemoteText.Clean(type, RemoteValueMaximumLength, secrets), Sentence("{0}", kind));
+    /// <summary>Jellyfin holds an item of the type <paramref name="type"/> where the link needs one of <paramref name="kind"/>,
+    /// a film or a series (<see cref="ValidateRequest"/> lets no other kind through).</summary>
+    private static Message WrongType(string type, MediaWorkKind kind, string?[] secrets)
+    {
+        var held = VendorText.Clean(type, RemoteValueMaximumLength, secrets);
+        return kind == MediaWorkKind.Series
+            ? Message.Of("jellyfin.identify.wrong-type.series", ("type", held))
+            : Message.Of("jellyfin.identify.wrong-type.movie", ("type", held));
+    }
+
+    /// <summary>
+    /// The Apply client's timeout in minutes as the format <c>0.####</c> wrote them: a production timeout is whole minutes
+    /// ("20"), a test's 100 milliseconds "0.0017" rather than a silly "0". MAM-47 — rounded here, half away from zero as that
+    /// format rounded, before the template counts them (pinned by <c>EnglishFormatPinTests</c>).
+    /// </summary>
+    private static NumberValue Minutes(TimeSpan timeout) =>
+        new(Math.Round((decimal)timeout.TotalMinutes, 4, MidpointRounding.AwayFromZero));
 
     /// <summary><paramref name="value"/> with its sentence masked of the call's secrets: unlike an error, a value is not
     /// masked on its way out (<see cref="HttpIntegrationAdapter.CallAsync{T}"/>).</summary>
     private static LibraryIdentification Masked(LibraryIdentification value, IntegrationConnectionSettings settings) =>
-        value.Sentence is null ? value : value with { Sentence = SecretRedaction.Redact(value.Sentence, settings.Secrets) };
+        value.Sentence is null ? value : value with { Sentence = value.Sentence.Redacted(settings.Secrets) };
 
     /// <summary>The first call's result: the identification when the call decided it, or what Apply needs.</summary>
     private sealed record Preparation(LibraryIdentification? Decided, ReadyToApply? Ready);
@@ -613,20 +593,22 @@ internal sealed partial class JellyfinAdapter
 
     /// <summary>What Apply's call came to when it left the app: the sentence saying why the answer says nothing (lost, late,
     /// a server error), or <c>null</c> when Jellyfin answered 2xx.</summary>
-    private sealed record ApplyAnswer(string? Problem);
+    private sealed record ApplyAnswer(Message? Problem);
 
     /// <summary>The item read again after Apply.</summary>
     private sealed record ItemAfterApply(ItemFacts Facts, IReadOnlyList<MediaIdentifier> Ids);
 
-    /// <summary>The request once validated: what to search for, where, and under which key and provider.</summary>
+    /// <summary>The request once validated: what to search for, where, and under which key and provider; and the sentences
+    /// of no match — no row carries the id, more than one does, or the one that does has no name.</summary>
     private sealed record IdentifyPlan(
         Guid ItemId,
         MediaWorkKind Kind,
         string Key,
         string Value,
         string Provider,
-        string Description,
-        string NoMatchSentence,
+        Message NoMatch,
+        Message Ambiguous,
+        Message NoName,
         string SearchPath,
         bool ProtectHeldIds);
 }

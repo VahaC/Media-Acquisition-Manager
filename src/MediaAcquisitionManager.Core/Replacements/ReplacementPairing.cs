@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Duplicates;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Replacements;
 
@@ -74,7 +75,7 @@ public static partial class ReplacementPairing
         ArgumentNullException.ThrowIfNull(releaseEditions);
         ArgumentNullException.ThrowIfNull(libraryName);
 
-        var library = ReplacementText.Quote(libraryName);
+        var library = MessageText.Clean(libraryName);
         var read = newFiles.OrderBy(file => file.Position).Select(file => Identify(file, works, library)).ToList();
         // A copy's "no new file" waits on any file that might still be it (the remarks say why).
         var unsettled = read.Any(file => file.Waiting is not null || file.Pending is not null || file.Problem is not null);
@@ -89,19 +90,19 @@ public static partial class ReplacementPairing
             read = [.. read.Select(file => file.OtherFilm ? file with { Problem = null } : file)];
 
         // a. The library hasn't listed or finished reading every file.
-        var waiting = copies.Select(copy => copy.Waiting).Concat(read.Select(file => file.Waiting)).OfType<string>().ToList();
+        var waiting = copies.Select(copy => copy.Waiting).Concat(read.Select(file => file.Waiting)).OfType<Message>().ToList();
         if (waiting.Count > 0)
             return libraryWaitPassed
                 ? Result(ReplacementPairingVerdict.Review, waiting[0], read, copies, showWaiting: true, showPending: false)
                 : Result(ReplacementPairingVerdict.Wait, null, read, copies, showWaiting: false, showPending: false);
 
         // b. A definitive problem stops the job at once.
-        var problems = copies.Select(copy => copy.Problem).Concat(read.Select(file => file.Problem)).OfType<string>().ToList();
+        var problems = copies.Select(copy => copy.Problem).Concat(read.Select(file => file.Problem)).OfType<Message>().ToList();
         if (problems.Count > 0)
             return Result(ReplacementPairingVerdict.Review, problems[0], read, copies, showWaiting: false, showPending: false);
 
         // c. A file the library hasn't identified yet: an episode copy's series, or a new file.
-        var pending = copies.Select(copy => copy.Pending).Concat(read.Select(file => file.Pending)).OfType<string>().ToList();
+        var pending = copies.Select(copy => copy.Pending).Concat(read.Select(file => file.Pending)).OfType<Message>().ToList();
         if (pending.Count > 0)
             return libraryWaitPassed
                 ? Result(ReplacementPairingVerdict.Review, pending[0], read, copies, showWaiting: false, showPending: true)
@@ -120,11 +121,11 @@ public static partial class ReplacementPairing
         string library,
         bool unsettled)
     {
-        var path = ReplacementText.Quote(copy.AppPath);
+        var path = MessageText.Clean(copy.AppPath);
         if (work.Kind != MediaWorkKind.Series)
         {
             var films = newFiles.Where(file => file.WorkId == work.WorkId && file.File.Library.Kind == LibraryFileKind.Movie).ToList();
-            return Paired(copy, work, films, path, work.Name, releaseEditions, unsettled, null, null);
+            return Paired(copy, work, films, path, null, releaseEditions, unsettled, null, null);
         }
 
         if (copy is not { SeasonNumber: { } season, EpisodeNumber: { } episode })
@@ -142,8 +143,8 @@ public static partial class ReplacementPairing
 
         // The old item's own word: its kind, its series, its numbers, and the end number of a file of several episodes.
         // Not listed or not read yet is a wait, never a problem: the library may make the item anew for a moment.
-        string? waiting = null;
-        string? pending = null;
+        Message? waiting = null;
+        Message? pending = null;
         switch (copy.Library)
         {
             case null or { Kind: null }:
@@ -161,13 +162,12 @@ public static partial class ReplacementPairing
                 // scheduled: the owner may have re-identified or renumbered the old item since. Its series must still be
                 // the copy's show by a new file's rule, and its numbers the copy's; a series without an id waits as a new
                 // file's does.
-                var old = $"the old copy {path}";
                 var series = reading.SeriesItemId is null ? Identification.WithoutId : Identify(reading.SeriesIdentifiers, [work], SeriesSchemes);
                 if (series.NoId)
-                    pending = EpisodeWithoutSeries(library, old, [work]);
+                    pending = OldEpisodeWithoutSeries(library, path, [work]);
                 else if (series.Work is null)
                 {
-                    var unidentified = Unidentified(series, library, old, reading.SeriesIdentifiers, SeriesSchemes, [work], ofSeries: true);
+                    var unidentified = Unidentified(series, library, path, Subject.OldEpisode, reading.SeriesIdentifiers, SeriesSchemes, [work]);
                     if (unidentified.Problem is { } problem)
                         return new(copy, null, null, null, problem);
                     pending = unidentified.Pending;
@@ -186,29 +186,30 @@ public static partial class ReplacementPairing
         var candidates = newFiles
             .Where(file => file.WorkId == work.WorkId && file.Covers is { } covers && covers.Holds(season, episode))
             .ToList();
-        var place = EpisodeName(work.Name, season, episode);
+        var place = new EpisodePlace(season, episode);
         if (candidates.FirstOrDefault(file => file.Covers!.Several) is { } several)
-            return new(copy, null, waiting, pending, NewCoversSeveral(ReplacementText.Quote(several.File.AppPath), several.Covers!, path), OnlyDropSettles: true);
+            return new(copy, null, waiting, pending, NewCoversSeveral(MessageText.Clean(several.File.AppPath), several.Covers!, path), OnlyDropSettles: true);
         var halved = candidates
             .Select(file => (File: file, Half: EpisodeRangeNames.HalfOf(file.Name)))
             .FirstOrDefault(file => file.Half is not null);
         if (halved is { File: { } halfFile, Half: { } letter })
-            return new(copy, null, waiting, pending, NewHalf(ReplacementText.Quote(halfFile.File.AppPath), letter, path), OnlyDropSettles: true);
+            return new(copy, null, waiting, pending, NewHalf(MessageText.Clean(halfFile.File.AppPath), letter, path), OnlyDropSettles: true);
         return Paired(copy, work, candidates, path, place, releaseEditions, unsettled, waiting, pending);
     }
 
-    /// <summary>The pair of a copy with its <paramref name="candidates"/>, the new files of its work at its place:
-    /// exactly one, then its edition and running time (rule 3).</summary>
+    /// <summary>The pair of a copy with its <paramref name="candidates"/>, the new files of its work at its place —
+    /// <paramref name="place"/> for an episode, none for a film —: exactly one, then its edition and running time
+    /// (rule 3).</summary>
     private static OldCopyRead Paired(
         ReplacementPairingOldCopy copy,
         ReplacementPairingWork work,
         IReadOnlyList<NewFileRead> candidates,
         string path,
-        string what,
+        EpisodePlace? place,
         IReadOnlyCollection<MediaEdition> releaseEditions,
         bool unsettled,
-        string? waiting,
-        string? pending)
+        Message? waiting,
+        Message? pending)
     {
         switch (candidates.Count)
         {
@@ -216,13 +217,13 @@ public static partial class ReplacementPairing
             // placed it at another number — only a drop settles either (ADR 0032). A film's new file may be one the library
             // took for an extra, which fixing its item there may still pair.
             case 0:
-                return new(copy, null, waiting, pending, unsettled ? null : NoNewFile(what, path), OnlyDropSettles: !unsettled && work.Kind == MediaWorkKind.Series);
+                return new(copy, null, waiting, pending, unsettled ? null : NoNewFile(work, place, path), OnlyDropSettles: !unsettled && work.Kind == MediaWorkKind.Series);
             case > 1:
-                return new(copy, null, waiting, pending, TwoNewFiles(what, [.. candidates.Select(file => ReplacementText.Quote(file.File.AppPath))]));
+                return new(copy, null, waiting, pending, TwoNewFiles(work, place, [.. candidates.Select(file => MessageText.Clean(file.File.AppPath))]));
         }
 
         var paired = candidates[0];
-        var newPath = ReplacementText.Quote(paired.File.AppPath);
+        var newPath = MessageText.Clean(paired.File.AppPath);
         // MAM-37's rule: every title of the work, and of an episode its own, is taken out of the name first.
         var claimed = EditionLabels.Read(paired.Name, work.Titles.Concat(copy.EpisodeTitles));
         // The file's own name and running time: no fix in the library changes either, and no click confirms an edition by
@@ -246,7 +247,7 @@ public static partial class ReplacementPairing
     /// </summary>
     private static ReplacementPairingResult Result(
         ReplacementPairingVerdict verdict,
-        string? reason,
+        Message? reason,
         IReadOnlyList<NewFileRead> newFiles,
         IReadOnlyList<OldCopyRead> copies,
         bool showWaiting,
@@ -284,9 +285,9 @@ public static partial class ReplacementPairing
         string Name,
         Guid? WorkId,
         EpisodeSpan? Covers,
-        string? Waiting,
-        string? Pending,
-        string? Problem,
+        Message? Waiting,
+        Message? Pending,
+        Message? Problem,
         bool OtherFilm);
 
     /// <summary>What rules 2 and 3 made of one ticked copy.</summary>
@@ -298,7 +299,7 @@ public static partial class ReplacementPairing
     /// <param name="OnlyDropSettles">MAM-27 — <paramref name="Problem"/> is one only dropping the copy, or keeping both,
     /// settles (the remarks say which).</param>
     private sealed record OldCopyRead(
-        ReplacementPairingOldCopy Copy, Guid? PairedNewFileId, string? Waiting, string? Pending, string? Problem, bool OnlyDropSettles = false);
+        ReplacementPairingOldCopy Copy, Guid? PairedNewFileId, Message? Waiting, Message? Pending, Message? Problem, bool OnlyDropSettles = false);
 
     /// <summary>The episodes a file covers within one season, from <see cref="First"/> to <see cref="Last"/>.</summary>
     private sealed record EpisodeSpan(int Season, int First, int Last)
@@ -306,5 +307,26 @@ public static partial class ReplacementPairing
         public bool Several => Last > First;
 
         public bool Holds(int season, int episode) => Season == season && episode >= First && episode <= Last;
+    }
+
+    /// <summary>An episode's place, which a copy's reasons name with its series: "The Penguins of Madagascar, season 2,
+    /// episode 5".</summary>
+    private sealed record EpisodePlace(int Season, int Episode);
+
+    /// <summary>
+    /// MAM-47 — what an identification's reason is about, which picks its key: the words around the path change with it
+    /// ("gave “…”", "gave the series of “…”", "gave the series of the old copy “…”"), so each is a key of its own, never a
+    /// fragment of words glued in front of the path.
+    /// </summary>
+    private enum Subject
+    {
+        /// <summary>A new file the library made a film: its own ids.</summary>
+        NewFilm = 1,
+
+        /// <summary>A new file the library made an episode: its series' ids.</summary>
+        NewEpisode = 2,
+
+        /// <summary>A ticked old copy of an episode: its series' ids now.</summary>
+        OldEpisode = 3,
     }
 }

@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
 
@@ -19,44 +20,42 @@ namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
 /// inode, not a second name of this one — is one the app read as media. The Remove request then checks the disk and the download clients (<see cref="CopyRemovalService"/>).
 /// </para>
 /// <para>
-/// The sentences name no path: the list is every signed-in user's, and a member sees why the button is off too.
+/// The sentences name no path: the list is every signed-in user's, and a member sees why the button is off too. MAM-47
+/// (ADR 0042) — each a message of the <c>duplicates.removal.rule</c> keys, which the list renders in the reader's language.
 /// </para>
 /// </remarks>
 public static class CopyRemovalRules
 {
     /// <summary>A copy of a group of another class: one file's names free nothing, and a possible match is no copy yet.</summary>
-    public const string NotRemovableClassReason =
-        "Only a copy in “Exact copies” or “Same film, different files” can be removed.";
+    public static readonly Message NotRemovableClassReason = Message.Of("duplicates.removal.rule.not-removable-class");
 
     /// <summary>The master switch is off (ADR 0033): the one replacement uses, named as the Media folders page names it.</summary>
-    public const string SwitchedOffReason =
-        "Removing copies is switched off. Turn on “Replace copies after verification” under Media folders.";
+    public static readonly Message SwitchedOffReason = Message.Of("duplicates.removal.rule.switched-off");
 
-    private const string OutsideMediaFoldersReason = "This file isn't inside the Media folders, so the app can't move it.";
+    private static readonly Message OutsideMediaFoldersReason = Message.Of("duplicates.removal.rule.outside-media-folders");
 
-    private const string NotTickedReason = "This file's library folder isn't ticked for replacement under Media folders.";
+    private static readonly Message NotTickedReason = Message.Of("duplicates.removal.rule.not-ticked");
 
-    private const string NotInspectedReason = "The app hasn't inspected this file yet. Press Inspect files on the Library page first.";
+    private static readonly Message NotInspectedReason = Message.Of("duplicates.removal.rule.not-inspected");
 
-    private const string NotReadableReason = "The app's last look couldn't read this file as media, so it can't tell what would go.";
+    private static readonly Message NotReadableReason = Message.Of("duplicates.removal.rule.not-readable");
 
-    private const string DiscClipReason = "This file is part of a disc folder, which can't be removed one file at a time.";
+    private static readonly Message DiscClipReason = Message.Of("duplicates.removal.rule.disc-clip");
 
-    private const string OtherWorkReason = "This file also holds a film or an episode outside this group, which would go with it.";
+    private static readonly Message OtherWorkReason = Message.Of("duplicates.removal.rule.other-work");
 
-    private const string HeldByReplacementReason = "A replacement on the Jobs page holds this file.";
+    private static readonly Message HeldByReplacementReason = Message.Of("duplicates.removal.rule.held-by-replacement");
 
-    private const string HeldByRemovalReason = "A removal under Removed copies holds this file.";
+    private static readonly Message HeldByRemovalReason = Message.Of("duplicates.removal.rule.held-by-removal");
 
-    private const string LastReadableCopyReason =
-        "No other copy in this group is one the app has read as media, so this one stays: it may be the only one that plays.";
+    private static readonly Message LastReadableCopyReason = Message.Of("duplicates.removal.rule.last-readable-copy");
 
     /// <summary>
     /// Why <paramref name="file"/>, one of <paramref name="members"/> — the files of a group of
     /// <paramref name="groupClass"/> about <paramref name="groupWorkIds"/> —, can't be removed now by what is stored, behind
     /// <paramref name="gate"/> and with <paramref name="holds"/>; <c>null</c> when it may.
     /// </summary>
-    public static string? ReasonOf(
+    public static Message? ReasonOf(
         DuplicateClass groupClass,
         IReadOnlyCollection<Guid> groupWorkIds,
         CopyRemovalCandidate file,

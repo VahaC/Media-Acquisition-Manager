@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Integrations;
 
@@ -204,7 +205,7 @@ public sealed class IntegrationAdapterRegistryTests
         public IntegrationAdapterDescriptor Descriptor => descriptor;
 
         public Task<ConnectionTestResult> TestConnectionAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
-            Task.FromResult(ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+            Task.FromResult(ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, Message.Legacy("The test adapter is never called.")));
     }
 
     /// <summary>A type that also serves the library contract, as JellyfinAdapter does since MAM-8.</summary>
@@ -215,17 +216,17 @@ public sealed class IntegrationAdapterRegistryTests
         public MediaLibraryCapabilities Capabilities { get; } = new(GroupsVersionsUnderOneItem: false);
 
         public Task<ConnectionTestResult> TestConnectionAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
-            Task.FromResult(ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+            Task.FromResult(ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, Message.Legacy("The test adapter is never called.")));
 
         public Task<IntegrationCallResult<LibraryItemPage>> ListItemsAsync(IntegrationConnectionSettings settings, LibraryPageRequest page, CancellationToken cancellationToken = default) =>
-            Task.FromResult(IntegrationCallResult<LibraryItemPage>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+            Task.FromResult(IntegrationCallResult<LibraryItemPage>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy("The test adapter is never called.")));
 
         public Task<IntegrationCallResult<IReadOnlyList<LibraryLocation>>> ListLocationsAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
-            Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+            Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy("The test adapter is never called.")));
 
         public Task<IntegrationCallResult<LibraryPoster>> GetPosterAsync(
             IntegrationConnectionSettings settings, string sourceItemId, string posterTag, CancellationToken cancellationToken = default) =>
-            Task.FromResult(IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+            Task.FromResult(IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy("The test adapter is never called.")));
     }
 
     /// <summary>A library type that also identifies its items, as JellyfinAdapter does since MAM-34.</summary>
@@ -237,24 +238,24 @@ public sealed class IntegrationAdapterRegistryTests
         public MediaLibraryCapabilities Capabilities { get; } = new(GroupsVersionsUnderOneItem: false);
 
         public Task<ConnectionTestResult> TestConnectionAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
-            Task.FromResult(ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+            Task.FromResult(ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, Message.Legacy("The test adapter is never called.")));
 
         public Task<IntegrationCallResult<LibraryItemPage>> ListItemsAsync(IntegrationConnectionSettings settings, LibraryPageRequest page, CancellationToken cancellationToken = default) =>
-            Task.FromResult(IntegrationCallResult<LibraryItemPage>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+            Task.FromResult(IntegrationCallResult<LibraryItemPage>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy("The test adapter is never called.")));
 
         public Task<IntegrationCallResult<IReadOnlyList<LibraryLocation>>> ListLocationsAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
-            Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+            Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy("The test adapter is never called.")));
 
         public Task<IntegrationCallResult<LibraryPoster>> GetPosterAsync(
             IntegrationConnectionSettings settings, string sourceItemId, string posterTag, CancellationToken cancellationToken = default) =>
-            Task.FromResult(IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+            Task.FromResult(IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy("The test adapter is never called.")));
 
         public IReadOnlyList<MediaWorkKind> IdentifiableKinds { get; } = [MediaWorkKind.Movie];
 
-        public string UnidentifiableKindReason(MediaWorkKind kind) => "The test adapter identifies films only.";
+        public Message UnidentifiableKindReason(MediaWorkKind kind) => Message.Legacy("The test adapter identifies films only.");
 
         public Task<IntegrationCallResult<LibraryIdentification>> IdentifyAsync(
             IntegrationConnectionSettings settings, LibraryIdentifyRequest request, CancellationToken cancellationToken = default) =>
-            Task.FromResult(IntegrationCallResult<LibraryIdentification>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+            Task.FromResult(IntegrationCallResult<LibraryIdentification>.Failed(IntegrationCallStatus.Unreachable, Message.Legacy("The test adapter is never called.")));
     }
 }

@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -28,7 +29,7 @@ namespace MediaAcquisitionManager.Api.Tests.Replacements;
 public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/replacements";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
     private const string FolderPath = "/media/movies/Alien (1979)";
     private const string TheatricalPath = "/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.mkv";
     private const string SubtitlePath = "/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.uk.srt";
@@ -54,6 +55,7 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
     private const string SwitchedOffMidwayReason =
         "“Alien (1979) Theatrical Cut.uk.srt” couldn't be put back: Replacement was switched off on the Media folders page. 1 of 2 names is back where it was.";
     private const string MoverStoppedReason = "Still held by the torrent “Alien” in “qBittorrent”: remove that torrent there without its files, then press Retry.";
+    private const string SubtitleHeldProblem = "Held by the torrent “Alien” in “qBittorrent”, so it stays where it is.";
     private const string UntickedMidwayReason =
         "“Alien (1979) Theatrical Cut.uk.srt” couldn't be put back: “/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.uk.srt” is no longer in a "
         + "folder ticked for replacement. 1 of 2 names is back where it was.";
@@ -118,10 +120,10 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
         var replacement = await JobAsync(id, cancellationToken);
         Assert.Equal(
             (ReplacementJobState.Restored, (string?)null, now, (DateTime?)now, (DateTime?)null),
-            (replacement.State, replacement.Reason, replacement.StateChangedUtc, replacement.LibraryNoticeDueUtc, replacement.QuarantineCheckedUtc));
+            (replacement.State, TestTexts.En(replacement.Reason), replacement.StateChangedUtc, replacement.LibraryNoticeDueUtc, replacement.QuarantineCheckedUtc));
         Assert.Equal(
             [(ReplacementNameState.Restored, (DateTime?)now, (string?)null), (ReplacementNameState.Restored, now, null)],
-            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, name.RestoredUtc, name.Problem)));
+            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, name.RestoredUtc, TestTexts.En(name.Problem))));
         Assert.Equal(
             [
                 JobRow(AuditAction.ReplacementRestoreStarted, id),
@@ -148,10 +150,10 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
             ReplacementJobState.NeedsReview,
             [
                 new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1)),
-                new PlantedName(ReplacementNameKind.Companion, SubtitlePath, Subtitle(), ReplacementNameState.Stayed, "Held by a torrent."),
+                new PlantedName(ReplacementNameKind.Companion, SubtitlePath, Subtitle(), ReplacementNameState.Stayed, PlantedMessage.Of(SubtitleHeldProblem)),
             ],
             quarantineCheckedUtc: now,
-            reason: MoverStoppedReason);
+            reason: PlantedMessage.Of(MoverStoppedReason));
         var id = planted.Replacement.Id;
 
         //Act
@@ -162,10 +164,10 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal(ReplacementJobState.Restored, (await ReadJobAsync(response, cancellationToken)).Replacement!.State);
         Assert.Equal([(QuarantinePathOf(id, TheatricalPath), TheatricalPath)], _factory.Quarantine.Renames);
         Assert.Equal(
-            [(ReplacementNameState.Restored, (string?)null), (ReplacementNameState.Stayed, "Held by a torrent.")],
-            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, name.Problem)));
+            [(ReplacementNameState.Restored, (string?)null), (ReplacementNameState.Stayed, SubtitleHeldProblem)],
+            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, TestTexts.En(name.Problem))));
         var replacement = await JobAsync(id, cancellationToken);
-        Assert.Equal((ReplacementJobState.Restored, (string?)null), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Restored, (string?)null), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Equal(
             [
                 JobRow(AuditAction.ReplacementRestoreStarted, id),
@@ -271,7 +273,7 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
                 new PlantedName(ReplacementNameKind.Companion, SubtitlePath, Subtitle()),
             ],
             quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime,
-            reason: "“Alien (1979) Theatrical Cut.uk.srt” couldn't be deleted: The app may not write there. 1 of 2 names is deleted.");
+            reason: PlantedMessage.Of("“Alien (1979) Theatrical Cut.uk.srt” couldn't be deleted: The app may not write there. 1 of 2 names is deleted."));
 
         //Act
         var response = await RestoreAsync(planted.Replacement.Id);
@@ -401,10 +403,10 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
         // the video that came back.
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)SubtitleTakenReason, (DateTime?)now, (DateTime?)now),
-            (replacement.State, replacement.Reason, replacement.QuarantineCheckedUtc, replacement.LibraryNoticeDueUtc));
+            (replacement.State, TestTexts.En(replacement.Reason), replacement.QuarantineCheckedUtc, replacement.LibraryNoticeDueUtc));
         Assert.Equal(
             [(ReplacementNameState.Restored, (string?)null), (ReplacementNameState.Quarantined, SubtitleTakenProblem)],
-            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, name.Problem)));
+            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, TestTexts.En(name.Problem))));
         Assert.Equal(
             [
                 JobRow(AuditAction.ReplacementRestoreStarted, id),
@@ -440,7 +442,7 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal([(QuarantinePathOf(id, TheatricalPath), TheatricalPath)], _factory.Quarantine.Renames);
         Assert.Equal(
             [(ReplacementNameState.Restored, (string?)null), (ReplacementNameState.Quarantined, null)],
-            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, name.Problem)));
+            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, TestTexts.En(name.Problem))));
         Assert.Equal(ReplacementJobState.NeedsReview, (await JobAsync(id, cancellationToken)).State);
         Assert.Equal(
             [
@@ -503,7 +505,7 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
         // Lost, never Quarantined again: what the quarantine held under its name wasn't the old copy's file.
         Assert.Equal(
             [(ReplacementNameState.Restored, (string?)null), (ReplacementNameState.Lost, SwappedProblem)],
-            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, name.Problem)));
+            (await NamesAsync(id, cancellationToken)).Select(name => (name.State, TestTexts.En(name.Problem))));
         Assert.Equal((55L, TestMedia.DeviceId), await IdentityAtAsync(SubtitlePath));
         Assert.Equal(ReplacementJobState.NeedsReview, (await JobAsync(id, cancellationToken)).State);
         Assert.Equal(
@@ -553,7 +555,7 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
         // The request let the job go however it ended, so the next pass could take it up.
         Assert.False(held);
         var stopped = await JobAsync(id, cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)CutRestoreReason), (stopped.State, stopped.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)CutRestoreReason), (stopped.State, TestTexts.En(stopped.Reason)));
         Assert.Equal(
             [ReplacementNameState.Restored, ReplacementNameState.Quarantined],
             (await NamesAsync(id, cancellationToken)).Select(name => name.State));

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -24,7 +25,7 @@ public static partial class ReplacementJobUpdates
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.State, ReplacementJobState.Verified)
-                    .SetProperty(job => job.Reason, (string?)null)
+                    .SetProperty(job => job.Reason, (Message?)null)
                     .SetProperty(job => job.StateChangedUtc, changedUtc),
                 CancellationToken.None);
 
@@ -41,17 +42,16 @@ public static partial class ReplacementJobUpdates
         Guid replacementJobId,
         ReplacementJobState observedState,
         ReplacementJobState state,
-        string? reason,
+        Message? reason,
         DateTime changedUtc,
         DateTime? libraryNoticeDueUtc)
     {
-        var storedReason = Stored(reason);
         DateTime? checkedUtc = state == ReplacementJobState.NeedsReview ? changedUtc : null;
         return jobs.Where(job => job.Id == replacementJobId && job.State == observedState)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.State, state)
-                    .SetProperty(job => job.Reason, storedReason)
+                    .SetProperty(job => job.Reason, reason)
                     .SetProperty(job => job.StateChangedUtc, changedUtc)
                     .SetProperty(job => job.QuarantineCheckedUtc, job => job.QuarantineCheckedUtc ?? checkedUtc)
                     .SetProperty(job => job.LibraryNoticeDueUtc, job => libraryNoticeDueUtc ?? job.LibraryNoticeDueUtc),

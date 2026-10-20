@@ -52,7 +52,7 @@ public sealed partial class ReplacementJobActions
             replacement.Id,
             replacement.DownloadJobId,
             replacement.State,
-            replacement.Reason,
+            texts.Render(replacement.Reason),
             !gate.IsEnabled,
             ReplacementJobOffers.CanRetry(stop, dropOnlyCopyCount),
             ReplacementJobOffers.CanRestore(
@@ -64,7 +64,7 @@ public sealed partial class ReplacementJobActions
             quarantined.Where(name => LinkCountOf(name) == 1).Sum(name => name.SizeBytes),
             [
                 .. names.Select(name => new ReplacementNameDto(
-                    name.Id, name.Kind, name.AppPath, name.QuarantinePath, name.SizeBytes, LinkCountOf(name) > 1, name.State, name.Problem)),
+                    name.Id, name.Kind, name.AppPath, name.QuarantinePath, name.SizeBytes, LinkCountOf(name) > 1, name.State, texts.Render(name.Problem))),
             ])
         {
             CanCancel = ReplacementJobOffers.CanCancel(replacement.State, names.Any(name => ReplacementNameStates.Taken.Contains(name.State))),
@@ -87,7 +87,7 @@ public sealed partial class ReplacementJobActions
     /// <paramref name="stop"/>: where it stands, by its row, its video's name and the job's state, and whether the owner may
     /// drop it, by the names of it that left its folder and the copies left in the job.
     /// </summary>
-    private static List<ReplacementJobCopyDto> PageCopies(
+    private List<ReplacementJobCopyDto> PageCopies(
         ReplacementJobState state,
         ReplacementStop? stop,
         IReadOnlyList<ReplacementJobFileEntity> copies,
@@ -124,13 +124,14 @@ public sealed partial class ReplacementJobActions
                     copy.EditionLabel,
                     copy.DurationMilliseconds,
                     pair,
-                    copy.Problem,
+                    texts.Render(copy.Problem),
                     // What settles a problem matters in a review: a pass that still waits keeps the mark beside the problem
                     // it found, and an ended job settles nothing more. A dropped copy keeps its last mark as history.
                     copy.OnlyDropSettles && (dropped || state == ReplacementJobState.NeedsReview),
                     copy.DroppedUtc,
+                    // MAM-47 — the progress reads only whether there is a problem: its key stands for it.
                     ReplacementJobProgress.CopyStatusOf(
-                        state, dropped, pair, copy.Problem, videos.TryGetValue(copy.Id, out var video) ? video : (ReplacementNameState?)null),
+                        state, dropped, pair, copy.Problem?.Key, videos.TryGetValue(copy.Id, out var video) ? video : (ReplacementNameState?)null),
                     ReplacementJobOffers.CanDrop(state, stop, dropped, taken.Contains(copy.Id), undroppedCopyCount));
             }),
         ];
@@ -183,10 +184,10 @@ public sealed partial class ReplacementJobActions
                 file.EpisodeNumberEnd,
                 file.ReadUtc,
                 file.MediaWorkId,
-                file.Problem,
+                texts.Render(file.Problem),
                 ReplacementJobProgress.NewFileProgressOf(
                     state,
-                    file.Problem,
+                    file.Problem?.Key,
                     file.ClientProgress,
                     file.CheckedUtc,
                     libraryAskedUtc,

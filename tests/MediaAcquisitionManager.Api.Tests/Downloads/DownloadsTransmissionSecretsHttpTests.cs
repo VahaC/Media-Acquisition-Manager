@@ -12,6 +12,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Downloads;
@@ -172,7 +173,7 @@ public sealed class DownloadsTransmissionSecretsHttpTests : IClassFixture<MediaA
         {
             var rows = await db.DownloadJobs.AsNoTracking().ToListAsync(cancellationToken);
             Assert.Equal(2, rows.Count);
-            Assert.Contains(rows, row => row.Error == $"Transmission refused the torrent: {Echoed}.");
+            Assert.Contains(rows, row => TestTexts.En(row.Error) == $"Transmission refused the torrent: {Echoed}.");
             Assert.All(rows, row =>
             {
                 var clear = string.Join(

@@ -19,7 +19,8 @@ public sealed class AuthSignInHttpTests : IClassFixture<MediaAcquisitionManagerA
 
     // The whole body, byte for byte: every failed sign-in must answer exactly this, so the response
     // can't tell an unknown user from a wrong password or a disabled account.
-    private const string InvalidCredentialsBody = """{"error":"The user name or password is incorrect."}""";
+    private static readonly string InvalidCredentialsBody =
+        ErrorBody.Json("The user name or password is incorrect.", "account.sign-in.invalid-credentials");
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IUserSeeder _users = null!;
@@ -236,6 +237,35 @@ public sealed class AuthSignInHttpTests : IClassFixture<MediaAcquisitionManagerA
         });
     }
 
+    // MAM-47 (ADR 0042) — the failure's words follow the request's own Accept-Language and nothing about the account
+    // tried, so asked in Ukrainian an unknown user, a wrong password and a disabled account still answer the same bytes,
+    // with the one code. The accounts saved English, which an answer read from Users.Language would show instead of the
+    // Ukrainian asked for.
+    [Fact]
+    public async Task SignIn_failures_asked_in_ukrainian_are_the_identical_401_with_the_invalid_credentials_code()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var alice = await _users.Create("alice");
+        var bob = await _users.Create("bob", isDisabled: true);
+        await _users.SetLanguage(alice, "en");
+        await _users.SetLanguage(bob, "en");
+
+        //Act
+        var unknownUser = await _factory.PostHttpRequest(BaseUrl, body: new SignInRequest("nobody", UserSeeder.DefaultPassword), language: "uk");
+        var wrongPassword = await _factory.PostHttpRequest(BaseUrl, body: new SignInRequest("alice", "not-the-password"), language: "uk");
+        var disabledUser = await _factory.PostHttpRequest(BaseUrl, body: new SignInRequest("bob", UserSeeder.DefaultPassword), language: "uk");
+
+        //Assert
+        Assert.Equal(
+            [HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized],
+            [unknownUser.StatusCode, wrongPassword.StatusCode, disabledUser.StatusCode]);
+        var unknownUserBody = await unknownUser.Content.ReadAsStringAsync(cancellationToken);
+        Assert.Equal(unknownUserBody, await wrongPassword.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(unknownUserBody, await disabledUser.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal("account.sign-in.invalid-credentials", await unknownUser.ReadErrorCodeAsync(cancellationToken));
+    }
+
     // MAM-4 — the window between the password check and the new session. A reset (how the owner
     // locks out a leaked password), a disable or a delete that commits inside it must not leave a
     // session behind that outlives the change. The hasher runs the owner's change inside this
@@ -303,7 +333,9 @@ public sealed class AuthSignInHttpTests : IClassFixture<MediaAcquisitionManagerA
         //Assert
         Assert.All(allowed, status => Assert.Equal(HttpStatusCode.Unauthorized, status));
         Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
-        Assert.Equal("Too many attempts. Wait a minute and try again.", await limited.ReadErrorAsync(cancellationToken));
+        Assert.Equal(
+            ("Too many attempts. Wait a minute and try again.", "account.too-many-attempts"),
+            await limited.ReadErrorBodyAsync(cancellationToken));
         Assert.Equal(TimeSpan.FromSeconds(60), limited.Headers.RetryAfter?.Delta);
         Assert.Null(limited.ReadSetCookie(RefreshCookieName));
         Assert.Equal(HttpStatusCode.OK, fromAnotherAddress.StatusCode);

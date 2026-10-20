@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Api.Http;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -7,7 +9,7 @@ namespace MediaAcquisitionManager.Api.Auth;
 
 /// <summary>
 /// Lets a request through only when the signed-in user is the installation owner; anyone else gets
-/// 403 <c>{ "error": "Only the installation owner can do this." }</c>. Applied by
+/// 403 <c>{ "error": "Only the installation owner can do this.", "code": "account.owner-only" }</c>. Applied by
 /// <see cref="RequireInstallationOwnerAttribute"/>, by <see cref="SettingsWritesAreOwnerOnlyConvention"/>, — MAM-34 —
 /// by <see cref="LibraryLinksAreOwnerOnlyConvention"/> and — MAM-24 — by <see cref="ReplacementsAreOwnerOnlyConvention"/>.
 /// </summary>
@@ -27,7 +29,8 @@ namespace MediaAcquisitionManager.Api.Auth;
 /// </remarks>
 public sealed class InstallationOwnerFilter(ApplicationDbContext db, ILogger<InstallationOwnerFilter> logger) : IAsyncAuthorizationFilter
 {
-    public const string OwnerOnly = "Only the installation owner can do this.";
+    /// <summary>The 403's message.</summary>
+    public static readonly Message OwnerOnly = Message.Of("account.owner-only");
 
     public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
     {
@@ -49,7 +52,7 @@ public sealed class InstallationOwnerFilter(ApplicationDbContext db, ILogger<Ins
             userId,
             context.HttpContext.Request.Method,
             context.HttpContext.Request.Path);
-        // The same { error } body ForbiddenError writes; a filter has no controller to call it on.
-        context.Result = new ObjectResult(new { error = OwnerOnly }) { StatusCode = StatusCodes.Status403Forbidden };
+        // The same { error, code } body ForbiddenError writes; a filter has no controller to call it on.
+        context.Result = new ObjectResult(ApiErrorBody.For(context.HttpContext, OwnerOnly)) { StatusCode = StatusCodes.Status403Forbidden };
     }
 }

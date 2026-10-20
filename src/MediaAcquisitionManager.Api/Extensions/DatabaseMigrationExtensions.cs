@@ -1,4 +1,6 @@
 using System.Globalization;
+using MediaAcquisitionManager.Api.Texts;
+using MediaAcquisitionManager.Api.Texts.Conversion;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,6 +47,14 @@ public static class DatabaseMigrationExtensions
             app.Services.GetRequiredService<TimeProvider>(),
             app.Services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(DatabaseMigrationExtensions)));
         db.Database.Migrate();
+
+        // MAM-47 (R22) — stored English becomes key + values here, in C#: a migration holds only EF's own operations.
+        // Before app.Run(), so the reconcilers — which write their own restart reasons at start — and the links' catch-up,
+        // which selects rows by the restart key, only ever see converted rows. The catalogue is loaded first and outside
+        // the converter's own catch: a broken embedded locale file is a build defect and stops the boot here, while the
+        // converter never does.
+        _ = TemplateCatalog.Embedded;
+        scope.ServiceProvider.GetRequiredService<StoredTextConverter>().Convert();
         return app;
     }
 

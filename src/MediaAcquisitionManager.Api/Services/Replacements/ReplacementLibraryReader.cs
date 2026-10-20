@@ -3,7 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
-using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +21,9 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// </para>
 /// <para>
 /// MAM-26 — the notice after a move or a restore (<see cref="TellAsync"/>) goes through the same gates, batches and
-/// masking as asking; only its reasons are its own, as it tells of old copies rather than asking about new files.
+/// masking as asking. MAM-47 — its answer carries no reason: a notice's is read for its status alone
+/// (<c>QuarantineNotices.TellAsync</c>), so the sentences it had were never shown, and they went rather than be
+/// translated.
 /// </para>
 /// <para>
 /// Information: an integration's id, its type and a call's status, never a path, an address or a sentence.
@@ -33,10 +35,7 @@ public sealed class ReplacementLibraryReader(
     IIntegrationSettingsFactory settingsFactory,
     ILogger<ReplacementLibraryReader> logger) : IReplacementLibraryReader
 {
-    private const string RemovedReason = "The library that holds the new files was removed from Integrations, so they can't be confirmed.";
-
-    private const string RemovedNoticeReason =
-        "The library the old copies were in was removed from Integrations, so it can't be told that they moved.";
+    private static readonly Message RemovedReason = Message.Of("replacements.library.removed");
 
     public Task<ReplacementLibraryAnswer> AskAsync(Guid integrationId, IReadOnlyList<string> libraryPaths, CancellationToken cancellationToken = default) =>
         CallAsync(integrationId, libraryPaths, Purpose.Ask, LibraryFileChange.Created, cancellationToken);
@@ -59,16 +58,16 @@ public sealed class ReplacementLibraryReader(
 
         // Removed: its folders went with it, so the files are in no library it can speak for any more.
         if (await db.IntegrationConnections.AsNoTracking().SingleOrDefaultAsync(row => row.Id == integrationId, cancellationToken) is not { } integration)
-            return Answer(ReplacementCheckStatus.Review, integrationId.ToString(), purpose == Purpose.Tell ? RemovedNoticeReason : RemovedReason);
+            return Answer(ReplacementCheckStatus.Review, integrationId.ToString(), purpose, RemovedReason);
 
         var name = integration.Name;
         if (adapters.Find<IMediaLibraryFileLookup>(integration.AdapterType) is not { } lookup)
-            return Answer(ReplacementCheckStatus.Review, name, NoCapabilityReason(integration.AdapterType, purpose));
+            return Answer(ReplacementCheckStatus.Review, name, purpose, NoCapabilityReason(integration.AdapterType));
         if (!integration.IsEnabled)
-            return Answer(ReplacementCheckStatus.Wait, name, SwitchedOffReason(name, purpose));
+            return Answer(ReplacementCheckStatus.Wait, name, purpose, SwitchedOffReason(name));
         var built = settingsFactory.Create(integration);
         if (built.Settings is not { } settings)
-            return Answer(ReplacementCheckStatus.Wait, name, built.Error!);
+            return Answer(ReplacementCheckStatus.Wait, name, purpose, built.Error!);
 
         var call = purpose switch
         {
@@ -118,7 +117,7 @@ public sealed class ReplacementLibraryReader(
                 integration.AdapterType,
                 exception.GetType().FullName,
                 exception.StackTrace);
-            return Answer(ReplacementCheckStatus.Review, name, RefusedReason(name, purpose));
+            return Answer(ReplacementCheckStatus.Review, name, purpose, RefusedReason(name));
         }
         catch (Exception exception) when (!(exception is OperationCanceledException && cancellationToken.IsCancellationRequested))
         {
@@ -132,13 +131,13 @@ public sealed class ReplacementLibraryReader(
                 integration.AdapterType,
                 exception.GetType().FullName,
                 exception.StackTrace);
-            return Answer(ReplacementCheckStatus.Wait, name, ThrewReason(name, purpose));
+            return Answer(ReplacementCheckStatus.Wait, name, purpose, ThrewReason(name));
         }
     }
 
     /// <summary>A call the library failed: a wait, worded for the wait it counts against, and a line in the log.</summary>
     private ReplacementLibraryAnswer Failed(
-        IntegrationConnectionEntity integration, string call, IntegrationCallStatus status, Purpose purpose, string error)
+        IntegrationConnectionEntity integration, string call, IntegrationCallStatus status, Purpose purpose, Message error)
     {
         logger.LogInformation(
             "The {Call} for a replacement to integration {IntegrationId} ({AdapterType}) failed: {Status}.",
@@ -149,51 +148,39 @@ public sealed class ReplacementLibraryReader(
         return Answer(
             ReplacementCheckStatus.Wait,
             integration.Name,
-            purpose switch
-            {
-                Purpose.Ask => NotAskedReason(integration.Name, error),
-                Purpose.Read => NotReadReason(integration.Name, error),
-                _ => NotToldReason(integration.Name, error),
-            });
+            purpose,
+            purpose == Purpose.Ask ? NotAskedReason(integration.Name, error) : NotReadReason(integration.Name, error));
     }
 
-    private static ReplacementLibraryAnswer Answer(ReplacementCheckStatus status, string libraryName, string? reason) =>
-        new(status, libraryName, [], reason);
+    // MAM-47 — a notice's answer is read for its status alone (QuarantineNotices.TellAsync): it carries no reason.
+    private static ReplacementLibraryAnswer Answer(ReplacementCheckStatus status, string libraryName, Purpose purpose, Message reason) =>
+        new(status, libraryName, [], purpose == Purpose.Tell ? null : reason);
 
-    private static string Masked(string error, IntegrationConnectionSettings settings) => SecretRedaction.Redact(error, settings.Secrets)!;
+    // Masked again after the adapter (ADR 0007's second pass), value by value.
+    private static Message Masked(Message error, IntegrationConnectionSettings settings) => error.Redacted(settings.Secrets);
 
-    // The reasons, worded as the job stops with them: a wait's once its hour ran out. MAM-26 — a notice's are worded for
-    // what the library wasn't told: a notice never stops a job.
+    // The reasons, worded as the job stops with them — a wait's once its hour ran out —, as messages of the
+    // replacements.library keys (MAM-47, ADR 0042).
 
-    private static string NoCapabilityReason(string adapterType, Purpose purpose) => purpose == Purpose.Tell
-        ? $"This version of the app can't ask {ReplacementText.Quote(adapterType)} to look at a file, so it can't be told that the old copies moved."
-        : $"This version of the app can't ask {ReplacementText.Quote(adapterType)} to look at a file, so the new files can't be confirmed.";
+    private static Message NoCapabilityReason(string adapterType) =>
+        Message.Of("replacements.library.no-capability", ("type", MessageText.Clean(adapterType)));
 
-    private static string SwitchedOffReason(string libraryName, Purpose purpose) => purpose == Purpose.Tell
-        ? $"{ReplacementText.Quote(libraryName)} is switched off, so it can't be told that the old copies moved."
-        : $"{ReplacementText.Quote(libraryName)} is switched off, so it can't confirm the new files.";
+    private static Message SwitchedOffReason(string libraryName) =>
+        Message.Of("replacements.library.switched-off", ("library", MessageText.Clean(libraryName)));
 
-    private static string ThrewReason(string libraryName, Purpose purpose) => purpose == Purpose.Tell
-        ? $"The app couldn't read what {ReplacementText.Quote(libraryName)} answered, so it may not know that the old copies moved."
-        : $"The app couldn't read what {ReplacementText.Quote(libraryName)} answered, so the new files can't be confirmed.";
+    private static Message ThrewReason(string libraryName) => Message.Of("replacements.library.threw", ("library", MessageText.Clean(libraryName)));
 
-    private static string RefusedReason(string libraryName, Purpose purpose) => purpose == Purpose.Tell
-        ? $"The app refused its own request to {ReplacementText.Quote(libraryName)} about the old copies as one it should never make, "
-            + "so it wasn't told that they moved."
-        : $"The app refused its own request to {ReplacementText.Quote(libraryName)} about the new files as one it should never make, "
-            + "so they can't be confirmed.";
+    private static Message RefusedReason(string libraryName) =>
+        Message.Of("replacements.library.refused", ("library", MessageText.Clean(libraryName)));
 
-    private static string NotAskedReason(string libraryName, string error) =>
-        $"The app couldn't ask {ReplacementText.Quote(libraryName)} to look at the new files within an hour: {error}";
+    private static Message NotAskedReason(string libraryName, Message error) =>
+        Message.Of("replacements.library.not-asked", ("library", MessageText.Clean(libraryName)), ("error", error));
 
-    private static string NotReadReason(string libraryName, string error) =>
-        $"The app couldn't read {ReplacementText.Quote(libraryName)} within an hour of asking it to look at the new files: {error}";
-
-    private static string NotToldReason(string libraryName, string error) =>
-        $"The app couldn't tell {ReplacementText.Quote(libraryName)} that the old copies moved: {error}";
+    private static Message NotReadReason(string libraryName, Message error) =>
+        Message.Of("replacements.library.not-read", ("library", MessageText.Clean(libraryName)), ("error", error));
 
     /// <summary>
-    /// MAM-26 — what a call is for, which words its reasons and its log lines (a <c>bool asking</c> while there were two):
+    /// MAM-26 — what a call is for, which picks its reasons and its log lines (a <c>bool asking</c> while there were two):
     /// asking the library to look at the new files, reading what it holds at them, or telling it of old copies that went
     /// or came back.
     /// </summary>

@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -38,7 +39,7 @@ public sealed class LinuxFileStatusReaderTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.NotARegularFile, result.Status);
-        Assert.Equal($"“{pipe}” is not a regular file but a device, a socket or a pipe.", result.Error);
+        Assert.Equal($"“{pipe}” is not a regular file but a device, a socket or a pipe.", TestTexts.En(result.Error));
     }
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux), Timeout = 10_000)]
@@ -78,7 +79,7 @@ public sealed class LinuxFileStatusReaderTests : IDisposable
         Assert.Equal(FileInventoryStatus.Unreadable, result.Status);
         Assert.Equal(
             $"“{path}” changed while the app was checking it: a folder on the way or the file itself became a link or something else, so the app didn't open it.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
@@ -95,7 +96,7 @@ public sealed class LinuxFileStatusReaderTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.Unreadable, result.Status);
         Assert.Null(result.Value);
-        Assert.StartsWith($"“{path}” changed while the app was checking it", result.Error, StringComparison.Ordinal);
+        Assert.StartsWith($"“{path}” changed while the app was checking it", TestTexts.En(result.Error), StringComparison.Ordinal);
     }
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
@@ -160,7 +161,7 @@ public sealed class LinuxFileStatusReaderTests : IDisposable
         Assert.Equal(FileInventoryStatus.Unreadable, result.Status);
         Assert.Equal(
             $"“{path}” changed while the app was checking it: a folder on the way or the file itself became a link or something else, so the app didn't open it.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]

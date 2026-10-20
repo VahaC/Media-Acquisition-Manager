@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.Api.Services.Library;
@@ -18,7 +19,7 @@ public sealed class LibrarySyncReconciler(
     TimeProvider time,
     ILogger<LibrarySyncReconciler> logger) : IHostedService
 {
-    private const string RestartedError = "The app restarted before this sync finished. Start it again.";
+    private static readonly Message RestartedError = Message.Of("library.sync.restarted");
 
     public Task StartAsync(CancellationToken cancellationToken) => ReconcileAsync(cancellationToken);
 

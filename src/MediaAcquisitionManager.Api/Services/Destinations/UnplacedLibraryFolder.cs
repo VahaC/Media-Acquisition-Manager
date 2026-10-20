@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Api.Services.Destinations;
 
 /// <summary>
@@ -9,5 +11,6 @@ namespace MediaAcquisitionManager.Api.Services.Destinations;
 /// <param name="LibraryName">The library's name ("Фільми").</param>
 /// <param name="Folder">The library's folder as the app knows it: inside the app, or — when its own integration's
 /// mappings give it no place there — as that integration reported it.</param>
-/// <param name="Problem">The sentence naming the integration, the library and the fix.</param>
-public sealed record UnplacedLibraryFolder(string LibraryName, string Folder, string Problem);
+/// <param name="Problem">The sentence naming the integration, the library and the fix, as a message the Api renders
+/// (ADR 0042).</param>
+public sealed record UnplacedLibraryFolder(string LibraryName, string Folder, Message Problem);

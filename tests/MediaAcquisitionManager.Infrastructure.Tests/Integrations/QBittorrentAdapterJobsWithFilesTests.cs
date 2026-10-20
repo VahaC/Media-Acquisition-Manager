@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -310,7 +311,7 @@ public sealed class QBittorrentAdapterJobsWithFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
-        Assert.Equal($"This is qBittorrent {version}; telling which torrents hold a library file needs qBittorrent 5.2 or later.", result.Error);
+        Assert.Equal($"This is qBittorrent {version}; telling which torrents hold a library file needs qBittorrent 5.2 or later.", TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Equal(
             [$"{HttpMethod.Post} {SignInPath}", $"{HttpMethod.Get} {VersionPath}"],
@@ -351,7 +352,7 @@ public sealed class QBittorrentAdapterJobsWithFilesTests : IDisposable
         //Assert
         // The app's own gate, as every download client call answers it: no qBittorrent this old is used at all.
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
-        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", result.Error);
+        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", TestTexts.En(result.Error));
         Assert.DoesNotContain(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == InfoPath);
     }
 
@@ -379,7 +380,7 @@ public sealed class QBittorrentAdapterJobsWithFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTorrentsError, result.Error);
+        Assert.Equal(NotTorrentsError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -397,7 +398,7 @@ public sealed class QBittorrentAdapterJobsWithFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTorrentsError, result.Error);
+        Assert.Equal(NotTorrentsError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -417,7 +418,7 @@ public sealed class QBittorrentAdapterJobsWithFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotFilesError, result.Error);
+        Assert.Equal(NotFilesError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -438,7 +439,7 @@ public sealed class QBittorrentAdapterJobsWithFilesTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedError, result.Error);
+        Assert.Equal(expectedError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Single(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == InfoPath);
     }
@@ -485,7 +486,7 @@ public sealed class QBittorrentAdapterJobsWithFilesTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedError, result.Error);
+        Assert.Equal(expectedError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -506,7 +507,7 @@ public sealed class QBittorrentAdapterJobsWithFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(TooLargeError, result.Error);
+        Assert.Equal(TooLargeError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -527,7 +528,7 @@ public sealed class QBittorrentAdapterJobsWithFilesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("qBittorrent at http://qbittorrent.test:8080 didn't answer within 0.1 seconds.", result.Error);
+        Assert.Equal("qBittorrent at http://qbittorrent.test:8080 didn't answer within 0.1 seconds.", TestTexts.En(result.Error));
     }
 
     [Fact]

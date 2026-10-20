@@ -5,11 +5,13 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Library;
@@ -34,10 +36,13 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
     private const string LockedError = "The app may not read “/media/downloads/Locked (2001)/Locked (2001).mkv”: permission denied.";
     private const string GoneError = "Nothing is at “/media/downloads/Gone (2001)/Gone (2001).mkv”.";
     private const string RestartedError = "The app restarted before this scan finished, so nothing it found was stored. Scan the folders again.";
+
+    /// <summary>MAM-47 — <see cref="RestartedError"/> as the reconciler stores it: key and values (ADR 0042).</summary>
+    private static readonly Message Restarted = Message.Of("files.scan.restarted");
     private const string LinkLeadsOutProblem = "“/media/links/backup” leads out of the media folders, so the app doesn't follow it.";
 
     /// <summary>The Media folders row before any scan stored a name.</summary>
-    private static readonly LibrarySourceInspectionDto NoFiles = new(0, 0, 0, null);
+    private static readonly LibrarySourceInspectionDto NoFiles = new(0, 0, 0, null, null);
 
     /// <summary>MAM-19 — no file the app knows the room of.</summary>
     private static readonly LibrarySpaceDto NoSpace = new(0, 0, 0, 0);
@@ -80,7 +85,7 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
         var scan = JsonNode.Parse(body)!["scan"]!.AsObject();
         Assert.Equal(["activeRun", "lastFinishedRun", "hasQueuedRun", "files", "space", "ignoredCount", "extrasCount"], scan.Select(property => property.Key));
         Assert.Equal(
-            ["inspectedCount", "problemCount", "notInspectedCount", "problem"],
+            ["inspectedCount", "problemCount", "notInspectedCount", "problem", "problemCode"],
             scan["files"]!.AsObject().Select(property => property.Key));
         Assert.Equal(
             ["sizeBytes", "fileCount", "nameCount", "unmeasuredCount"],
@@ -168,10 +173,11 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
         var cancellationToken = TestContext.Current.CancellationToken;
         var now = _factory.Time.GetUtcNow().UtcDateTime;
         var (filesUnreported, latestError) = latestStatus == FolderScanStatus.Failed ? ((int?)null, RestartedError) : (12, (string?)null);
+        var latestReason = latestError is null ? null : Restarted;
         // Seeded out of order and at explicit times, so "latest" is the clock's answer, not the insert order's
         // or the ids'; and a newer scan still under way is not a finished one.
-        await _runs.Create(FolderScanStatus.Failed, _owner.User, now.AddMinutes(-2), filesFound: 40, error: RestartedError);
-        var latest = await _runs.Create(latestStatus, _owner.User, now.AddMinutes(-1), filesFound: 1394, filesUnreported: filesUnreported, error: latestError);
+        await _runs.Create(FolderScanStatus.Failed, _owner.User, now.AddMinutes(-2), filesFound: 40, error: Restarted);
+        var latest = await _runs.Create(latestStatus, _owner.User, now.AddMinutes(-1), filesFound: 1394, filesUnreported: filesUnreported, error: latestReason);
         await _runs.Create(FolderScanStatus.Succeeded, _owner.User, now.AddMinutes(-3), filesFound: 1390, filesUnreported: 10);
         var running = await _runs.Create(FolderScanStatus.Running, _owner.User, now, filesFound: 50);
 
@@ -198,8 +204,8 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var now = _factory.Time.GetUtcNow().UtcDateTime;
-        await _runs.Create(FolderScanStatus.Succeeded, _owner.User, now.AddMinutes(-5), filesFound: 1394, filesUnreported: 12, problemCount: 3, problem: LinkLeadsOutProblem);
-        await _runs.Create(FolderScanStatus.Failed, _owner.User, now.AddMinutes(-1), filesFound: 37, error: RestartedError);
+        await _runs.Create(FolderScanStatus.Succeeded, _owner.User, now.AddMinutes(-5), filesFound: 1394, filesUnreported: 12, problemCount: 3, problem: Message.Legacy(LinkLeadsOutProblem));
+        await _runs.Create(FolderScanStatus.Failed, _owner.User, now.AddMinutes(-1), filesFound: 37, error: Restarted);
         await _runs.Create(FolderScanStatus.Queued, _owner.User, now);
 
         //Act
@@ -226,7 +232,7 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
         await _factory.WithDbAsync(async db =>
             Assert.Equal(
                 LinkLeadsOutProblem,
-                await db.FolderScanRuns.Where(run => run.Status == FolderScanStatus.Succeeded).Select(run => run.Problem).SingleAsync(cancellationToken)));
+                TestTexts.En(await db.FolderScanRuns.Where(run => run.Status == FolderScanStatus.Succeeded).Select(run => run.Problem).SingleAsync(cancellationToken))));
     }
 
     [Fact]
@@ -235,7 +241,7 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var at = _factory.Time.GetUtcNow().UtcDateTime.AddMinutes(-1);
-        var finished = await _runs.Create(FolderScanStatus.Succeeded, _owner.User, at, filesFound: 1394, filesUnreported: 12, problemCount: 3, problem: LinkLeadsOutProblem);
+        var finished = await _runs.Create(FolderScanStatus.Succeeded, _owner.User, at, filesFound: 1394, filesUnreported: 12, problemCount: 3, problem: Message.Legacy(LinkLeadsOutProblem));
 
         //Act
         var owners = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
@@ -276,9 +282,10 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
         //Assert
         Assert.Equal((FolderScanStatus.Succeeded, 4, 4), (second.Status, second.FilesFound, second.FilesUnreported));
         // In path order "Gone" comes before "Locked": the first problem named is the gone one's.
-        Assert.Equal(new LibrarySourceInspectionDto(1, 2, 1, GoneError), (await ReadListAsync(owners, cancellationToken)).Scan.Files);
+        // MAM-47 — the fake inventory's own words have no key: they travel as words kept as they are.
+        Assert.Equal(new LibrarySourceInspectionDto(1, 2, 1, GoneError, Message.LegacyKey), (await ReadListAsync(owners, cancellationToken)).Scan.Files);
         // The sentence quotes a path inside the app: the owner's, like each file's; the counts are everyone's.
-        Assert.Equal(new LibrarySourceInspectionDto(1, 2, 1, null), (await ReadListAsync(members, cancellationToken)).Scan.Files);
+        Assert.Equal(new LibrarySourceInspectionDto(1, 2, 1, null, null), (await ReadListAsync(members, cancellationToken)).Scan.Files);
         await _factory.WithDbAsync(async db =>
             Assert.Equal(
                 [
@@ -315,9 +322,9 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
 
         //Assert
         Assert.Equal((LibrarySyncStatus.Succeeded, 5), (sync.Status, sync.FilesCount));
-        Assert.Equal(new LibrarySourceInspectionDto(0, 0, 2, null), before);
+        Assert.Equal(new LibrarySourceInspectionDto(0, 0, 2, null, null), before);
         // Counted when asked, not stored with the scan: the library's name answers for the file at once.
-        Assert.Equal(new LibrarySourceInspectionDto(0, 0, 1, null), (await ReadListAsync(response, cancellationToken)).Scan.Files);
+        Assert.Equal(new LibrarySourceInspectionDto(0, 0, 1, null, null), (await ReadListAsync(response, cancellationToken)).Scan.Files);
         // The scan's row waits for the next scan to forget it.
         await _factory.WithDbAsync(async db =>
             Assert.Equal(
@@ -352,7 +359,7 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
 
         //Assert
         Assert.Equal((FolderScanStatus.Succeeded, 1, 1), (scan.Status, scan.FilesFound, scan.FilesUnreported));
-        Assert.Equal(new LibrarySourceInspectionDto(0, 0, 1, null), before);
+        Assert.Equal(new LibrarySourceInspectionDto(0, 0, 1, null, null), before);
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
         // Through the mappings as they are now (ADR 0003): the file is the library's, so no longer counted here.
         Assert.Equal(NoFiles, (await ReadListAsync(response, cancellationToken)).Scan.Files);
@@ -386,7 +393,7 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
         var list = await ReadListAsync(response, cancellationToken);
         var library = Assert.Single(list.Items);
         Assert.Equal((0, 4, 0, 0), (library.Inspection.InspectedCount, library.Inspection.ProblemCount, library.Inspection.NotInspectedCount, library.FilesWithoutAppPathCount));
-        Assert.Equal(new LibrarySourceInspectionDto(1, 0, 0, null), list.Scan.Files);
+        Assert.Equal(new LibrarySourceInspectionDto(1, 0, 0, null, null), list.Scan.Files);
     }
 
     private static async Task<LibrarySourceListResponse> ReadListAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>

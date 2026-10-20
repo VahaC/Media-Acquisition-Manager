@@ -7,6 +7,8 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
+using MediaAcquisitionManager.Infrastructure.Files;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Files;
 
@@ -57,6 +59,14 @@ namespace MediaAcquisitionManager.TestInfrastructure.Files;
 /// <para>
 /// Thread-safe: a run looks at and reads two files at a time. Every call is recorded, and
 /// <see cref="MostReadsAtOnce"/> and <see cref="MostHashesAtOnce"/> keep how many reads and hashes overlapped.
+/// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — where it answers as the real inventory would, it says so in the inventory's own sentences (a path
+/// outside the roots, a folder that isn't a file: <see cref="FileInventoryMessages"/>), so a test reads the very keys a
+/// reader of the real one sees. Its own words (<see cref="UnreadableMediaError"/>, "Nothing is at …", a planted file
+/// without bytes) and the sentence a test plants (<see cref="AddProblem"/>, <see cref="AddListingProblem"/>) are no
+/// sentence of the app's and have no key in the locale files: they travel as <see cref="Message.Legacy"/>, which every
+/// language shows exactly as they are.
 /// </para>
 /// </remarks>
 public sealed class FakeFileInventory : IFileInventory
@@ -176,7 +186,7 @@ public sealed class FakeFileInventory : IFileInventory
         _files[appPath] = new FakeFile(
             new FileInventoryResult<FileFacts>(FileInventoryStatus.Found, facts, null),
             read ?? (media is null
-                ? new FileInventoryResult<MediaInspection>(FileInventoryStatus.MediaUnreadable, null, string.Format(UnreadableMediaError, appPath))
+                ? new FileInventoryResult<MediaInspection>(FileInventoryStatus.MediaUnreadable, null, Message.Legacy(string.Format(UnreadableMediaError, appPath)))
                 : new FileInventoryResult<MediaInspection>(FileInventoryStatus.Found, new MediaInspection(facts, media), null)),
             hash ?? HashOf(facts, DefaultSha256(facts)),
             null);
@@ -201,9 +211,9 @@ public sealed class FakeFileInventory : IFileInventory
     /// for, looked at, read or hashed alike (a locked file, a folder, a link leading out of the roots).</summary>
     public void AddProblem(string appPath, FileInventoryStatus status, string error) =>
         _files[appPath] = new FakeFile(
-            new FileInventoryResult<FileFacts>(status, null, error),
-            new FileInventoryResult<MediaInspection>(status, null, error),
-            new FileInventoryResult<FileContentHash>(status, null, error),
+            new FileInventoryResult<FileFacts>(status, null, Message.Legacy(error)),
+            new FileInventoryResult<MediaInspection>(status, null, Message.Legacy(error)),
+            new FileInventoryResult<FileContentHash>(status, null, Message.Legacy(error)),
             null);
 
     /// <summary>MAM-19 — the answer of a whole read of a file with <paramref name="facts"/> whose bytes hash to
@@ -230,13 +240,14 @@ public sealed class FakeFileInventory : IFileInventory
     /// <summary>
     /// MAM-18 — a place the walk answers <paramref name="status"/> and <paramref name="error"/> for when it
     /// reaches <paramref name="appPath"/>: a folder it couldn't list now (<c>Unlisted</c>), one or a link it
-    /// refuses (<c>Skipped</c>), or where it stopped at its limit (<c>LimitReached</c>).
+    /// refuses (<c>Skipped</c>), or where it stopped at its limit (<c>LimitReached</c>). MAM-47 — with a <c>null</c>
+    /// <paramref name="error"/> the entry gives no reason, and the scan says it in its own words.
     /// </summary>
-    public void AddListingProblem(string appPath, FileListingStatus status, string error)
+    public void AddListingProblem(string appPath, FileListingStatus status, string? error)
     {
         if (status == FileListingStatus.MediaFile)
             throw new ArgumentException("A media file is planted with AddFile, not as a listing problem.", nameof(status));
-        _listingProblems[appPath] = new FileListingEntry(status, appPath, null, error);
+        _listingProblems[appPath] = new FileListingEntry(status, appPath, null, error is null ? null : Message.Legacy(error));
     }
 
     /// <summary>Takes the file, or the linked name, at <paramref name="appPath"/> away. Its folder stays.</summary>
@@ -448,11 +459,11 @@ public sealed class FakeFileInventory : IFileInventory
 
         var target = _linkedNames.GetValueOrDefault(appPath) ?? appPath;
         if (_files[target].Content is not { } content)
-            return new FileInventoryResult<FilePieceHashes>(FileInventoryStatus.Unreadable, null, $"The test planted no bytes at “{appPath}”.");
+            return new FileInventoryResult<FilePieceHashes>(FileInventoryStatus.Unreadable, null, Message.Legacy($"The test planted no bytes at “{appPath}”."));
         if (pieces.Any(piece => piece.Offset < 0 || piece.Offset + piece.Length > content.LongLength))
         {
             return new FileInventoryResult<FilePieceHashes>(
-                FileInventoryStatus.ChangedWhileReading, null, $"“{appPath}” changed while the app was reading some of its pieces.");
+                FileInventoryStatus.ChangedWhileReading, null, Message.Legacy($"“{appPath}” changed while the app was reading some of its pieces."));
         }
 
         var hashes = pieces
@@ -471,7 +482,7 @@ public sealed class FakeFileInventory : IFileInventory
         _listedFolders.Enqueue(appFolder);
         if (!IsInside(appFolder, allowedRoots) || !NormalizedPath.TryParse(appFolder, out var folder, out _))
         {
-            yield return new FileListingEntry(FileListingStatus.Skipped, appFolder, null, $"“{appFolder}” is outside the media folders the app may read.");
+            yield return new FileListingEntry(FileListingStatus.Skipped, appFolder, null, FileInventoryMessages.OutsideAllowedRoots(appFolder));
             yield break;
         }
 
@@ -552,13 +563,13 @@ public sealed class FakeFileInventory : IFileInventory
         // A linked name answers as the file it leads to, and never leads out of the roots.
         var target = _linkedNames.GetValueOrDefault(appPath) ?? appPath;
         if (!IsInside(appPath, allowedRoots) || !IsInside(target, allowedRoots))
-            return new FileInventoryResult<T>(FileInventoryStatus.OutsideAllowedRoots, null, $"“{appPath}” is outside the media folders the app may read.");
+            return new FileInventoryResult<T>(FileInventoryStatus.OutsideAllowedRoots, null, FileInventoryMessages.OutsideAllowedRoots(appPath));
         if (_files.TryGetValue(target, out var file))
             return pick(file);
         // MAM-26 — a folder is something, as on a disk: the look finds no regular file there, and says so.
         return Parse(target) is { } folder && IsFolder(folder)
-            ? new FileInventoryResult<T>(FileInventoryStatus.NotARegularFile, null, $"“{appPath}” is a folder, not a file.")
-            : new FileInventoryResult<T>(FileInventoryStatus.NotFound, null, $"Nothing is at “{appPath}”.");
+            ? new FileInventoryResult<T>(FileInventoryStatus.NotARegularFile, null, FileInventoryMessages.Folder(appPath))
+            : new FileInventoryResult<T>(FileInventoryStatus.NotFound, null, Message.Legacy($"Nothing is at “{appPath}”."));
     }
 
     private static bool IsInside(string appPath, IReadOnlyList<string> allowedRoots) =>

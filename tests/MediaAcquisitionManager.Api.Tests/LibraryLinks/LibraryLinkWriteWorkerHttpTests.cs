@@ -4,10 +4,12 @@ using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -123,7 +125,7 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
         var link = await _factory.SingleLinkAsync(cancellationToken);
         Assert.Equal(
             (LibraryLinkWriteState.NotWritten, "“Living room” is switched off. Switch it on under Integrations, then retry."),
-            (link.WriteState, link.WriteError));
+            (link.WriteState, TestTexts.En(link.WriteError)));
         Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
         // Not counted as written: the log says what became of each link.
         Assert.Contains(
@@ -146,7 +148,7 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
 
         //Assert
         var link = await _factory.SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)null), (link.WriteState, link.WriteError));
+        Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)null), (link.WriteState, TestTexts.En(link.WriteError)));
         Assert.Contains(
             _factory.Logs.Entries,
             entry => entry.Category == typeof(LibraryLinkWriteWorker).FullName
@@ -173,7 +175,7 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
         // A link left not written names why: an exception the writer logged first, then each link's sentence beside its state.
         // This test failed once in a full run (2026-10-07) with a bare "Written ≠ NotWritten", and never again in forty runs.
         Assert.DoesNotContain(_factory.Logs.Entries, entry => entry.Level >= LogLevel.Error);
-        Assert.All(links, link => Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, link.WriteError)));
+        Assert.All(links, link => Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, TestTexts.En(link.WriteError))));
         // The two Applies ran at the same time: the series didn't hold the film back, nor the film the series.
         var film = _jellyfin.Applied.Single(applied => applied.ItemId == ShortId);
         var series = _jellyfin.Applied.Single(applied => applied.ItemId == PenguinsId);
@@ -328,7 +330,7 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
         await QueueFakeLinkAsync(library, work.Id, ItemId(50), otherBatch);
         await QueueFakeLinkAsync(library, work.Id, ItemId(51), batchId: null);
         _factory.FakeLibraryIdentifier.Identification = request => failing.Contains(request.SourceItemId)
-            ? new LibraryIdentification(LibraryIdentifyOutcome.NotConfirmed, null, Sent: true, [], [request.Identifier], NotConfirmedSentence)
+            ? new LibraryIdentification(LibraryIdentifyOutcome.NotConfirmed, null, Sent: true, [], [request.Identifier], Message.Legacy(NotConfirmedSentence))
             : FakeLibraryItemIdentifier.Identified(request);
 
         //Act
@@ -349,7 +351,7 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
             var link = links[ItemId(number)];
             if (asked.Contains(link.SourceItemId))
             {
-                Assert.Equal((LibraryLinkWriteState.NotWritten, NotConfirmedSentence, (DateTime?)null), (link.WriteState, link.WriteError, link.IdentifiedUtc));
+                Assert.Equal((LibraryLinkWriteState.NotWritten, NotConfirmedSentence, (DateTime?)null), (link.WriteState, TestTexts.En(link.WriteError), link.IdentifiedUtc));
             }
             else
             {
@@ -388,7 +390,7 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
         // stays below the stop, while one that didn't would have stopped the batch at the second failure.
         var calls = 0;
         _factory.FakeLibraryIdentifier.Identification = request => Interlocked.Increment(ref calls) % 4 == 1
-            ? new LibraryIdentification(LibraryIdentifyOutcome.NotConfirmed, null, Sent: true, [], [request.Identifier], NotConfirmedSentence)
+            ? new LibraryIdentification(LibraryIdentifyOutcome.NotConfirmed, null, Sent: true, [], [request.Identifier], Message.Legacy(NotConfirmedSentence))
             : FakeLibraryItemIdentifier.Identified(request);
 
         //Act
@@ -397,7 +399,7 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
         //Assert
         var links = await _factory.LinksAsync(cancellationToken);
         Assert.Equal(12, _factory.FakeLibraryIdentifier.Requests.Count);
-        Assert.Equal(3, links.Count(link => link.WriteError == NotConfirmedSentence));
+        Assert.Equal(3, links.Count(link => TestTexts.En(link.WriteError) == NotConfirmedSentence));
         Assert.Equal(9, links.Count(link => link.WriteState == LibraryLinkWriteState.Written));
         Assert.DoesNotContain(links, link => link.WriteError == LibraryLinkWriteWorker.BatchStoppedError);
         Assert.DoesNotContain(_factory.Logs.Entries, entry => entry.Category == typeof(LibraryLinkWriteWorker).FullName && entry.Level == LogLevel.Warning);
@@ -484,7 +486,7 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
         await _factory.WithDbAsync(async db =>
         {
             var links = await db.LibraryItemLinks.AsNoTracking().ToDictionaryAsync(link => link.Id, cancellationToken);
-            Assert.Equal((LibraryLinkWriteState.NotWritten, RestartedError), (links[cut.Id].WriteState, links[cut.Id].WriteError));
+            Assert.Equal((LibraryLinkWriteState.NotWritten, RestartedError), (links[cut.Id].WriteState, TestTexts.En(links[cut.Id].WriteError)));
             Assert.Equal(LibraryLinkWriteState.Written, links[queued.Id].WriteState);
         });
         // The cut identification is the owner's to retry: the writer never sends it again by itself (house rule 8).
@@ -505,7 +507,7 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
         // An episode's link without its numbers has no id of its own to identify by; one claim a restart cut leaves it Writing.
         var episode = await _links.Create(
             _jellyfinIntegration, ShortId, shortWorkId, MediaIdentifierScheme.TmdbTv, "1044", LibraryLinkTarget.ShowEpisode, LibraryLinkWriteState.Writing,
-            configure: row => row.WriteError = "left over");
+            configure: row => row.WriteError = Message.Legacy("left over"));
         // And one of a library type that can't identify.
         var library = await _integrations.Create(name: "Old library");
         var work = await new MediaWorkSeeder(_factory.Scope).Create(library);
@@ -516,8 +518,8 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
 
         //Assert
         var links = (await _factory.LinksAsync(cancellationToken)).ToDictionary(link => link.Id);
-        Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)null), (links[episode.Id].WriteState, links[episode.Id].WriteError));
-        Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)null), (links[unsupported.Id].WriteState, links[unsupported.Id].WriteError));
+        Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)null), (links[episode.Id].WriteState, TestTexts.En(links[episode.Id].WriteError)));
+        Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)null), (links[unsupported.Id].WriteState, TestTexts.En(links[unsupported.Id].WriteError)));
         Assert.Empty(_factory.FakeAdapter.Calls);
         Assert.Contains(
             _factory.Logs.Entries,

@@ -13,6 +13,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -134,7 +135,7 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
         var restored = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
             (ReplacementJobState.Restored, (string?)null, (DateTime?)null),
-            (restored.State, restored.Reason, restored.LibraryNoticeDueUtc));
+            (restored.State, TestTexts.En(restored.Reason), restored.LibraryNoticeDueUtc));
         Assert.Equal(
             [(TheatricalPath, ReplacementNameState.Restored, (DateTime?)now), (TheatricalSrtPath, ReplacementNameState.Restored, now)],
             (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.State, name.RestoredUtc)));
@@ -255,7 +256,7 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
         var completed = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
             (ReplacementJobState.Completed, (string?)null, (DateTime?)null),
-            (completed.State, completed.Reason, completed.LibraryNoticeDueUtc));
+            (completed.State, TestTexts.En(completed.Reason), completed.LibraryNoticeDueUtc));
         Assert.Equal(
             [(ReplacementNameState.Deleted, (DateTime?)now), (ReplacementNameState.Deleted, now)],
             (await NamesAsync(cancellationToken)).Select(name => (name.State, name.DeletedUtc)));
@@ -329,7 +330,7 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
         Assert.Equal(
             new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = replacement.Id, CanCancel = true },
             retriedJob.Replacement);
-        Assert.Equal((ReplacementJobState.Verified, (string?)null), (retried.State, retried.Reason));
+        Assert.Equal((ReplacementJobState.Verified, (string?)null), (retried.State, TestTexts.En(retried.Reason)));
 
         // The next pass: both names moved, the job at rest in the quarantine.
         var line = await _harness.LineAsync(job.Id, cancellationToken);

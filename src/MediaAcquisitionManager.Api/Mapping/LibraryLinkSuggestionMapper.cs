@@ -1,11 +1,12 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Library;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
 /// <inheritdoc cref="ILibraryLinkSuggestionMapper"/>
-public sealed class LibraryLinkSuggestionMapper : ILibraryLinkSuggestionMapper
+public sealed class LibraryLinkSuggestionMapper(IRequestTexts texts) : ILibraryLinkSuggestionMapper
 {
     public LinkCandidateDto ToCandidateDto(RankedCandidate ranked, CatalogWorkEntity work, int? seasonNumber, int? episodeNumber)
     {
@@ -40,12 +41,12 @@ public sealed class LibraryLinkSuggestionMapper : ILibraryLinkSuggestionMapper
             run.Status,
             run.Trigger,
             // Owner-only endpoints (R19): who asked and why it failed — the catalog's sentence can quote its address — are
-            // always in.
+            // always in, the reason in the request's language (ADR 0042).
             run.RequestedByUserName,
             run.CreatedUtc,
             run.StartedUtc,
             run.FinishedUtc,
             run.WorksTotal,
             run.WorksDone,
-            run.Error);
+            texts.Render(run.Error));
 }

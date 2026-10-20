@@ -232,7 +232,7 @@ internal sealed partial class LocalFileQuarantine
             if ((status.Mode & LinuxCalls.FileTypeMask) != LinuxCalls.RegularFileType)
                 continue;
             if (LinuxCalls.FactsOf(status) is not { } facts)
-                return Refused<IReadOnlyList<FolderFile>>(FileQuarantineStatus.Failed, FileQuarantineMessages.CouldNotRead(appPath, OutOfRangeTime));
+                return Refused<IReadOnlyList<FolderFile>>(FileQuarantineStatus.Failed, FileQuarantineMessages.TimeOutOfRange(appPath));
 
             files.Add(new FolderFile(name, appPath, facts));
         }
@@ -390,7 +390,7 @@ internal sealed partial class LocalFileQuarantine
         if ((status.Mode & LinuxCalls.FileTypeMask) != LinuxCalls.RegularFileType)
             return Refused<FileFacts>(FileQuarantineStatus.Changed, FileQuarantineMessages.NotARegularFile(appPath));
         if (LinuxCalls.FactsOf(status) is not { } facts)
-            return Refused<FileFacts>(FileQuarantineStatus.Failed, FileQuarantineMessages.CouldNotRead(appPath, OutOfRangeTime));
+            return Refused<FileFacts>(FileQuarantineStatus.Failed, FileQuarantineMessages.TimeOutOfRange(appPath));
         if (facts.Inode is null)
             return Refused<FileFacts>(FileQuarantineStatus.NotSupported, FileQuarantineMessages.NoIdentity(appPath));
 
@@ -438,8 +438,6 @@ internal sealed partial class LocalFileQuarantine
         && expected.Inode == actual.Inode;
 
     // ── refusals ───────────────────────────────────────────────────────────────────────────────
-
-    private const string OutOfRangeTime = "its modification time is outside the years 1 to 9999";
 
     /// <summary>
     /// What a failed call's <c>errno</c> means for the name at <paramref name="appPath"/>, on its way to

@@ -1,9 +1,8 @@
 using MediaAcquisitionManager.Api.Services.Audit;
-using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
-using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,6 +25,10 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// <para>
 /// Never cancelled once the claim is made: a write decided is carried through, whether or not the browser is still there.
 /// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — every sentence it ends with or records is a message: the owner's answer renders it in the request's
+/// language, and the rows keep its key and values.
+/// </para>
 /// </remarks>
 internal abstract class QuarantineWriteLoop<TName>(ApplicationDbContext db, IReplacementGates gates, IAuditTrail auditTrail, TimeProvider time)
     where TName : QuarantinedNameEntity
@@ -38,7 +41,7 @@ internal abstract class QuarantineWriteLoop<TName>(ApplicationDbContext db, IRep
 
     /// <summary>The sentence a write ends with when its owner row left the state the request claimed it in: never written
     /// over.</summary>
-    protected abstract string ChangedMeanwhileError { get; }
+    protected abstract Message ChangedMeanwhileError { get; }
 
     /// <summary>The table of the owner's names, tracked: each name's state is written through its row.</summary>
     protected abstract IQueryable<TName> Names { get; }
@@ -48,7 +51,7 @@ internal abstract class QuarantineWriteLoop<TName>(ApplicationDbContext db, IRep
     /// the caller: <c>null</c> when every name was written and the owner row ended; otherwise the sentence the owner gets —
     /// the stop's reason, with the names already written kept so, or <see cref="ChangedMeanwhileError"/>.
     /// </summary>
-    public async Task<string?> RunAsync(IReadOnlyList<TName> names, QuarantineNameWrite write, AuditActor actor)
+    public async Task<Message?> RunAsync(IReadOnlyList<TName> names, QuarantineNameWrite write, AuditActor actor)
     {
         if (!await ClaimAsync(actor))
             return ChangedMeanwhileError;
@@ -65,7 +68,7 @@ internal abstract class QuarantineWriteLoop<TName>(ApplicationDbContext db, IRep
             .ToList();
 
         var done = 0;
-        string? stopped = null;
+        Message? stopped = null;
         foreach (var row in rows)
         {
             // ADR 0033 — the gates again right before every write: switched off, the name's folder unticked, or its
@@ -116,10 +119,10 @@ internal abstract class QuarantineWriteLoop<TName>(ApplicationDbContext db, IRep
     /// <summary>Ends the owner row, inside the end's transaction: its end state when nothing <paramref name="stopped"/> it,
     /// otherwise as the subclass's rules say, with the end's audit row; the library owed a notice from
     /// <paramref name="now"/> when <paramref name="noticeDue"/>. Whether it was written.</summary>
-    protected abstract Task<bool> FinishAsync(string? stopped, bool noticeDue, AuditActor actor, DateTime now);
+    protected abstract Task<bool> FinishAsync(Message? stopped, bool noticeDue, AuditActor actor, DateTime now);
 
     /// <summary>After the end's commit: its log line.</summary>
-    protected abstract void Finished(string? stopped);
+    protected abstract void Finished(Message? stopped);
 
     /// <summary>Tells the library the names came back, after the commit and outside any transaction: best effort.</summary>
     protected abstract Task TellLibraryAsync();
@@ -161,9 +164,9 @@ internal abstract class QuarantineWriteLoop<TName>(ApplicationDbContext db, IRep
     /// rename moved another file put at the name after the last look (<see cref="FileQuarantineStatus.Swapped"/>), lost,
     /// with why. The name's problem, <c>null</c> when it was written.
     /// </summary>
-    private async Task<string?> OutcomeAsync(TName row, FileQuarantineResult<FileFacts> result, QuarantineNameWrite write, AuditActor actor)
+    private async Task<Message?> OutcomeAsync(TName row, FileQuarantineResult<FileFacts> result, QuarantineNameWrite write, AuditActor actor)
     {
-        string? problem = null;
+        Message? problem = null;
         if (result.Status == FileQuarantineStatus.Done)
         {
             row.State = write.NameEnd;
@@ -176,9 +179,9 @@ internal abstract class QuarantineWriteLoop<TName>(ApplicationDbContext db, IRep
             // A swap left another file where this one was going and this one nowhere the app knows: never Quarantined,
             // which Restore and Delete for good would act on.
             var swapped = result.Status == FileQuarantineStatus.Swapped;
-            problem = swapped ? write.SwappedProblem(row) : result.Error ?? QuarantineNameChecks.NoReasonError;
+            problem = (swapped ? write.SwappedProblem?.Invoke(row) : null) ?? result.Error ?? QuarantineNameChecks.NoReasonError;
             row.State = swapped ? ReplacementNameState.Lost : ReplacementNameState.Quarantined;
-            row.Problem = FileInspectionRunUpdates.Cut(problem, QuarantinedNameEntity.ProblemMaximumLength);
+            row.Problem = problem;
             auditTrail.Record(write.NameNotDoneAction, actor, TargetOf(row));
         }
 
@@ -187,7 +190,7 @@ internal abstract class QuarantineWriteLoop<TName>(ApplicationDbContext db, IRep
         return problem;
     }
 
-    private async Task<bool> EndAsync(string? stopped, bool noticeDue, AuditActor actor)
+    private async Task<bool> EndAsync(Message? stopped, bool noticeDue, AuditActor actor)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(CancellationToken.None);
         if (!await FinishAsync(stopped, noticeDue, actor, time.GetUtcNow().UtcDateTime))
@@ -204,13 +207,13 @@ internal abstract class QuarantineWriteLoop<TName>(ApplicationDbContext db, IRep
     /// the write's own gate (<see cref="QuarantineNameWrite.Closed"/>) — as the {error} of a stop; <c>null</c> when it can,
     /// with the <paramref name="roots"/> to write inside.
     /// </summary>
-    private static string? Closed(TName row, ReplacementGateState gate, QuarantineNameWrite write, out IReadOnlyList<string> roots)
+    private static Message? Closed(TName row, ReplacementGateState gate, QuarantineNameWrite write, out IReadOnlyList<string> roots)
     {
         roots = [];
         if (!gate.IsEnabled)
             return write.SwitchedOffError;
         if (QuarantineNameChecks.RootsOf(row, gate) is not { } reachable)
-            return $"{ReplacementText.Quote(QuarantineNameChecks.QuarantineOf(row))} is no longer inside the Media folders.";
+            return Message.Of("replacements.quarantine.write.outside-media-folders", ("quarantine", MessageText.Clean(QuarantineNameChecks.QuarantineOf(row))));
 
         roots = reachable;
         return write.Closed(row, gate);

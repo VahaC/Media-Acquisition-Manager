@@ -18,7 +18,7 @@ namespace MediaAcquisitionManager.Core.Abstractions.Metadata;
 /// <para>
 /// All methods return result types and never throw on expected failures (unreachable, refused,
 /// unexpected answer, a work the source doesn't know); only a cancellation by the caller propagates, as
-/// <see cref="OperationCanceledException"/>. Every message is one readable English sentence with the
+/// <see cref="OperationCanceledException"/>. Every message is a <c>Message</c> the Api renders (ADR 0042), with the
 /// call's secrets already masked. A caller's mistake — an episode, a malformed id — throws before
 /// anything is sent.
 /// </para>

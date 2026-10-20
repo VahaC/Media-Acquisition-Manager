@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +25,7 @@ public static partial class ReplacementJobUpdates
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(copy => copy.PairedNewFileId, (Guid?)null)
-                    .SetProperty(copy => copy.Problem, (string?)null)
+                    .SetProperty(copy => copy.Problem, (Message?)null)
                     .SetProperty(copy => copy.OnlyDropSettles, false),
                 CancellationToken.None);
     }

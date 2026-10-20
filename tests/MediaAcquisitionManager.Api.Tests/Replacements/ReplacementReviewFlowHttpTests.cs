@@ -11,6 +11,7 @@ using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -225,7 +226,7 @@ public sealed class ReplacementReviewFlowHttpTests : IClassFixture<MediaAcquisit
         Assert.Equal((ReplacementJobState.Downloaded, (string?)null, replacement.Id), (line.State, line.Reason, line.Id));
         Assert.Equal(
             (ReplacementJobState.Downloaded, (string?)null, retriedUtc, (DateTime?)null),
-            (retried.State, retried.Reason, retried.StateChangedUtc, retried.QuarantineCheckedUtc));
+            (retried.State, TestTexts.En(retried.Reason), retried.StateChangedUtc, retried.QuarantineCheckedUtc));
         Assert.Empty(newFilesAfterRetry);
 
         // The next pass checks again from the files and asks Jellyfin to look again, later than the first time: the hour
@@ -236,9 +237,9 @@ public sealed class ReplacementReviewFlowHttpTests : IClassFixture<MediaAcquisit
         Assert.True(checking.LibraryAskedUtc > firstAskedUtc);
 
         // Jellyfin's ids decide: the new file is Alien, paired with the old copy, and the job verified.
-        Assert.Equal((ReplacementJobState.Verified, (string?)null), (verified.State, verified.Reason));
+        Assert.Equal((ReplacementJobState.Verified, (string?)null), (verified.State, TestTexts.En(verified.Reason)));
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Equal([(0, false, MediaIdentifierScheme.Imdb, AlienImdbId)], await _harness.NewFileIdentifiersAsync(cancellationToken));
 
         // The mover's next pass moves the old copy; the job's page shows it in the quarantine, paired with its new file.
@@ -297,7 +298,7 @@ public sealed class ReplacementReviewFlowHttpTests : IClassFixture<MediaAcquisit
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         // Waited on anew for the whole hour from the second request, then stopped with the same reason — and Retry offered
         // again, as a fix in Jellyfin may still settle it.
-        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, beforeTheHour.Reason));
+        Assert.Equal((ReplacementJobState.Inspecting, (string?)null), (beforeTheHour.State, TestTexts.En(beforeTheHour.Reason)));
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)NoIdReason, (ReplacementStop?)ReplacementStop.Check, true),
             (again.State, again.Reason, again.Stop, again.CanRetry));
@@ -383,11 +384,11 @@ public sealed class ReplacementReviewFlowHttpTests : IClassFixture<MediaAcquisit
 
         // Retry: the other episode checked again and verified; the new episode 1 is the show's, simply added.
         Assert.Equal(HttpStatusCode.OK, retryResponse.StatusCode);
-        Assert.Equal((ReplacementJobState.Verified, (string?)null), (verified.State, verified.Reason));
+        Assert.Equal((ReplacementJobState.Verified, (string?)null), (verified.State, TestTexts.En(verified.Reason)));
         var newFiles = await _harness.NewFilesAsync(cancellationToken);
         Assert.Equal(
             [((string?)NewPathOf(1), (Guid?)_yellowstone.Id, (string?)null), (NewPathOf(2), _yellowstone.Id, null)],
-            newFiles.Select(file => (file.AppPath, file.MediaWorkId, file.Problem)));
+            newFiles.Select(file => (file.AppPath, file.MediaWorkId, TestTexts.En(file.Problem))));
 
         // The move: episode 2 alone, into the quarantine; episode 1 stays where it is with its identity, its last problem
         // kept as history, never planned.
@@ -475,7 +476,7 @@ public sealed class ReplacementReviewFlowHttpTests : IClassFixture<MediaAcquisit
 
         // The drop leaves the stop as it was until the owner's Retry, which puts the job back in the mover's queue.
         Assert.Equal(HttpStatusCode.OK, dropResponse.StatusCode);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)EpisodeTwoHeldReason), (afterDrop.State, afterDrop.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)EpisodeTwoHeldReason), (afterDrop.State, TestTexts.En(afterDrop.Reason)));
         Assert.Equal(HttpStatusCode.OK, retryResponse.StatusCode);
         var retried = (await retryResponse.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!.Replacement!;
         Assert.Equal((ReplacementJobState.Verified, (string?)null), (retried.State, retried.Reason));
@@ -577,8 +578,8 @@ public sealed class ReplacementReviewFlowHttpTests : IClassFixture<MediaAcquisit
         _factory.Time.Advance(ReplacementVerificationRules.LibraryWait);
         await _harness.VerifyAsync(cancellationToken);
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        if (replacement is not { State: ReplacementJobState.NeedsReview, Reason: NoIdReason })
-            throw new InvalidOperationException($"The replacement is {replacement.State}, not stopped for the missing id: {replacement.Reason}");
+        if (replacement is not { State: ReplacementJobState.NeedsReview } || TestTexts.En(replacement.Reason) != NoIdReason)
+            throw new InvalidOperationException($"The replacement is {replacement.State}, not stopped for the missing id: {TestTexts.En(replacement.Reason)}");
         return replacement;
     }
 

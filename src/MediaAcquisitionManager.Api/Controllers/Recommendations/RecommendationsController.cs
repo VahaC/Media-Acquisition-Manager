@@ -49,7 +49,7 @@ public class RecommendationsController(
         return result.Status switch
         {
             RecommendationListStatus.Listed => Ok(result.List),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -64,7 +64,7 @@ public class RecommendationsController(
         return result.Status switch
         {
             RecommendationDismissalStatus.Done => NoContent(),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -76,7 +76,7 @@ public class RecommendationsController(
         return result.Status switch
         {
             RecommendationDismissalStatus.Done => NoContent(),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -98,7 +98,7 @@ public class RecommendationsController(
             case RecommendationPosterStatus.NotFound:
                 return NotFound();
             default:
-                return this.BadGatewayError(result.Error);
+                return this.BadGatewayError(result.Error!);
         }
     }
 
@@ -117,10 +117,10 @@ public class RecommendationsController(
         {
             RecommendationOverviewStatus.Found => Ok(result.Overview),
             RecommendationOverviewStatus.NotFound => NotFound(),
-            RecommendationOverviewStatus.Invalid => this.BadRequestError(result.Error),
+            RecommendationOverviewStatus.Invalid => this.BadRequestError(result.Error!),
             // Nothing to ask: a state the owner changes under Integrations, not a bad request.
-            RecommendationOverviewStatus.NoCatalog => this.ConflictError(result.Error),
-            _ => this.BadGatewayError(result.Error),
+            RecommendationOverviewStatus.NoCatalog => this.ConflictError(result.Error!),
+            _ => this.BadGatewayError(result.Error!),
         };
     }
 
@@ -142,8 +142,8 @@ public class RecommendationsController(
             // route values behind an empty body.
             RecommendationRunStartStatus.Queued => AcceptedAtAction(nameof(LatestRun), routeValues: null, value: result.Run),
             // Nothing to compute from: a state the owner changes under Integrations, not a bad request.
-            RecommendationRunStartStatus.NoCatalog => this.ConflictError(result.Error),
-            _ => this.UnavailableError(result.Error),
+            RecommendationRunStartStatus.NoCatalog => this.ConflictError(result.Error!),
+            _ => this.UnavailableError(result.Error!),
         };
     }
 }

@@ -9,6 +9,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -717,7 +718,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
         //Assert
         // Never the movie with its first part only: a sync would take that for the whole movie.
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -742,7 +743,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The service at this address listed a movie in several parts under an id Jellyfin never gives, so the app won't ask for its other parts. Check the address.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Null(result.Value);
         // The page and nothing else: the key went to no other path.
         Assert.Equal([$"{BaseUrl}/Items"], _harness.JellyfinHttp.Requests.Select(request => request.Uri.GetLeftPart(UriPartial.Path)));
@@ -796,7 +797,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -814,8 +815,8 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to https://media.test/***/web/index.html. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Error);
-        Assert.DoesNotContain(ApiKey, result.Error!, StringComparison.Ordinal);
+            TestTexts.En(result.Error));
+        Assert.DoesNotContain(ApiKey, TestTexts.En(result.Error!), StringComparison.Ordinal);
         // Never followed: the key went nowhere but the address the owner entered.
         Assert.Single(_harness.JellyfinHttp.Requests);
     }
@@ -835,7 +836,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
         //Assert
         // The connection test's sentences, from one source.
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -851,7 +852,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
-        Assert.Equal("Jellyfin at http://jellyfin.test:8096 didn't answer within 0.1 seconds.", result.Error);
+        Assert.Equal("Jellyfin at http://jellyfin.test:8096 didn't answer within 0.1 seconds.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -900,7 +901,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotJellyfinError, result.Error);
+        Assert.Equal(NotJellyfinError, TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -921,7 +922,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(MovieWithoutIdError, result.Error);
+        Assert.Equal(MovieWithoutIdError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -935,7 +936,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(MovieWithoutIdError, result.Error);
+        Assert.Equal(MovieWithoutIdError, TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -956,7 +957,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             $"Jellyfin listed an item of type “{expectedType}” when asked for movies only, so the app can't rely on the list. Check the address.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Theory]

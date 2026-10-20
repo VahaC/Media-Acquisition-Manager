@@ -1,8 +1,8 @@
 using MediaAcquisitionManager.Api.Services.Catalog;
-using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,9 +41,8 @@ public sealed partial class LibraryLinkSuggestionRunner(
     /// </summary>
     public const int CandidatesPerWork = 10;
 
-    /// <summary>The sentence a run gets when its metadata catalog is removed while it searches.</summary>
-    internal const string CatalogRemovedError =
-        "The metadata catalog was removed while the TMDb suggestions were prepared. The works searched so far are kept.";
+    /// <summary>Why a run failed when its metadata catalog is removed while it searches.</summary>
+    internal static readonly Message CatalogRemovedError = Message.Of("library-links.suggestions.catalog-removed");
 
     public async Task RunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
@@ -72,6 +71,7 @@ public sealed partial class LibraryLinkSuggestionRunner(
         var connected = await catalogs.ConnectAsync(cancellationToken);
         if (connected.Connection is not { } catalog)
         {
+            // No secret was read: the connector's messages name the catalog's integration only, so nothing is masked.
             await FailAsync(runId, connected.Status.ToString(), connected.Error!, settings: null);
             return;
         }
@@ -127,13 +127,13 @@ public sealed partial class LibraryLinkSuggestionRunner(
     }
 
     /// <summary>
-    /// Ends the run as failed with <paramref name="error"/>, masked again with the call's secrets — a second pass after
-    /// the adapter's own (the MAM-7 rule) — and cut to its column. Logged as a Warning with <paramref name="status"/>
-    /// only, never the sentence, which can carry the address.
+    /// Ends the run as failed with <paramref name="error"/>, its values masked again with the call's secrets — a second
+    /// pass after the adapter's own (the MAM-7 rule). Logged as a Warning with <paramref name="status"/> only, never the
+    /// message, which can carry the address.
     /// </summary>
-    private async Task FailAsync(Guid runId, string status, string error, IntegrationConnectionSettings? settings)
+    private async Task FailAsync(Guid runId, string status, Message error, IntegrationConnectionSettings? settings)
     {
-        var masked = settings is null ? error : SecretRedaction.Redact(error, settings.Secrets)!;
+        var masked = settings is null ? error : error.Redacted(settings.Secrets);
         await db.LibraryLinkSuggestionRuns
             .Where(run => run.Id == runId && run.Status == LibraryLinkSuggestionRunStatus.Running)
             .MarkFailedAsync(masked, time.GetUtcNow().UtcDateTime);
@@ -174,8 +174,8 @@ public sealed partial class LibraryLinkSuggestionRunner(
         public Dictionary<(MediaWorkKind Kind, string Query, int? Year), IReadOnlyList<CatalogWorkSummary>> Answers { get; } = [];
     }
 
-    /// <summary>A catalog call's failure: its status and its sentence, already masked by the adapter.</summary>
-    private sealed record Failure(IntegrationCallStatus Status, string Error)
+    /// <summary>A catalog call's failure: its status and why, already masked by the adapter.</summary>
+    private sealed record Failure(IntegrationCallStatus Status, Message Error)
     {
         public static Failure Of<T>(IntegrationCallResult<T> result) where T : class => new(result.Status, result.Error!);
     }

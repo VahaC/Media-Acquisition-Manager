@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Http;
 using MediaAcquisitionManager.Api.Services.Destinations;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,7 +29,7 @@ namespace MediaAcquisitionManager.Api.Controllers.Settings;
 public class DestinationsController(IDestinationService destinations) : ControllerBase
 {
     /// <summary>MAM-30 — a <c>destinationId</c> that isn't an id the app gives.</summary>
-    private const string EditedDestinationInvalidError = "The destination being edited isn't a valid id. Reload the page and open it again.";
+    private static readonly Message EditedDestinationInvalidError = Message.Of("destinations.edited-invalid");
 
     private Guid UserId => User.GetUserId();
 
@@ -39,7 +40,7 @@ public class DestinationsController(IDestinationService destinations) : Controll
         return result.Status switch
         {
             DestinationListStatus.Listed => Ok(result.List),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 
@@ -110,14 +111,14 @@ public class DestinationsController(IDestinationService destinations) : Controll
     {
         // The addressed destination: the same bare 404 as every missing row.
         DestinationChangeStatus.NotFound => NotFound(),
-        DestinationChangeStatus.Invalid => this.BadRequestError(result.Error),
+        DestinationChangeStatus.Invalid => this.BadRequestError(result.Error!),
         // A client id in the body, not the addressed row, so the owner gets the sentence; (MAM-32) a
         // section's source id too.
-        DestinationChangeStatus.DownloadClientMissing or DestinationChangeStatus.SourceMissing => this.NotFoundError(result.Error),
+        DestinationChangeStatus.DownloadClientMissing or DestinationChangeStatus.SourceMissing => this.NotFoundError(result.Error!),
         // Asked, and it couldn't answer: the client's failure, in its own sentence.
-        DestinationChangeStatus.ClientFailed => this.BadGatewayError(result.Error),
+        DestinationChangeStatus.ClientFailed => this.BadGatewayError(result.Error!),
         // The name is taken, the client can't be asked (switched off, a type this build can't use, a
         // secret it can't read), or it has no such category.
-        _ => this.ConflictError(result.Error),
+        _ => this.ConflictError(result.Error!),
     };
 }

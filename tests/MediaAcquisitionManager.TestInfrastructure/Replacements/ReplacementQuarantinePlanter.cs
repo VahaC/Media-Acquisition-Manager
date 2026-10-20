@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
@@ -42,7 +43,7 @@ public sealed class ReplacementQuarantinePlanter(MediaAcquisitionManagerApiFacto
         ReplacementJobState state,
         IReadOnlyList<PlantedName> names,
         DateTime? quarantineCheckedUtc = null,
-        string? reason = null,
+        Message? reason = null,
         Guid? requestedByUserId = null,
         IReadOnlyList<PlantedCopy>? copies = null,
         IReadOnlyList<ReplacementNewFileFacts>? newFiles = null,

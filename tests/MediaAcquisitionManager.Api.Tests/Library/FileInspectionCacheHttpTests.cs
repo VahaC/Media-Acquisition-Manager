@@ -4,12 +4,14 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -206,7 +208,7 @@ public sealed class FileInspectionCacheHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal((FileInspectionRunStatus.Succeeded, 1, 1, 0), (run.Status, run.FilesTotal, run.FilesChecked, run.FilesProbed));
         Assert.Equal([TakenPath], _factory.Files.ReadPaths);
         var reading = Assert.Single(await ReadingsAsync(cancellationToken));
-        Assert.Equal((MediaUnreadableError, readUtc), (reading.Error, reading.CreatedUtc));
+        Assert.Equal((MediaUnreadableError, readUtc), (TestTexts.En(reading.Error), reading.CreatedUtc));
         // The cached sentence is the file's again.
         Assert.Equal(
             new FileState(FileInspectionStatus.MediaUnreadable, MediaUnreadableError, lookedUtc, reading.Id, TestMedia.DeviceId, TakenInode, 1),
@@ -322,7 +324,7 @@ public sealed class FileInspectionCacheHttpTests : IClassFixture<MediaAcquisitio
             _factory.Files.AddFile(
                 path,
                 TestMedia.File(TakenInode + index),
-                read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.InspectorUnavailable, null, InspectorUnavailableError));
+                read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.InspectorUnavailable, null, Message.Legacy(InspectorUnavailableError)));
         }
 
         var unavailable = await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
@@ -357,7 +359,7 @@ public sealed class FileInspectionCacheHttpTests : IClassFixture<MediaAcquisitio
         _factory.Files.AddFile(
             TakenPath,
             facts,
-            read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.ChangedWhileReading, null, ChangedWhileReadingError));
+            read: new FileInventoryResult<MediaInspection>(FileInventoryStatus.ChangedWhileReading, null, Message.Legacy(ChangedWhileReadingError)));
         var changing = await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
         var changingState = (await FileStatesAsync(cancellationToken))[taken.Id];
         // Written, and still since.
@@ -557,7 +559,7 @@ public sealed class FileInspectionCacheHttpTests : IClassFixture<MediaAcquisitio
         var download = await PlantFileAsync(TakenLinkPath);
         var looked = TestMedia.File(TakenInode, TakenSizeBytes, linkCount: 2);
         var error = status == FileInventoryStatus.ChangedWhileReading ? ChangedWhileReadingError : NotFoundError;
-        var read = new FileInventoryResult<MediaInspection>(status, null, error);
+        var read = new FileInventoryResult<MediaInspection>(status, null, Message.Legacy(error));
         _factory.Files.AddFile(TakenPath, looked, read: read);
         _factory.Files.AddFile(TakenLinkPath, looked, read: read);
         var now = Now();
@@ -630,7 +632,7 @@ public sealed class FileInspectionCacheHttpTests : IClassFixture<MediaAcquisitio
         FileInspectionStatus? Status, string? Error, DateTime? InspectedUtc, Guid? MediaInspectionId, long? DeviceId, long? Inode, int? LinkCount)
     {
         public static FileState Of(PhysicalFileEntity file) =>
-            new(file.InspectionStatus, file.InspectionError, file.InspectedUtc, file.MediaInspectionId, file.DeviceId, file.Inode, file.LinkCount);
+            new(file.InspectionStatus, TestTexts.En(file.InspectionError), file.InspectedUtc, file.MediaInspectionId, file.DeviceId, file.Inode, file.LinkCount);
     }
 
     /// <summary>A reading's cache key, the modification time in ticks so a lost tick shows.</summary>

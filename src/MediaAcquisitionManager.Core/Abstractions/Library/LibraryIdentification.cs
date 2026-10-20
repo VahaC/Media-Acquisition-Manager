@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Media;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Abstractions.Library;
 
@@ -14,7 +15,7 @@ namespace MediaAcquisitionManager.Core.Abstractions.Library;
 /// <param name="IdsAfter">The same ids read again after Apply; equal to <paramref name="IdsBefore"/> when nothing was
 /// sent; when Apply was sent and the read again never came, the ids the identification meant to leave (the chosen
 /// result's, in the same schemes): the audit row records what may have landed.</param>
-/// <param name="Sentence">One readable sentence with the call's secrets masked, for every outcome but
+/// <param name="Sentence">Why, as a message the Api renders (ADR 0042), with the call's secrets masked, for every outcome but
 /// <see cref="LibraryIdentifyOutcome.Identified"/> and <see cref="LibraryIdentifyOutcome.AlreadyIdentified"/> (<c>null</c>
 /// there): what the app stores as the link's error.</param>
 public sealed record LibraryIdentification(
@@ -23,4 +24,4 @@ public sealed record LibraryIdentification(
     bool Sent,
     IReadOnlyList<MediaIdentifier> IdsBefore,
     IReadOnlyList<MediaIdentifier> IdsAfter,
-    string? Sentence);
+    Message? Sentence);

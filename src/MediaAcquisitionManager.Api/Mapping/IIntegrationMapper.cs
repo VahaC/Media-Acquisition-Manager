@@ -24,6 +24,6 @@ public interface IIntegrationMapper
     /// when it is a metadata catalog (<paramref name="catalogLanguages"/>).</summary>
     IntegrationAdapterTypeDto ToDto(IntegrationAdapterDescriptor adapter, DownloadDestinationKind? destinationKind, IReadOnlyList<string>? catalogLanguages);
 
-    /// <summary>A connection test's outcome, its message already masked.</summary>
+    /// <summary>A connection test's outcome, its message already masked and written in the request's language.</summary>
     ConnectionTestResponse ToResponse(ConnectionTestResult result);
 }

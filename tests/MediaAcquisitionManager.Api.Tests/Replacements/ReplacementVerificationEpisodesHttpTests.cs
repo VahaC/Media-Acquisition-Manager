@@ -7,6 +7,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
 
@@ -128,7 +129,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
                 (2, NewPathOf(3), LibraryFileKind.Episode, _seriesItemId, 2, 3, null, true, _yellowstone.Id, null),
             ],
             newFiles.Select(file => (file.Position, file.AppPath, file.Kind, file.SeriesItemId, file.SeasonNumber, file.EpisodeNumber,
-                file.EpisodeNumberEnd, file.Refreshed, file.MediaWorkId, file.Problem)));
+                file.EpisodeNumberEnd, file.Refreshed, file.MediaWorkId, TestTexts.En(file.Problem))));
         Assert.All(newFiles, file => Assert.Equal(((long?)NewSize, (long?)ContinentalMilliseconds), (file.SizeBytes, file.DurationMilliseconds)));
         // ADR 0003 — each in the app by qBittorrent's mapping, and in Jellyfin by the folder Jellyfin reported.
         Assert.Equal(
@@ -152,7 +153,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
                 (OldPathOf(1), (Guid?)newFiles[0].Id, (int?)null, (long?)ContinentalMilliseconds, (string?)null),
                 (OldPathOf(2), newFiles[1].Id, null, ContinentalMilliseconds, null),
             ],
-            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.AppPath, copy.PairedNewFileId, copy.EpisodeNumberEnd, copy.DurationMilliseconds, copy.Problem)));
+            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.AppPath, copy.PairedNewFileId, copy.EpisodeNumberEnd, copy.DurationMilliseconds, TestTexts.En(copy.Problem))));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementVerified, replacement.Id)],
             await _harness.CheckAuditsAsync(cancellationToken));
@@ -188,7 +189,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id, CanCancel = true }, await _harness.LineAsync(job.Id, cancellationToken));
         Assert.Equal(
             [((int?)null, (Guid?)_yellowstone.Id, (string?)null), (4, _yellowstone.Id, null)],
-            (await _harness.NewFilesAsync(cancellationToken)).Select(file => (file.EpisodeNumberEnd, file.MediaWorkId, file.Problem)));
+            (await _harness.NewFilesAsync(cancellationToken)).Select(file => (file.EpisodeNumberEnd, file.MediaWorkId, TestTexts.En(file.Problem))));
     }
 
     [Fact]
@@ -221,7 +222,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         // ticked episode paired, every other one simply added.
         var newFiles = await _harness.NewFilesAsync(cancellationToken);
         Assert.Equal(count, newFiles.Count);
-        Assert.All(newFiles, file => Assert.Equal((true, (Guid?)_yellowstone.Id, (string?)null), (file.Refreshed, file.MediaWorkId, file.Problem)));
+        Assert.All(newFiles, file => Assert.Equal((true, (Guid?)_yellowstone.Id, (string?)null), (file.Refreshed, file.MediaWorkId, TestTexts.En(file.Problem))));
         Assert.Equal(((Guid?)newFiles[0].Id, (string?)null), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
@@ -256,7 +257,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         var newFiles = await _harness.NewFilesAsync(cancellationToken);
         Assert.Equal(
             [((int?)1, (int?)null, (Guid?)_yellowstone.Id, (string?)null), (2, numberEnd, _yellowstone.Id, null)],
-            newFiles.Select(file => (file.EpisodeNumber, file.EpisodeNumberEnd, file.MediaWorkId, file.Problem)));
+            newFiles.Select(file => (file.EpisodeNumber, file.EpisodeNumberEnd, file.MediaWorkId, TestTexts.En(file.Problem))));
         // Episode 1 had paired before the stop; episode 2 says why it can't.
         Assert.Equal(
             [((Guid?)newFiles[0].Id, (string?)null), (null, reason)],
@@ -284,7 +285,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         Assert.Equal(((Guid?)_yellowstone.Id, (string?)null), NewFileOutcome(Assert.Single(await _harness.NewFilesAsync(cancellationToken))));
         // The copy keeps Jellyfin's end number of it beside why it stopped.
         var copy = Assert.Single(await _harness.CopiesAsync(cancellationToken));
-        Assert.Equal(((int?)3, (Guid?)null, (string?)OldTwoEpisodesReason), (copy.EpisodeNumberEnd, copy.PairedNewFileId, copy.Problem));
+        Assert.Equal(((int?)3, (Guid?)null, (string?)OldTwoEpisodesReason), (copy.EpisodeNumberEnd, copy.PairedNewFileId, TestTexts.En(copy.Problem)));
     }
 
     [Fact]
@@ -379,7 +380,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(
             ((LibraryFileKind?)LibraryFileKind.Movie, (string?)null, (Guid?)null, (string?)MadeFilmReason),
-            (newFile.Kind, newFile.SeriesItemId, newFile.MediaWorkId, newFile.Problem));
+            (newFile.Kind, newFile.SeriesItemId, newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Equal([(0, false, MediaIdentifierScheme.Imdb, YellowstoneImdbId)], await _harness.NewFileIdentifiersAsync(cancellationToken));
         // The copy waits on the file, unpaired, with no problem of its own.
         Assert.Equal(((Guid?)null, (string?)null), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
@@ -452,7 +453,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         //Assert
         await AssertNeedsReviewAsync(job, 1, ConflictingSeriesReason, 0, cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
-        Assert.Equal(((string?)otherSeriesId, (Guid?)null, (string?)ConflictingSeriesReason), (newFile.SeriesItemId, newFile.MediaWorkId, newFile.Problem));
+        Assert.Equal(((string?)otherSeriesId, (Guid?)null, (string?)ConflictingSeriesReason), (newFile.SeriesItemId, newFile.MediaWorkId, TestTexts.En(newFile.Problem)));
         Assert.Equal(
             [(0, true, MediaIdentifierScheme.Imdb, YellowstoneImdbId), (0, true, MediaIdentifierScheme.TmdbTv, OtherTmdbTvId)],
             await _harness.NewFileIdentifiersAsync(cancellationToken));
@@ -530,7 +531,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
             },
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)reason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)reason), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Equal(
             [Audited(AuditAction.ReplacementCheckStarted, replacement.Id), Audited(AuditAction.ReplacementNeedsReview, replacement.Id)],
             await _harness.CheckAuditsAsync(cancellationToken));
@@ -542,7 +543,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
     private static (AuditAction, Guid?, AuditTargetKind?, Guid?, string?) Audited(AuditAction action, Guid replacementJobId) =>
         (action, null, AuditTargetKind.ReplacementJob, replacementJobId, Release);
 
-    private static (Guid? MediaWorkId, string? Problem) NewFileOutcome(ReplacementJobNewFileEntity file) => (file.MediaWorkId, file.Problem);
+    private static (Guid? MediaWorkId, string? Problem) NewFileOutcome(ReplacementJobNewFileEntity file) => (file.MediaWorkId, TestTexts.En(file.Problem));
 
-    private static (Guid? PairedNewFileId, string? Problem) CopyOutcome(ReplacementJobFileEntity copy) => (copy.PairedNewFileId, copy.Problem);
+    private static (Guid? PairedNewFileId, string? Problem) CopyOutcome(ReplacementJobFileEntity copy) => (copy.PairedNewFileId, TestTexts.En(copy.Problem));
 }

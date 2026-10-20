@@ -1,0 +1,366 @@
+{
+  "request": {
+    "holdings-invalid": "Say true or false for whether the download clients' torrents are read.",
+    "files-missing": "Tick at least one copy to replace.",
+    "file-ticked-twice": "One copy is ticked twice. Tick each copy once.",
+    "too-many-files_one": "One download can replace at most {{count, number}} copy. Tick fewer, or send the rest with another release.",
+    "too-many-files_other": "One download can replace at most {{count, number}} copies. Tick fewer, or send the rest with another release."
+  },
+  "completeness": {
+    "job-gone": "“{{client}}” no longer has this download, so the app can't confirm its files are complete.",
+    "job-errored": "“{{client}}” reports an error for this download, so the app can't confirm its files are complete.",
+    "job-state-unknown": "“{{client}}” reports this download in a state the app doesn't know, such as moving its files, so its files can't be checked.",
+    "job-outside-save-folder": "“{{client}}” still keeps this download's files outside its save folder, so they can't be checked where they will stay.",
+    "job-unfinished": "“{{client}}” doesn't report this download as finished, so its files can't be checked.",
+    "files-unlisted": "“{{client}}” hasn't listed this download's files, so they can't be checked.",
+    "file-wanted-unknown": "“{{client}}” doesn't say whether it downloads “{{file}}”, so the app can't confirm the file is complete.",
+    "file-progress-unknown": "“{{client}}” doesn't say how much of “{{file}}” it has downloaded, so the app can't confirm the file is complete.",
+    "file-unfinished": "“{{client}}” hasn't finished “{{file}}” ({{percent, number}} % done).",
+    "no-video-file": "The download holds no video file that “{{client}}” downloads, so nothing can replace the old copies."
+  },
+  "readability": {
+    "unread": "The app couldn't read “{{path}}”.",
+    "identity-unknown": "The app can't read the identity of “{{path}}” on this platform, so it can't tell the new file from the old copies.",
+    "empty": "“{{path}}” is empty.",
+    "no-video": "“{{path}}” has no video stream.",
+    "no-running-time": "The media inspector found no running time in “{{path}}”.",
+    "size-differs": "“{{path}}” is {{size, message}} on the disk, not the {{downloaded, message}} “{{client}}” downloaded, so it may be another file.",
+    "old-copy-itself": "The new file “{{path}}” is the old copy itself.",
+    "tally": {
+      "bytes_one": "{{count, number:grouped}} byte",
+      "bytes_other": "{{count, number:grouped}} bytes"
+    }
+  },
+  "pairing": {
+    "new-not-listed": "“{{library}}” didn't list “{{path}}” within an hour of being asked to look.",
+    "new-not-refreshed": "“{{library}}” hadn't finished reading “{{path}}” within an hour.",
+    "old-not-listed": "“{{library}}” no longer lists the old copy “{{path}}”, so its episode numbers can't be read.",
+    "old-not-refreshed": "“{{library}}” hadn't finished reading the old copy “{{path}}” within an hour, so its episode numbers can't be read.",
+    "film-without-id": "“{{library}}” gave “{{path}}” no TMDb or IMDb id within an hour, so it can't be told to be {{works, list:or:name}}.",
+    "episode-without-series": "“{{library}}” gave “{{path}}” no series with a TMDb, TVDB or IMDb id within an hour, so it can't be told to be an episode of {{works, list:or:name}}.",
+    "old-episode-without-series": "“{{library}}” gave the old copy “{{path}}” no series with a TMDb, TVDB or IMDb id within an hour, so it can't be told to be an episode of {{works, list:or:name}}.",
+    "not-numbered": "“{{library}}” gave “{{path}}” no season and episode number within an hour, so it can't be paired with an old copy.",
+    "other-schemes-film": "“{{library}}” gave “{{path}}” {{ids, list:and}} within an hour, but {{known, list:and:message}}.",
+    "other-schemes-series": "“{{library}}” gave the series of “{{path}}” {{ids, list:and}} within an hour, but {{known, list:and:message}}.",
+    "other-schemes-old-series": "“{{library}}” gave the series of the old copy “{{path}}” {{ids, list:and}} within an hour, but {{known, list:and:message}}.",
+    "known-only-by-clause": "{{work, name}} is known here only by {{ids, list:and}}",
+    "made-film": "“{{library}}” made “{{path}}” a film, while the old copies are episodes of {{works, list:and:name}}.",
+    "made-film-of-series": "“{{library}}” made “{{path}}” a film, while the old copies are episodes of {{work, name}}.",
+    "made-episode-of-film": "“{{library}}” made “{{path}}” an episode, while the old copies are of the film {{work, name}}.",
+    "made-episode-of-films": "“{{library}}” made “{{path}}” an episode, while the old copies are of the films {{works, list:and:name}}.",
+    "several-works-two": "“{{library}}”'s ids for “{{path}}” fit both {{first, name}} and {{second, name}}, so the app can't tell which work it is.",
+    "several-works": "“{{library}}”'s ids for “{{path}}” fit {{works, list:and:name}}, so the app can't tell which work it is.",
+    "conflicting-film": "“{{library}}” gave “{{path}}” conflicting ids: {{shared}} is {{work, name}}'s, {{differing}} is not.",
+    "conflicting-series": "“{{library}}” gave the series of “{{path}}” conflicting ids: {{shared}} is {{work, name}}'s, {{differing}} is not.",
+    "conflicting-old-series": "“{{library}}” gave the series of the old copy “{{path}}” conflicting ids: {{shared}} is {{work, name}}'s, {{differing}} is not.",
+    "another-work": "“{{library}}” identified “{{path}}” as another work ({{ids, list:comma}}), not {{works, list:or:name}}.",
+    "another-series": "“{{library}}” placed “{{path}}” in another series ({{ids, list:comma}}), not {{works, list:or:name}}.",
+    "another-series-old": "“{{library}}” placed the old copy “{{path}}” in another series ({{ids, list:comma}}), not {{works, list:or:name}}.",
+    "no-id-to-compare": {
+      "film": {
+        "work-id": "“{{library}}” gave “{{path}}” {{id}}, but {{work, name}} has no TMDb or IMDb id here to compare it with.",
+        "work-ids": "“{{library}}” gave “{{path}}” {{ids, list:and}}, but {{work, name}} has no TMDb or IMDb id here to compare them with.",
+        "works-id": "“{{library}}” gave “{{path}}” {{id}}, but {{works, list:and:name}} have no TMDb or IMDb id here to compare it with.",
+        "works-ids": "“{{library}}” gave “{{path}}” {{ids, list:and}}, but {{works, list:and:name}} have no TMDb or IMDb id here to compare them with."
+      },
+      "series": {
+        "work-id": "“{{library}}” gave the series of “{{path}}” {{id}}, but {{work, name}} has no TMDb, TVDB or IMDb id here to compare it with.",
+        "work-ids": "“{{library}}” gave the series of “{{path}}” {{ids, list:and}}, but {{work, name}} has no TMDb, TVDB or IMDb id here to compare them with.",
+        "works-id": "“{{library}}” gave the series of “{{path}}” {{id}}, but {{works, list:and:name}} have no TMDb, TVDB or IMDb id here to compare it with.",
+        "works-ids": "“{{library}}” gave the series of “{{path}}” {{ids, list:and}}, but {{works, list:and:name}} have no TMDb, TVDB or IMDb id here to compare them with."
+      },
+      "old-series": {
+        "work-id": "“{{library}}” gave the series of the old copy “{{path}}” {{id}}, but {{work, name}} has no TMDb, TVDB or IMDb id here to compare it with.",
+        "work-ids": "“{{library}}” gave the series of the old copy “{{path}}” {{ids, list:and}}, but {{work, name}} has no TMDb, TVDB or IMDb id here to compare them with."
+      }
+    },
+    "old-not-numbered": "“{{library}}” gave the old copy “{{path}}” no season and episode number, so the app can't tell which new file replaces it.",
+    "old-half": "“{{path}}” is one half of an episode (its name gives the episode the letter “{{letter}}”), so it can't be replaced on its own.",
+    "old-covers-several": "“{{path}}” covers episodes {{first}}–{{last}} of season {{season}}, so one new episode can't replace it.",
+    "old-listed-as-film": "“{{library}}” lists the old copy “{{path}}” as a film, while its new file would be an episode, so the two can't be paired.",
+    "old-listed-as-no-episode": "“{{library}}” lists the old copy “{{path}}” as neither a film nor an episode, so no new episode can replace it.",
+    "old-renumbered": "“{{library}}” now numbers the old copy “{{path}}” season {{nowSeason}}, episode {{nowEpisode}}, not season {{season}}, episode {{episode}} as when it was scheduled.",
+    "old-unnumbered": "“{{library}}” now gives the old copy “{{path}}” no season and episode number, not season {{season}}, episode {{episode}} as when it was scheduled.",
+    "new-covers-several": "“{{path}}” covers episodes {{first}}–{{last}} of season {{season}}, so it can't replace “{{oldPath}}” alone.",
+    "new-half": "“{{path}}” is one half of an episode (its name gives the episode the letter “{{letter}}”), so it can't replace “{{oldPath}}” on its own.",
+    "no-new-file-film": "No new file is {{work, name}}, so “{{path}}” has nothing to replace it.",
+    "no-new-file-episode": "No new file is {{series, name}}, season {{season}}, episode {{episode}}, so “{{path}}” has nothing to replace it.",
+    "new-files-film_one": "{{count, number:word}} new file is {{work, name}}: {{paths, list:and:quoted}}; the app can't tell which one replaces the old copy.",
+    "new-files-film_other": "{{count, number:word}} new files are {{work, name}}: {{paths, list:and:quoted}}; the app can't tell which one replaces the old copy.",
+    "new-files-episode_one": "{{count, number:word}} new file is {{series, name}}, season {{season}}, episode {{episode}}: {{paths, list:and:quoted}}; the app can't tell which one replaces the old copy.",
+    "new-files-episode_other": "{{count, number:word}} new files are {{series, name}}, season {{season}}, episode {{episode}}: {{paths, list:and:quoted}}; the app can't tell which one replaces the old copy.",
+    "other-edition": "“{{path}}” claims {{claimed, list:and:message}}, while the release claimed {{release, list:and:message}}.",
+    "other-edition-release-none": "“{{path}}” claims {{claimed, list:and:message}}, while the release claimed none.",
+    "too-short": "“{{path}}” runs {{new, duration}}, less than three quarters of the old copy's {{old, duration}}.",
+    "work": {
+      "untitled": "a work with no title",
+      "untitled-year": "a work with no title ({{year}})"
+    }
+  },
+  "delete-for-good": {
+    "unreadable-body": "The body must be JSON with the files you confirmed, such as { \"names\": [\"<id>\"] }.",
+    "nothing": "This replacement holds nothing in the quarantine to delete.",
+    "names-missing": "Deleting the old copies permanently needs the files you confirmed.",
+    "names-changed": "What this replacement holds in the quarantine changed since you opened it. Press Delete again to see what it holds now.",
+    "switched-off": "Replacement is switched off on the Media folders page, so nothing can be deleted. Switch it on, then press Delete again.",
+    "unsupported": "The app can't write to the media folders on the platform it runs on, so nothing was deleted."
+  },
+  "job": {
+    "busy": "This replacement is being worked on right now. Try again in a moment.",
+    "changed-meanwhile": "This replacement changed while the app was working on it, so it stopped. Reload the page to see where it stands.",
+    "switched-off-midway": "Replacement was switched off on the Media folders page."
+  },
+  "retry": {
+    "not-waiting": "This replacement isn't waiting for review, so there's nothing to retry here.",
+    "download-not-followed": "The app can't follow this replacement's download, so its new file can't be checked again: keep both copies, or cancel the job.",
+    "drop-only": "“{{file}}” can only be dropped from this replacement, or both copies kept: checking again wouldn't change it."
+  },
+  "restore": {
+    "nothing": "Nothing of this replacement is in the quarantine, so there's nothing to put back.",
+    "switched-off": "Replacement is switched off on the Media folders page, so nothing can be put back. Switch it on, then press Restore again.",
+    "unsupported": "The app can't rename files on the platform it runs on, so nothing was put back.",
+    "video-deleted": "A video of this replacement was deleted permanently, so nothing is put back without it. Press Retry, then delete permanently what the quarantine still holds."
+  },
+  "keep-both": {
+    "reason": "You cancelled the replacement, so nothing will be replaced.",
+    "ended": "This replacement has already ended, so there's nothing to cancel.",
+    "left-folders": "Part of this replacement has left its folders already, so it can't be cancelled: Restore puts back what is in the quarantine."
+  },
+  "drop": {
+    "not-in-review": "A copy can be dropped only from a replacement that stopped for review.",
+    "download-not-followed": "The app can't follow this replacement's download, so dropping a copy wouldn't change anything: keep both copies, or cancel the job.",
+    "already-dropped": "“{{file}}” is dropped from this replacement already.",
+    "left-folder": "“{{file}}” has left its folder already, so it can't be dropped: Restore puts it back.",
+    "last-copy": "“{{file}}” is the last copy this replacement would replace, so it can't be dropped: keep both copies instead."
+  },
+  "following": {
+    "download-cancelled": "The download was cancelled, so nothing will be replaced.",
+    "download-cancelled-by-you": "You cancelled the download, so nothing will be replaced.",
+    "download-failed": "The download failed, so nothing will be replaced.",
+    "refused-before-sent": "The download was refused before it was sent, so nothing will be replaced.",
+    "interrupted": "The app stopped while sending this download, before it checked where the new files would land, so nothing will be replaced.",
+    "needs-linking": "“{{client}}”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file."
+  },
+  "new-files": {
+    "client-removed": "The download client “{{client}}” was removed, so the app can't confirm the new files are complete.",
+    "client-switched-off": "“{{client}}” is switched off, so the new files can't be checked.",
+    "no-adapter": "This version of the app can't read downloads in “{{type}}”, so the new files can't be checked.",
+    "client-threw": "The app couldn't read what “{{client}}” answered, so the new files can't be checked.",
+    "client-unasked": "The app couldn't ask “{{client}}” about this download within an hour: {{error, message}}",
+    "two-downloads": "“{{client}}” lists two downloads for this release, so the app can't tell which one holds the new files.",
+    "no-save-path": "“{{client}}” gives no save folder the app can read for this download, so it can't tell where “{{path}}” is.",
+    "unknown-path": "The app can't tell where the new file “{{path}}” is.",
+    "unknown-path-why": "The app can't tell where the new file “{{path}}” is: {{reason, message}}",
+    "no-library": "The new file “{{path}}” is in no library folder the app knows, so no library can be asked to confirm it.",
+    "two-libraries": "The new file “{{path}}” is in folders of {{libraries, list:and:quoted}}, so the app can't tell which library should confirm it.",
+    "others-unlisted": "“{{client}}” couldn't list its other downloads, so the app can't tell whether another one writes the new files: {{error, message}}",
+    "too-old": "This version of “{{client}}” can't list the files of its other downloads, so the app can't tell whether another one writes the new files.",
+    "unplaced": "The app can't place “{{client}}”'s download “{{download}}” in its folders, so it can't tell whether that download writes the new files.",
+    "other-download": "“{{client}}”'s download “{{download}}” also writes “{{path}}”, so the app can't tell the new file is this download's own.",
+    "unread-again": "The app couldn't read the new file “{{path}}” again.",
+    "changed": "The new file “{{path}}” changed after it was checked."
+  },
+  "library": {
+    "removed": "The library that holds the new files was removed from Integrations, so they can't be confirmed.",
+    "no-capability": "This version of the app can't ask “{{type}}” to look at a file, so the new files can't be confirmed.",
+    "switched-off": "“{{library}}” is switched off, so it can't confirm the new files.",
+    "threw": "The app couldn't read what “{{library}}” answered, so the new files can't be confirmed.",
+    "refused": "The app refused its own request to “{{library}}” about the new files as one it should never make, so they can't be confirmed.",
+    "not-asked": "The app couldn't ask “{{library}}” to look at the new files within an hour: {{error, message}}",
+    "not-read": "The app couldn't read “{{library}}” within an hour of asking it to look at the new files: {{error, message}}"
+  },
+  "holdings": {
+    "switched-off": "“{{client}}” is switched off.",
+    "type-unavailable": "This version of the app can't read “{{type}}”."
+  },
+  "options": {
+    "not-in-library": "The destination's folder isn't confirmed inside a library the app knows.",
+    "folder-unchecked": "The destination's folder lies outside the Media folders or has no path in the app, so the app can't check it for files already there, and a replacement is sent only after that check.",
+    "client-unasked": "The app couldn't ask “{{client}}” where this destination saves: {{error, message}}",
+    "category-gone": "The app couldn't ask “{{client}}” where this destination saves: it has no category “{{category}}” any more."
+  },
+  "plan": {
+    "switched-off": "Replacement is switched off, so no copy can be replaced. Switch it on, and tick the folders it may touch, on the Media folders page, or pick Keep both.",
+    "magnet": "This release is a magnet link, whose files the app can't check before sending, so it can't replace a copy. Pick Keep both to download it.",
+    "no-matched-work": "This release matches no film or held episode of yours any more, so it can't replace a copy. Pick Keep both to download it.",
+    "not-a-copy": "One of the ticked copies isn't a copy of a work this release matched. The list was read again: check the ticks and send again.",
+    "not-confirmable": "One of the ticked confirmations isn't one this release needs. The list was read again: check the ticks and send again.",
+    "not-confirmed": "Tick “{{confirmation, message}}” to replace a copy of it. The list was read again: check the ticks and send again.",
+    "confirmed-without-copy": "Tick a copy of {{work}} or untick “{{confirmation, message}}”. The list was read again: check the ticks and send again.",
+    "confirmed-without-copy-untitled": "Tick a copy of a work with no title or untick “{{confirmation, message}}”. The list was read again: check the ticks and send again.",
+    "work": {
+      "title-only": "This release matched {{work}} by its title alone, which never allows a replacement, so “{{file}}” can't be replaced. Pick Keep both to download it.",
+      "title-only-untitled": "This release matched a work with no title by its title alone, which never allows a replacement, so “{{file}}” can't be replaced. Pick Keep both to download it.",
+      "conflicting-ids": "The ids of {{work}} and of this release conflict, so “{{file}}” can't be replaced. Pick Keep both to download it.",
+      "conflicting-ids-untitled": "The ids of a work with no title and of this release conflict, so “{{file}}” can't be replaced. Pick Keep both to download it.",
+      "no-claimed-season": "This release's title names no season of {{work}}, so the app can't tell which episodes it would replace, and “{{file}}” can't be replaced. Pick Keep both to download it.",
+      "no-claimed-season-untitled": "This release's title names no season of a work with no title, so the app can't tell which episodes it would replace, and “{{file}}” can't be replaced. Pick Keep both to download it.",
+      "no-claimed-episodes": "You hold none of the episodes this release claims of {{work}}, so “{{file}}” can't be replaced. Pick Keep both to download it.",
+      "no-claimed-episodes-untitled": "You hold none of the episodes this release claims of a work with no title, so “{{file}}” can't be replaced. Pick Keep both to download it."
+    },
+    "copy": {
+      "no-app-path": "The app can't reach “{{file}}” inside the Media folders, so it can't be replaced. Pick Keep both to download the release.",
+      "folder-not-ticked": "“{{file}}” isn't in a folder ticked for replacement on the Media folders page, so it can't be replaced. Tick its folder there, or pick Keep both.",
+      "outside-the-claim": "Its library places “{{file}}” outside the episodes this release claims, so it can't be replaced. Pick Keep both to download the release.",
+      "already-scheduled": "“{{file}}” is already scheduled for replacement by another download, so it can't be replaced again. Pick Keep both to download the release.",
+      "held-by-removal": "A removal under Removed copies on the Duplicates page holds “{{file}}”, so it can't be replaced. Pick Keep both to download the release.",
+      "not-inspected": "The app hasn't inspected “{{file}}” yet, so it can't be replaced. Inspect the library first, or pick Keep both.",
+      "shared-with-unavailable-work": "“{{file}}” is also a copy of another work this release matched, which can't be replaced, so it can't be replaced either. Pick Keep both to download the release.",
+      "missing": "“{{file}}” isn't there any more, so it can't be replaced. Pick Keep both to download the release.",
+      "unreadable": "The app can't read “{{file}}” now, so it can't be replaced. Pick Keep both to download the release.",
+      "changed": "“{{file}}” changed since the app inspected it, so it can't be replaced. Inspect the library again, or pick Keep both."
+    }
+  },
+  "confirm": {
+    "work": "This release is {{work}}",
+    "work-season": "This release is {{work}}, season {{season, number}}",
+    "work-seasons": "This release is {{work}}, seasons {{firstSeason, number}}–{{lastSeason, number}}",
+    "work-season-episode": "This release is {{work}}, season {{season, number}}, episode {{episode, number}}",
+    "work-season-episodes": "This release is {{work}}, season {{season, number}}, episodes {{firstEpisode, number}}–{{lastEpisode, number}}",
+    "work-seasons-episode": "This release is {{work}}, seasons {{firstSeason, number}}–{{lastSeason, number}}, episode {{episode, number}}",
+    "work-seasons-episodes": "This release is {{work}}, seasons {{firstSeason, number}}–{{lastSeason, number}}, episodes {{firstEpisode, number}}–{{lastEpisode, number}}",
+    "untitled": "This release is a work with no title",
+    "untitled-season": "This release is a work with no title, season {{season, number}}",
+    "untitled-seasons": "This release is a work with no title, seasons {{firstSeason, number}}–{{lastSeason, number}}",
+    "untitled-season-episode": "This release is a work with no title, season {{season, number}}, episode {{episode, number}}",
+    "untitled-season-episodes": "This release is a work with no title, season {{season, number}}, episodes {{firstEpisode, number}}–{{lastEpisode, number}}",
+    "untitled-seasons-episode": "This release is a work with no title, seasons {{firstSeason, number}}–{{lastSeason, number}}, episode {{episode, number}}",
+    "untitled-seasons-episodes": "This release is a work with no title, seasons {{firstSeason, number}}–{{lastSeason, number}}, episodes {{firstEpisode, number}}–{{lastEpisode, number}}",
+    "work-in-libraries": "This release is {{work}} in “{{libraries, list:comma}}”",
+    "work-season-in-libraries": "This release is {{work}}, season {{season, number}} in “{{libraries, list:comma}}”",
+    "work-seasons-in-libraries": "This release is {{work}}, seasons {{firstSeason, number}}–{{lastSeason, number}} in “{{libraries, list:comma}}”",
+    "work-season-episode-in-libraries": "This release is {{work}}, season {{season, number}}, episode {{episode, number}} in “{{libraries, list:comma}}”",
+    "work-season-episodes-in-libraries": "This release is {{work}}, season {{season, number}}, episodes {{firstEpisode, number}}–{{lastEpisode, number}} in “{{libraries, list:comma}}”",
+    "work-seasons-episode-in-libraries": "This release is {{work}}, seasons {{firstSeason, number}}–{{lastSeason, number}}, episode {{episode, number}} in “{{libraries, list:comma}}”",
+    "work-seasons-episodes-in-libraries": "This release is {{work}}, seasons {{firstSeason, number}}–{{lastSeason, number}}, episodes {{firstEpisode, number}}–{{lastEpisode, number}} in “{{libraries, list:comma}}”",
+    "untitled-in-libraries": "This release is a work with no title in “{{libraries, list:comma}}”",
+    "untitled-season-in-libraries": "This release is a work with no title, season {{season, number}} in “{{libraries, list:comma}}”",
+    "untitled-seasons-in-libraries": "This release is a work with no title, seasons {{firstSeason, number}}–{{lastSeason, number}} in “{{libraries, list:comma}}”",
+    "untitled-season-episode-in-libraries": "This release is a work with no title, season {{season, number}}, episode {{episode, number}} in “{{libraries, list:comma}}”",
+    "untitled-season-episodes-in-libraries": "This release is a work with no title, season {{season, number}}, episodes {{firstEpisode, number}}–{{lastEpisode, number}} in “{{libraries, list:comma}}”",
+    "untitled-seasons-episode-in-libraries": "This release is a work with no title, seasons {{firstSeason, number}}–{{lastSeason, number}}, episode {{episode, number}} in “{{libraries, list:comma}}”",
+    "untitled-seasons-episodes-in-libraries": "This release is a work with no title, seasons {{firstSeason, number}}–{{lastSeason, number}}, episodes {{firstEpisode, number}}–{{lastEpisode, number}} in “{{libraries, list:comma}}”",
+    "the-copy": "{{confirmation, message}} (the copy “{{name}}”)",
+    "place": "{{confirmation, message}} ({{place, number}} of {{total, number}})"
+  },
+  "quarantine": {
+    "no-reason": "The file system gave no reason.",
+    "check": {
+      "outside-media-folders": "“{{path}}” is no longer inside the Media folders, so it stays where it is.",
+      "not-ticked": "“{{path}}” is no longer in a folder ticked for replacement, so it stays where it is.",
+      "disc-clip": "“{{file}}” is part of a disc folder, which can't be replaced one file at a time.",
+      "disc-clip-removal": "“{{file}}” is part of a disc folder, which can't be removed one file at a time.",
+      "gone": "“{{path}}” is gone, so there is nothing to move.",
+      "gone-removal": "“{{path}}” is gone, so there is nothing to remove.",
+      "changed": "“{{path}}” changed since it was picked for replacement, so it stays where it is.",
+      "changed-removal": "“{{path}}” changed since the app last read it, so it stays where it is. Inspect the library's files again, then press Remove again.",
+      "unread": "The app couldn't read “{{path}}” again, so it stays where it is: {{error, message}}",
+      "unread-no-reason": "The app couldn't read “{{path}}” again, so it stays where it is: the disk gave no reason.",
+      "new-file": "“{{path}}” is the new file's own path, so it stays where it is.",
+      "pair-changed": "The new file paired with “{{file}}” changed or went since it was verified, so nothing moves."
+    },
+    "companions": {
+      "not-listed": "The app couldn't list the files beside “{{path}}”, so nothing moves.",
+      "link": "“{{file}}” is a link to another file, and the app moves only a file itself, so it stays where it is.",
+      "unreadable": "The app couldn't read “{{name}}” well enough to tell whether a torrent holds it."
+    },
+    "held": {
+      "torrent-clause": "“{{torrent}}” in “{{client}}”",
+      "by-torrent-replacement": "Still held by the torrent {{torrent, message}}: remove that torrent there without its files, then press Retry.",
+      "by-torrents-replacement": "Still held by the torrents {{torrents, list:and:message}}: remove those torrents there without their files, then press Retry.",
+      "by-torrent-removal": "Still held by the torrent {{torrent, message}}: remove that torrent there without its files, then press Remove again.",
+      "by-torrents-removal": "Still held by the torrents {{torrents, list:and:message}}: remove those torrents there without their files, then press Remove again.",
+      "companion-by-torrent": "Held by the torrent {{torrent, message}}, so it stays where it is.",
+      "companion-by-torrents": "Held by the torrents {{torrents, list:and:message}}, so it stays where it is."
+    },
+    "uncertain": {
+      "not-read-replacement": "The app couldn't tell whether a torrent in “{{client}}” holds the old copy: {{error, message}}",
+      "not-read-replacement-more": "The app couldn't tell whether a torrent in “{{client}}” holds the old copy: {{error, message}} {{more, message}}",
+      "not-read-removal": "The app couldn't tell whether a torrent in “{{client}}” holds this copy: {{error, message}}",
+      "not-read-removal-more": "The app couldn't tell whether a torrent in “{{client}}” holds this copy: {{error, message}} {{more, message}}",
+      "unplaced-replacement_one": "The app couldn't place {{count, number}} of “{{client}}”'s torrents in its folders, so it can't tell whether one of them holds the old copy.",
+      "unplaced-replacement_other": "The app couldn't place {{count, number}} of “{{client}}”'s torrents in its folders, so it can't tell whether one of them holds the old copy.",
+      "unplaced-replacement-more_one": "The app couldn't place {{count, number}} of “{{client}}”'s torrents in its folders, so it can't tell whether one of them holds the old copy. {{more, message}}",
+      "unplaced-replacement-more_other": "The app couldn't place {{count, number}} of “{{client}}”'s torrents in its folders, so it can't tell whether one of them holds the old copy. {{more, message}}",
+      "unplaced-removal_one": "The app couldn't place {{count, number}} of “{{client}}”'s torrents in its folders, so it can't tell whether one of them holds this copy.",
+      "unplaced-removal_other": "The app couldn't place {{count, number}} of “{{client}}”'s torrents in its folders, so it can't tell whether one of them holds this copy.",
+      "unplaced-removal-more_one": "The app couldn't place {{count, number}} of “{{client}}”'s torrents in its folders, so it can't tell whether one of them holds this copy. {{more, message}}",
+      "unplaced-removal-more_other": "The app couldn't place {{count, number}} of “{{client}}”'s torrents in its folders, so it can't tell whether one of them holds this copy. {{more, message}}",
+      "outside-replacement_one": "“{{client}}”'s path mappings put {{count, number}} of its torrents outside the Media folders, so the app can't tell whether that torrent holds the old copy: check those mappings under Integrations, then press Retry.",
+      "outside-replacement_other": "“{{client}}”'s path mappings put {{count, number}} of its torrents outside the Media folders, so the app can't tell whether one of them holds the old copy: check those mappings under Integrations, then press Retry.",
+      "outside-replacement-more_one": "“{{client}}”'s path mappings put {{count, number}} of its torrents outside the Media folders, so the app can't tell whether that torrent holds the old copy: check those mappings under Integrations, then press Retry. {{more, message}}",
+      "outside-replacement-more_other": "“{{client}}”'s path mappings put {{count, number}} of its torrents outside the Media folders, so the app can't tell whether one of them holds the old copy: check those mappings under Integrations, then press Retry. {{more, message}}",
+      "outside-removal_one": "“{{client}}”'s path mappings put {{count, number}} of its torrents outside the Media folders, so the app can't tell whether that torrent holds this copy: check those mappings under Integrations, then press Remove again.",
+      "outside-removal_other": "“{{client}}”'s path mappings put {{count, number}} of its torrents outside the Media folders, so the app can't tell whether one of them holds this copy: check those mappings under Integrations, then press Remove again.",
+      "outside-removal-more_one": "“{{client}}”'s path mappings put {{count, number}} of its torrents outside the Media folders, so the app can't tell whether that torrent holds this copy: check those mappings under Integrations, then press Remove again. {{more, message}}",
+      "outside-removal-more_other": "“{{client}}”'s path mappings put {{count, number}} of its torrents outside the Media folders, so the app can't tell whether one of them holds this copy: check those mappings under Integrations, then press Remove again. {{more, message}}"
+    },
+    "move": {
+      "switched-off": "Replacement was switched off while the old copies were moving.",
+      "switched-off-tally": "Replacement was switched off while the old copies were moving: {{tally, message}}.",
+      "switched-off-removal": "Replacing and removing copies was switched off while this copy was moving.",
+      "switched-off-removal-tally": "Replacing and removing copies was switched off while this copy was moving: {{tally, message}}.",
+      "left-ticked": "“{{path}}” left the folders ticked for replacement while the old copies were moving.",
+      "left-ticked-tally": "“{{path}}” left the folders ticked for replacement while the old copies were moving: {{tally, message}}.",
+      "left-ticked-removal": "“{{path}}” left the folders ticked for replacement while this copy was moving.",
+      "left-ticked-removal-tally": "“{{path}}” left the folders ticked for replacement while this copy was moving: {{tally, message}}.",
+      "failed": "“{{file}}” couldn't be moved into the quarantine: {{error, message}}",
+      "failed-tally": "“{{file}}” couldn't be moved into the quarantine: {{error, message}} {{tally, message}}.",
+      "refused": "the file system refused it ({{status}}).",
+      "swapped": "A different file now sits in the quarantine under “{{file}}”, as another file took its place just before the rename, and the old copy's own file wasn't found.",
+      "swapped-removal": "A different file now sits in the quarantine at “{{quarantine}}”, as another file took the place of “{{file}}” just before the rename, and this copy's own file wasn't found. Look there to see which file it is."
+    },
+    "cut": {
+      "moving": "The app stopped while moving the old copies.",
+      "moving-tally": "The app stopped while moving the old copies: {{tally, message}}.",
+      "moving-removal": "The app stopped while moving this copy.",
+      "moving-removal-tally": "The app stopped while moving this copy: {{tally, message}}.",
+      "restoring": "The app stopped while putting the old copies back.",
+      "restoring-tally": "The app stopped while putting the old copies back: {{tally, message}}.",
+      "restoring-removal": "The app stopped while putting this copy back.",
+      "restoring-removal-tally": "The app stopped while putting this copy back: {{tally, message}}.",
+      "deleting": "The app stopped while deleting the old copies permanently.",
+      "deleting-tally": "The app stopped while deleting the old copies permanently: {{tally, message}}.",
+      "deleting-removal": "The app stopped while deleting this copy permanently.",
+      "deleting-removal-tally": "The app stopped while deleting this copy permanently: {{tally, message}}."
+    },
+    "lost": {
+      "moving": "The app stopped while moving “{{file}}”, and found it neither where it was nor in the quarantine.",
+      "moving-removal": "The app stopped while moving this copy, and found its video neither at “{{path}}” nor in the quarantine at “{{quarantine}}”. Look in both places to see where it went.",
+      "restoring": "The app stopped while putting “{{file}}” back, and found it neither in the quarantine nor where it was.",
+      "deleting": "The app stopped while deleting “{{file}}” permanently, and something else is in its place in the quarantine."
+    },
+    "restore": {
+      "outside-media-folders": "“{{quarantine}}” is no longer inside the Media folders, so nothing was put back.",
+      "not-ticked": "“{{path}}” is no longer in a folder ticked for replacement, so nothing was put back.",
+      "changed": "“{{path}}” changed in the quarantine since it was moved there, so nothing was put back.",
+      "folder-gone": "The folder “{{folder}}” is gone, so nothing was put back; the app creates no folder.",
+      "folder-unread": "The app couldn't look in the folder of “{{path}}”: {{error, message}} Nothing was put back.",
+      "occupied": "“{{path}}” already holds a file, so nothing was put back.",
+      "left-ticked": "“{{path}}” is no longer in a folder ticked for replacement.",
+      "swapped-replacement": "A different file now sits at “{{path}}”, as another file took the name's place in the quarantine just before the rename back, and the old copy's own file wasn't found.",
+      "swapped-removal": "A different file now sits at “{{path}}”, as another file took the name's place in the quarantine just before the rename back, and this copy's own file wasn't found.",
+      "failed": "“{{file}}” couldn't be put back: {{error, message}}",
+      "failed-tally": "“{{file}}” couldn't be put back: {{error, message}} {{tally, message}}."
+    },
+    "delete": {
+      "outside-media-folders": "“{{quarantine}}” is no longer inside the Media folders, so nothing was deleted.",
+      "changed": "“{{path}}” changed in the quarantine since it was moved there, so nothing was deleted.",
+      "failed": "“{{file}}” couldn't be deleted: {{error, message}}",
+      "failed-tally": "“{{file}}” couldn't be deleted: {{error, message}} {{tally, message}}."
+    },
+    "write": {
+      "outside-media-folders": "“{{quarantine}}” is no longer inside the Media folders."
+    },
+    "tally": {
+      "names_one": "{{count, number}} name",
+      "names_other": "{{count, number}} names",
+      "in-quarantine_one": "{{count, number}} of {{names, message}} is in the quarantine",
+      "in-quarantine_other": "{{count, number}} of {{names, message}} are in the quarantine",
+      "back_one": "{{count, number}} of {{names, message}} is back where it was",
+      "back_other": "{{count, number}} of {{names, message}} are back where they were",
+      "deleted_one": "{{count, number}} of {{names, message}} is deleted",
+      "deleted_other": "{{count, number}} of {{names, message}} are deleted"
+    }
+  }
+}

@@ -1,73 +1,83 @@
 using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
 
 // MAM-40 — the sentences of a removal: one readable sentence each, as the Duplicates page and Removed copies show them — a
-// refusal, the removal's reason, a name's problem. Names and paths quoted with ReplacementText.Quote; a sentence of the
-// disk's own quoted whole after a colon. Worded as a replacement's (ReplacementQuarantiner.Reasons.cs), for a copy the owner
-// removes rather than an old copy a download replaces.
+// refusal, the removal's reason, a name's problem. Worded as a replacement's (ReplacementQuarantiner.Reasons.cs), for a copy
+// the owner removes rather than an old copy a download replaces. MAM-47 (ADR 0042) — each a message: the removal's own
+// sentences are duplicates.removal keys; check 5 and the move are the replacements.quarantine set's, the same key where
+// the words are the same and a "-removal" variant where they differ; names and paths cleaned and cut (MessageText.Clean),
+// their quotes the template's; the disk's own sentence nested whole after a colon; how far the move got as its tally.
 public sealed partial class CopyRemovalService
 {
     // ── the request ──
 
-    private const string RequestIncompleteError = "Remove needs the group and the file you pressed it on.";
+    private static readonly Message RequestIncompleteError = Message.Of("duplicates.removal.request-incomplete");
 
     // The identity the page showed is no longer the one the app read: a sync or an inspection since, and the owner would
     // confirm one file and remove another.
-    private const string PageChangedReason = "This copy changed since the page showed it. Reload the page to see it as it is now.";
+    private static readonly Message PageChangedReason = Message.Of("duplicates.removal.page-changed");
 
     // A platform whose write contract can't rename without risking a copy (anything but Linux), refused before the claim.
-    private const string NotSupportedError = "The app can't rename files on the platform it runs on, so nothing was removed.";
+    private static readonly Message NotSupportedError = Message.Of("duplicates.removal.unsupported");
 
-    private const string NoOtherCopyOnDiskReason =
-        "No other copy of this group is on the disk as the app last read it, so this one stays. Inspect the library's files again to see what is there.";
+    private static readonly Message NoOtherCopyOnDiskReason = Message.Of("duplicates.removal.no-other-copy-on-disk");
 
     // ── the owner's later actions ──
 
     // Someone in this process — another click, or the quarantine's pass settling a cut — is writing for the removal now.
-    private const string BeingWorkedOnError = "This removal is being worked on right now. Try again in a moment.";
+    private static readonly Message BeingWorkedOnError = Message.Of("duplicates.removal.busy");
 
     // The removal left the state the request claimed it in, between the claim and a later write: never written over.
-    private const string ChangedMeanwhileError = "This removal changed while the app was working on it, so it stopped. Reload the page to see where it stands.";
+    private static readonly Message ChangedMeanwhileError = Message.Of("duplicates.removal.changed-meanwhile");
 
     // ADR 0033 — the {error} of a stop when the switch was turned off between two names.
-    private const string SwitchedOffMidwayError = "Replacing and removing copies was switched off on the Media folders page.";
+    private static readonly Message SwitchedOffMidwayError = Message.Of("duplicates.removal.switched-off-midway");
 
     // ── check 5's half, in a removal's words ──
 
-    private static string StopReasonOf(QuarantineCopyStop stop, string path, string? error) => stop switch
+    private static Message StopReasonOf(QuarantineCopyStop stop, string path, Message? error) => stop switch
     {
-        QuarantineCopyStop.OutsideMediaFolders => $"{ReplacementText.Quote(path)} is no longer inside the Media folders, so it stays where it is.",
-        QuarantineCopyStop.NotTicked => $"{ReplacementText.Quote(path)} is no longer in a folder ticked for replacement, so it stays where it is.",
+        QuarantineCopyStop.OutsideMediaFolders => Message.Of("replacements.quarantine.check.outside-media-folders", ("path", MessageText.Clean(path))),
+        QuarantineCopyStop.NotTicked => Message.Of("replacements.quarantine.check.not-ticked", ("path", MessageText.Clean(path))),
         QuarantineCopyStop.DiscClip =>
-            $"{ReplacementText.Quote(ReplacementText.FileNameOf(path))} is part of a disc folder, which can't be removed one file at a time.",
-        QuarantineCopyStop.Gone => $"{ReplacementText.Quote(path)} is gone, so there is nothing to remove.",
-        QuarantineCopyStop.Changed =>
-            $"{ReplacementText.Quote(path)} changed since the app last read it, so it stays where it is. Inspect the library's files again, then press Remove again.",
-        _ => $"The app couldn't read {ReplacementText.Quote(path)} again, so it stays where it is: {error ?? "the disk gave no reason."}",
+            Message.Of("replacements.quarantine.check.disc-clip-removal", ("file", MessageText.Clean(ReplacementText.FileNameOf(path)))),
+        QuarantineCopyStop.Gone => Message.Of("replacements.quarantine.check.gone-removal", ("path", MessageText.Clean(path))),
+        QuarantineCopyStop.Changed => Message.Of("replacements.quarantine.check.changed-removal", ("path", MessageText.Clean(path))),
+        // The disk's own sentence after the colon; a sentence of the app's when the disk gave none.
+        _ when error is null => Message.Of("replacements.quarantine.check.unread-no-reason", ("path", MessageText.Clean(path))),
+        _ => Message.Of("replacements.quarantine.check.unread", ("path", MessageText.Clean(path)), ("error", error)),
     };
 
     // ── the move ──
 
-    private static string SwitchedOffWhileMovingReason((int Count, int Total) moved) =>
-        ReplacementNameTally.AfterColon(
-            "Replacing and removing copies was switched off while this copy was moving", ReplacementNameTally.InQuarantine(moved.Count, moved.Total));
+    private static Message SwitchedOffWhileMovingReason((int Count, int Total) moved) =>
+        ReplacementNameTally.InQuarantine(moved.Count, moved.Total) is { } tally
+            ? Message.Of("replacements.quarantine.move.switched-off-removal-tally", ("tally", tally))
+            : Message.Of("replacements.quarantine.move.switched-off-removal");
 
-    private static string LeftTickedWhileMovingReason(string path, (int Count, int Total) moved) =>
-        ReplacementNameTally.AfterColon(
-            $"{ReplacementText.Quote(path)} left the folders ticked for replacement while this copy was moving",
-            ReplacementNameTally.InQuarantine(moved.Count, moved.Total));
+    private static Message LeftTickedWhileMovingReason(string path, (int Count, int Total) moved) =>
+        ReplacementNameTally.InQuarantine(moved.Count, moved.Total) is { } tally
+            ? Message.Of("replacements.quarantine.move.left-ticked-removal-tally", ("path", MessageText.Clean(path)), ("tally", tally))
+            : Message.Of("replacements.quarantine.move.left-ticked-removal", ("path", MessageText.Clean(path)));
 
-    private static string NameNotMovedReason(string path, string error, (int Count, int Total) moved) =>
-        ReplacementNameTally.AfterSentence(
-            $"{ReplacementText.Quote(ReplacementText.FileNameOf(path))} couldn't be moved into the quarantine: {error}",
-            ReplacementNameTally.InQuarantine(moved.Count, moved.Total));
+    // The file system's sentence ends the reason's first sentence; how far the move got is a sentence of its own after it.
+    private static Message NameNotMovedReason(string path, Message error, (int Count, int Total) moved)
+    {
+        var file = MessageText.Clean(ReplacementText.FileNameOf(path));
+        return ReplacementNameTally.InQuarantine(moved.Count, moved.Total) is { } tally
+            ? Message.Of("replacements.quarantine.move.failed-tally", ("file", file), ("error", error), ("tally", tally))
+            : Message.Of("replacements.quarantine.move.failed", ("file", file), ("error", error));
+    }
 
     // A rename the contract answered Swapped: another file took the name's place after the last look, and that file is what
     // moved. The quarantine path in full, as that is where the owner looks: the removal waits for review with no button to
-    // press. No colon in it, as the reason quotes it after "couldn't be moved into the quarantine:".
-    private static string SwappedWhileMovingProblem(string path, string quarantinePath) =>
-        $"A different file now sits in the quarantine at {ReplacementText.Quote(quarantinePath)}, as another file took the place of "
-        + $"{ReplacementText.Quote(ReplacementText.FileNameOf(path))} just before the rename, and this copy's own file wasn't found. Look there to see which file it is.";
+    // press. No colon in it, as the reason nests it after "couldn't be moved into the quarantine:".
+    private static Message SwappedWhileMovingProblem(string path, string quarantinePath) =>
+        Message.Of(
+            "replacements.quarantine.move.swapped-removal",
+            ("quarantine", MessageText.Clean(quarantinePath)),
+            ("file", MessageText.Clean(ReplacementText.FileNameOf(path))));
 }

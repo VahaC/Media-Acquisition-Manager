@@ -37,8 +37,8 @@ public class FolderScanController(IFolderScanService scans) : ControllerBase
         {
             FolderScanStartStatus.Queued => AcceptedAtAction(nameof(GetRun), new { runId = result.Run!.Id }, result.Run),
             // Nothing the app may walk: a state the owner changes in the settings, not a bad request.
-            FolderScanStartStatus.NoAllowedRoots => this.ConflictError(result.Error),
-            _ => this.UnavailableError(result.Error),
+            FolderScanStartStatus.NoAllowedRoots => this.ConflictError(result.Error!),
+            _ => this.UnavailableError(result.Error!),
         };
     }
 

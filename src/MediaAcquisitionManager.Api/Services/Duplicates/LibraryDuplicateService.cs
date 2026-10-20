@@ -4,12 +4,14 @@ using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.CopyRemovals;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Duplicates;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Paging;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,7 +36,12 @@ namespace MediaAcquisitionManager.Api.Services.Duplicates;
 /// </para>
 /// </remarks>
 public sealed partial class LibraryDuplicateService(
-    ApplicationDbContext db, ILibraryDuplicateMapper mapper, ILibraryLinkReader links, IFileInventory inventory, ICopyRemovalVerdicts removals)
+    ApplicationDbContext db,
+    ILibraryDuplicateMapper mapper,
+    ILibraryLinkReader links,
+    IFileInventory inventory,
+    ICopyRemovalVerdicts removals,
+    IRequestTexts texts)
     : ILibraryDuplicateService
 {
     /// <summary>How much of an unknown class a sentence repeats: the longest class is 13 characters, and a pasted page
@@ -63,7 +70,7 @@ public sealed partial class LibraryDuplicateService(
             if (name is null)
             {
                 return LibraryDuplicateListResult.Invalid(
-                    $"“{Echo(duplicateClass.Trim(), ClassEchoLength)}” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible.");
+                    Message.Of("duplicates.list.unknown-class", ("value", Echo(duplicateClass.Trim(), ClassEchoLength))));
             }
 
             classFilter = Enum.Parse<DuplicateClass>(name);
@@ -77,7 +84,7 @@ public sealed partial class LibraryDuplicateService(
             // By name, never by number, as the class: Enum.TryParse would take "2" for Recoverable.
             var name = Enum.GetNames<DuplicateSort>().FirstOrDefault(candidate => candidate.Equals(sort.Trim(), StringComparison.OrdinalIgnoreCase));
             if (name is null)
-                return LibraryDuplicateListResult.Invalid($"“{Echo(sort.Trim(), SortEchoLength)}” is not a sort. Use Default or Recoverable.");
+                return LibraryDuplicateListResult.Invalid(Message.Of("duplicates.list.unknown-sort", ("value", Echo(sort.Trim(), SortEchoLength))));
             order = Enum.Parse<DuplicateSort>(name);
         }
 

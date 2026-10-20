@@ -9,6 +9,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -362,7 +363,7 @@ public sealed class TransmissionAdapterJobsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("The service at this address answered, but not with Transmission's torrents.", result.Error);
+        Assert.Equal("The service at this address answered, but not with Transmission's torrents.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -378,7 +379,7 @@ public sealed class TransmissionAdapterJobsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
-        Assert.Equal("Transmission refused the request: no fields specified.", result.Error);
+        Assert.Equal("Transmission refused the request: no fields specified.", TestTexts.En(result.Error));
     }
 
     [Fact]

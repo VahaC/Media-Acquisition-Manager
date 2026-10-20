@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Services.PersonalAccessTokens;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Enums;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -61,14 +62,17 @@ public static class McpToolAccessFilter
                 || ReasonToRefuse(tool, context.User?.GetPersonalAccessTokenAccess()) is not { } reason)
                 return await next(context, cancellationToken);
 
+            var services = context.Services ?? throw new InvalidOperationException("An MCP tool call carries no services.");
             // Always a token here: /mcp refuses a session and challenges an anonymous request before any tool is called.
-            if (context.User?.GetPersonalAccessTokenId() is { } tokenId && context.Services is { } services)
+            if (context.User?.GetPersonalAccessTokenId() is { } tokenId)
             {
                 await services.GetRequiredService<IPersonalAccessTokenRefusals>().RecordAsync(
                     tokenId, context.User.GetUserId(), reason, CallMethod, tool.ProtocolTool.Name, cancellationToken);
             }
 
-            return McpToolResults.Error(PersonalAccessTokenFailureReason.SentenceOf(reason));
+            // MAM-47 (ADR 0042) — the HTTP API's sentence, in the MCP request's language.
+            var texts = services.GetRequiredService<IRequestTexts>();
+            return McpToolResults.Error(texts.Render(PersonalAccessTokenErrors.MessageOf(reason)));
         };
 
     /// <summary>Why a token of <paramref name="access"/> may not call <paramref name="tool"/>; <c>null</c> when it may.

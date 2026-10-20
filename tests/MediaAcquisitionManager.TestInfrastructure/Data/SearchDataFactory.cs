@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
@@ -35,7 +36,7 @@ public sealed class SearchDataFactory(ApplicationDbContext db, TimeProvider time
         int position = 0,
         IntegrationCallStatus? status = IntegrationCallStatus.Succeeded,
         ReleaseSourceNotSearchedReason? notSearchedReason = null,
-        string? error = null)
+        Message? error = null)
     {
         var source = new SearchSourceEntity
         {

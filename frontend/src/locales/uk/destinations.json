@@ -98,7 +98,7 @@
     "folderOption": "{{origin}} — {{folder}}",
     "folderOptionNotSeen": "{{option}} (не можна використати)",
     "folderProblems": "Теки, у які клієнт «{{client}}» не може зберігати",
-    "folderProblem": "{{origin}}: {{problem}}",
+    "folderProblem": "{{origin}}. {{problem}}",
     "default": "Місце збереження за замовчуванням",
     "defaultHint": "Місце збереження за замовчуванням може бути лише одне: якщо позначити це, попереднє перестане ним бути. Перше додане місце збереження стає ним автоматично.",
     "sections": "Розділи трекера",

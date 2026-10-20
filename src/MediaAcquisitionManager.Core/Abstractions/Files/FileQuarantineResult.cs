@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Texts;
+
 namespace MediaAcquisitionManager.Core.Abstractions.Files;
 
 /// <summary>
@@ -6,5 +8,6 @@ namespace MediaAcquisitionManager.Core.Abstractions.Files;
 /// </summary>
 /// <param name="Status">The outcome.</param>
 /// <param name="Value">What was read or written; <c>null</c> unless <see cref="FileQuarantineStatus.Done"/>.</param>
-/// <param name="Error">A readable sentence; <c>null</c> on <see cref="FileQuarantineStatus.Done"/>.</param>
-public sealed record FileQuarantineResult<T>(FileQuarantineStatus Status, T? Value, string? Error) where T : class;
+/// <param name="Error">Why, as a message the Api renders (ADR 0042); <c>null</c> on
+/// <see cref="FileQuarantineStatus.Done"/>.</param>
+public sealed record FileQuarantineResult<T>(FileQuarantineStatus Status, T? Value, Message? Error) where T : class;

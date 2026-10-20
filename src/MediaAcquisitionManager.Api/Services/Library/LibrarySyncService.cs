@@ -2,11 +2,13 @@ using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Files;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,10 +26,11 @@ public sealed class LibrarySyncService(
     ILibraryMapper mapper,
     IFileInspectionService inspections,
     IFolderScanService scans,
+    IRequestTexts texts,
     TimeProvider time,
     ILogger<LibrarySyncService> logger) : ILibrarySyncService
 {
-    private const string QueueFullError = "Too many library syncs are waiting. Try again in a minute.";
+    private static readonly Message QueueFullError = Message.Of("library.sync.queue-full");
 
     public async Task<LibrarySyncStartResult> StartAsync(Guid integrationId, Guid requestedByUserId, CancellationToken cancellationToken = default)
     {
@@ -40,7 +43,7 @@ public sealed class LibrarySyncService(
         if (adapters.Find<IMediaLibraryProvider>(integration.AdapterType) is null)
             return LibrarySyncStartResult.Conflict(AdapterUnavailableError(integration.AdapterType));
         if (!integration.IsEnabled)
-            return LibrarySyncStartResult.Conflict($"“{integration.Name}” is switched off. Switch it on under Integrations to sync it.");
+            return LibrarySyncStartResult.Conflict(Message.Of("library.sync.switched-off", ("integration", integration.Name)));
         if (await HasActiveRunAsync(integrationId, cancellationToken))
             return AlreadySyncing(integration);
 
@@ -166,7 +169,8 @@ public sealed class LibrarySyncService(
                 // the scan's names by the same rule (MAM-18).
                 FileInspectionCounts.Of(
                     [.. sourceFiles.Select(file => (file.File.InspectionStatus, file.File.InspectionError, file.Path.HasAppPath))],
-                    isOwner),
+                    isOwner,
+                    texts),
                 // MAM-19 — the room its files take, each once however many of its names lead to one (ADR 0018).
                 FileSpace.Of(sourceFiles.Select(file => (file.File.DeviceId, file.File.Inode, file.File.ReadSizeBytes))));
         });
@@ -208,7 +212,7 @@ public sealed class LibrarySyncService(
         Guid IntegrationId,
         string ServicePath,
         FileInspectionStatus? InspectionStatus,
-        string? InspectionError,
+        Message? InspectionError,
         long? DeviceId,
         long? Inode,
         long? ReadSizeBytes);
@@ -223,10 +227,10 @@ public sealed class LibrarySyncService(
             cancellationToken);
 
     private static LibrarySyncStartResult AlreadySyncing(IntegrationConnectionEntity integration) =>
-        LibrarySyncStartResult.Conflict($"“{integration.Name}” is already being synced.");
+        LibrarySyncStartResult.Conflict(Message.Of("library.sync.already-syncing", ("integration", integration.Name)));
 
-    /// <summary>The sentence for an integration whose type this build can't read a library from; the
-    /// runner fails a run with it too.</summary>
-    internal static string AdapterUnavailableError(string adapterType) =>
-        $"This version of the app can't read a library from “{adapterType}”.";
+    /// <summary>Why an integration whose type this build can't read a library from can't be synced; the runner fails a
+    /// run with it too.</summary>
+    internal static Message AdapterUnavailableError(string adapterType) =>
+        Message.Of("library.sync.type-unavailable", ("type", adapterType));
 }

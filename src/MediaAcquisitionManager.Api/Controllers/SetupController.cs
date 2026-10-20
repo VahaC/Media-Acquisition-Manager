@@ -35,8 +35,8 @@ public class SetupController(ISetupService setup) : ControllerBase
         return result.Status switch
         {
             SetupCompletionStatus.Completed => SignedIn(result.Grant!),
-            SetupCompletionStatus.Invalid => this.BadRequestError(result.Error),
-            _ => this.ConflictError(result.Error),
+            SetupCompletionStatus.Invalid => this.BadRequestError(result.Error!),
+            _ => this.ConflictError(result.Error!),
         };
     }
 

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
@@ -166,8 +167,8 @@ public sealed class FileInspectionPersistenceTests : DatabaseTestBase
         var runs = Runs(db);
         await runs.Create(FileInspectionRunStatus.Succeeded, FileInspectionTrigger.AppStarted);
         await runs.Create(FileInspectionRunStatus.Succeeded, FileInspectionTrigger.LibrarySynced);
-        await runs.Create(FileInspectionRunStatus.Failed, FileInspectionTrigger.Requested, error: "The app restarted before this inspection finished. What it had read is kept.");
-        await runs.Create(FileInspectionRunStatus.Failed, FileInspectionTrigger.LibrarySynced, error: "The inspection stopped because of an error in the app. Its log says more.");
+        await runs.Create(FileInspectionRunStatus.Failed, FileInspectionTrigger.Requested, error: Message.Of("files.inspection.restarted"));
+        await runs.Create(FileInspectionRunStatus.Failed, FileInspectionTrigger.LibrarySynced, error: Message.Of("files.inspection.app-error"));
         await runs.Create(FileInspectionRunStatus.Succeeded, FileInspectionTrigger.Requested);
 
         //Act

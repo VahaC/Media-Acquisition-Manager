@@ -10,6 +10,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -106,7 +107,7 @@ public sealed class ReplacementNewFileReader(
             var stopping = rows.FirstOrDefault(row =>
                 NewFileCompleteness.OfFiles([listed.Value![row.Position]], client.Name).Status != NewFileCompletenessStatus.Complete);
             if (stopping is not null)
-                stopping.Problem = FileInspectionRunUpdates.Cut(complete.Problem!, ReplacementJobNewFileEntity.ProblemMaximumLength);
+                stopping.Problem = complete.Problem;
             return incomplete;
         }
 
@@ -122,7 +123,7 @@ public sealed class ReplacementNewFileReader(
             var row = rows.Single(evidence => evidence.Position == newFile.Position);
             // One at a time: the media inspector shares the disk with the library's own reads.
             var verdict = await CheckFileAsync(row, newFile.File, savePath, pairs, folders, roots, copies, client.Name, checkedUtc, cancellationToken);
-            row.Problem = verdict is null ? null : FileInspectionRunUpdates.Cut(verdict.Reason, ReplacementJobNewFileEntity.ProblemMaximumLength);
+            row.Problem = verdict?.Reason;
             if (verdict is not null)
                 verdicts.Add(verdict);
         }
@@ -292,7 +293,7 @@ public sealed class ReplacementNewFileReader(
             if (written is not null)
             {
                 var reason = OtherDownloadReason(context.Client.Name, other.Job.Name, written.AppPath!);
-                written.Problem = FileInspectionRunUpdates.Cut(reason, ReplacementJobNewFileEntity.ProblemMaximumLength);
+                written.Problem = reason;
                 return new FileVerdict(ReplacementCheckStatus.Review, reason);
             }
 
@@ -402,18 +403,19 @@ public sealed class ReplacementNewFileReader(
     }
 
     /// <summary>The client's own sentence, masked again after the adapter (ADR 0007's second pass).</summary>
-    private static string Masked(ClientContext context, string error) => SecretRedaction.Redact(error, context.Settings.Secrets)!;
+    private static Message Masked(ClientContext context, Message error) => error.Redacted(context.Settings.Secrets);
 
     /// <summary>Why a call the client didn't answer leaves the files unchecked, once the files' wait ran out: the client's
     /// own sentence, or the app's for an adapter that threw.</summary>
-    private static string UnaskedReason<T>(ClientContext context, IntegrationCallResult<T>? failed)
+    private static Message UnaskedReason<T>(ClientContext context, IntegrationCallResult<T>? failed)
         where T : class =>
         failed is null
             ? ThrewReason(context.Client.Name)
-            : $"The app couldn't ask {ReplacementText.Quote(context.Client.Name)} about this download within an hour: {Masked(context, failed.Error!)}";
+            : Message.Of(
+                "replacements.new-files.client-unasked", ("client", MessageText.Clean(context.Client.Name)), ("error", Masked(context, failed.Error!)));
 
     /// <summary>A check that stopped before any new file was read.</summary>
-    private static ReplacementFilesCheck Stopped(ReplacementCheckStatus status, string reason) => new(status, reason, []);
+    private static ReplacementFilesCheck Stopped(ReplacementCheckStatus status, Message reason) => new(status, reason, []);
 
     /// <summary>What check 1's <paramref name="result"/> makes of the check when it is not complete, with the evidence
     /// read so far; <c>null</c> when it is.</summary>
@@ -426,58 +428,61 @@ public sealed class ReplacementNewFileReader(
         };
 
     // The reasons. Each quotes the client by its name now — what Integrations lists — and a file by its path: in the app
-    // once placed, in the client's own terms before.
+    // once placed, in the client's own terms before. MAM-47 (ADR 0042) — as messages of the replacements.new-files keys:
+    // names and paths cleaned and cut, the quotes the template's.
 
-    private static string ClientRemovedReason(string clientName) =>
-        $"The download client {ReplacementText.Quote(clientName)} was removed, so the app can't confirm the new files are complete.";
+    private static Message ClientRemovedReason(string clientName) =>
+        Message.Of("replacements.new-files.client-removed", ("client", MessageText.Clean(clientName)));
 
-    private static string SwitchedOffReason(string clientName) =>
-        $"{ReplacementText.Quote(clientName)} is switched off, so the new files can't be checked.";
+    private static Message SwitchedOffReason(string clientName) =>
+        Message.Of("replacements.new-files.client-switched-off", ("client", MessageText.Clean(clientName)));
 
-    private static string NoAdapterReason(string adapterType) =>
-        $"This version of the app can't read downloads in {ReplacementText.Quote(adapterType)}, so the new files can't be checked.";
+    private static Message NoAdapterReason(string adapterType) =>
+        Message.Of("replacements.new-files.no-adapter", ("type", MessageText.Clean(adapterType)));
 
-    private static string ThrewReason(string clientName) =>
-        $"The app couldn't read what {ReplacementText.Quote(clientName)} answered, so the new files can't be checked.";
+    private static Message ThrewReason(string clientName) =>
+        Message.Of("replacements.new-files.client-threw", ("client", MessageText.Clean(clientName)));
 
-    private static string TwoDownloadsReason(string clientName) =>
-        $"{ReplacementText.Quote(clientName)} lists two downloads for this release, so the app can't tell which one holds the new files.";
+    private static Message TwoDownloadsReason(string clientName) =>
+        Message.Of("replacements.new-files.two-downloads", ("client", MessageText.Clean(clientName)));
 
-    private static string NoSavePathReason(string clientName, string relativePath) =>
-        $"{ReplacementText.Quote(clientName)} gives no save folder the app can read for this download, "
-        + $"so it can't tell where {ReplacementText.Quote(relativePath)} is.";
+    private static Message NoSavePathReason(string clientName, string relativePath) =>
+        Message.Of("replacements.new-files.no-save-path", ("client", MessageText.Clean(clientName)), ("path", MessageText.Clean(relativePath)));
 
-    private static string UnknownPathReason(string relativePath, string? mapperReason) =>
+    // The path mapper's own sentence after the colon, when it gave one.
+    private static Message UnknownPathReason(string relativePath, Message? mapperReason) =>
         mapperReason is null
-            ? $"The app can't tell where the new file {ReplacementText.Quote(relativePath)} is."
-            : $"The app can't tell where the new file {ReplacementText.Quote(relativePath)} is: {mapperReason}";
+            ? Message.Of("replacements.new-files.unknown-path", ("path", MessageText.Clean(relativePath)))
+            : Message.Of("replacements.new-files.unknown-path-why", ("path", MessageText.Clean(relativePath)), ("reason", mapperReason));
 
-    private static string NoLibraryReason(string appPath) =>
-        $"The new file {ReplacementText.Quote(appPath)} is in no library folder the app knows, so no library can be asked to confirm it.";
+    private static Message NoLibraryReason(string appPath) =>
+        Message.Of("replacements.new-files.no-library", ("path", MessageText.Clean(appPath)));
 
-    private static string TwoLibrariesReason(string appPath, IReadOnlyList<ReplacementLibraryPlace> places) =>
-        $"The new file {ReplacementText.Quote(appPath)} is in folders of "
-        + $"{ReplacementText.List([.. places.Select(place => ReplacementText.Quote(place.LibraryName))])}, "
-        + "so the app can't tell which library should confirm it.";
+    private static Message TwoLibrariesReason(string appPath, IReadOnlyList<ReplacementLibraryPlace> places) =>
+        Message.Of(
+            "replacements.new-files.two-libraries",
+            ("path", MessageText.Clean(appPath)),
+            ("libraries", new ListValue(places.Select(place => (MessageValue)MessageText.Clean(place.LibraryName)))));
 
-    private static string OthersUnlistedReason(string clientName, string error) =>
-        $"{ReplacementText.Quote(clientName)} couldn't list its other downloads, so the app can't tell whether another one writes the new files: {error}";
+    private static Message OthersUnlistedReason(string clientName, Message error) =>
+        Message.Of("replacements.new-files.others-unlisted", ("client", MessageText.Clean(clientName)), ("error", error));
 
-    private static string TooOldReason(string clientName) =>
-        $"This version of {ReplacementText.Quote(clientName)} can't list the files of its other downloads, "
-        + "so the app can't tell whether another one writes the new files.";
+    private static Message TooOldReason(string clientName) =>
+        Message.Of("replacements.new-files.too-old", ("client", MessageText.Clean(clientName)));
 
-    private static string UnplacedReason(string clientName, string downloadName) =>
-        $"The app can't place {ReplacementText.Quote(clientName)}'s download {ReplacementText.Quote(downloadName)} in its folders, "
-        + "so it can't tell whether that download writes the new files.";
+    private static Message UnplacedReason(string clientName, string downloadName) =>
+        Message.Of("replacements.new-files.unplaced", ("client", MessageText.Clean(clientName)), ("download", MessageText.Clean(downloadName)));
 
-    private static string OtherDownloadReason(string clientName, string downloadName, string appPath) =>
-        $"{ReplacementText.Quote(clientName)}'s download {ReplacementText.Quote(downloadName)} also writes {ReplacementText.Quote(appPath)}, "
-        + "so the app can't tell the new file is this download's own.";
+    private static Message OtherDownloadReason(string clientName, string downloadName, string appPath) =>
+        Message.Of(
+            "replacements.new-files.other-download",
+            ("client", MessageText.Clean(clientName)),
+            ("download", MessageText.Clean(downloadName)),
+            ("path", MessageText.Clean(appPath)));
 
     /// <summary>A client that can be asked: its row, its adapter and the settings to ask it with, for one check.</summary>
     private sealed record ClientContext(IntegrationConnectionEntity Client, IDownloadClient DownloadClient, IntegrationConnectionSettings Settings);
 
     /// <summary>What one step found against the files: whether it stops or waits, and why.</summary>
-    private sealed record FileVerdict(ReplacementCheckStatus Status, string Reason);
+    private sealed record FileVerdict(ReplacementCheckStatus Status, Message Reason);
 }

@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -109,7 +110,7 @@ public sealed class ReplacementQuarantineHttpTests : IClassFixture<MediaAcquisit
         var moved = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
             (ReplacementJobState.Quarantined, (string?)null, now, (DateTime?)now, (DateTime?)now, (DateTime?)now),
-            (moved.State, moved.Reason, moved.StateChangedUtc, moved.QuarantineCheckedUtc, moved.QuarantinedUtc, moved.LibraryNoticeDueUtc));
+            (moved.State, TestTexts.En(moved.Reason), moved.StateChangedUtc, moved.QuarantineCheckedUtc, moved.QuarantinedUtc, moved.LibraryNoticeDueUtc));
 
         // The video, then its own companions in the folder's order, each where it came from and where it went in the
         // quarantine of /media, with the identity the move expected and kept.
@@ -127,8 +128,8 @@ public sealed class ReplacementQuarantineHttpTests : IClassFixture<MediaAcquisit
             names,
             name => Assert.Equal(
                 (replacement.Id, copy.Id, ReplacementVerificationHarness.MediaRoot, TestMedia.DeviceId, TestMedia.ModifiedUtc, (int?)1, (string?)null, (DateTime?)now),
-                (name.ReplacementJobId, name.ReplacementJobFileId, name.AllowedRoot, name.DeviceId, name.ModifiedUtc, name.LinkCount, name.Problem, name.MovedUtc)));
-        Assert.Equal((true, (string?)null), (copy.PairedNewFileId is not null, copy.Problem));
+                (name.ReplacementJobId, name.ReplacementJobFileId, name.AllowedRoot, name.DeviceId, name.ModifiedUtc, name.LinkCount, TestTexts.En(name.Problem), name.MovedUtc)));
+        Assert.Equal((true, (string?)null), (copy.PairedNewFileId is not null, TestTexts.En(copy.Problem)));
 
         // One rename per name, in that order, never a copy: each is at its quarantine path with its device and inode and
         // nothing is at its old one; the folder stays. The only folders made are the quarantine's.
@@ -233,7 +234,7 @@ public sealed class ReplacementQuarantineHttpTests : IClassFixture<MediaAcquisit
                 (EpisodePathOf(2), ReplacementNameState.Stayed, NotAllowedError),
                 (EpisodePathOf(3), ReplacementNameState.Planned, null),
             ],
-            names.Select(name => (name.AppPath, name.State, name.Problem)));
+            names.Select(name => (name.AppPath, name.State, TestTexts.En(name.Problem))));
         Assert.Equal([(EpisodePathOf(1), QuarantinePathOf(replacement, EpisodePathOf(1)))], _factory.Quarantine.Renames);
         Assert.Equal((FileInventoryStatus.Found, (long?)21), await WhatIsAtAsync(QuarantinePathOf(replacement, EpisodePathOf(1)), cancellationToken));
         Assert.Equal((FileInventoryStatus.Found, (long?)22), await WhatIsAtAsync(EpisodePathOf(2), cancellationToken));
@@ -243,7 +244,7 @@ public sealed class ReplacementQuarantineHttpTests : IClassFixture<MediaAcquisit
         // The episode that stopped the job names it; the others name nothing.
         Assert.Equal(
             [(string?)null, EpisodeNotMovedReason, null],
-            (await _harness.CopiesAsync(cancellationToken)).Select(copy => copy.Problem));
+            (await _harness.CopiesAsync(cancellationToken)).Select(copy => TestTexts.En(copy.Problem)));
         Assert.Equal(
             [
                 JobAudited(AuditAction.ReplacementQuarantineStarted, replacement.Id, SeasonRelease),
@@ -438,7 +439,7 @@ public sealed class ReplacementQuarantineHttpTests : IClassFixture<MediaAcquisit
                 (TheatricalSrtPath, ReplacementNameState.Quarantined, null),
                 (TheatricalUkSrtPath, ReplacementNameState.Lost, $"“{TheatricalUkSrtPath}” is gone, so there is nothing to move."),
             ],
-            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.State, name.Problem)));
+            (await NamesAsync(cancellationToken)).Select(name => (name.AppPath, name.State, TestTexts.En(name.Problem))));
         Assert.Equal([TheatricalPath, TheatricalSrtPath], _factory.Quarantine.Renames.Select(rename => rename.From));
         Assert.Equal((FileInventoryStatus.Found, (long?)2), await WhatIsAtAsync(TheatricalNfoPath, cancellationToken));
     }

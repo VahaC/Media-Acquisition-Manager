@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -104,7 +105,7 @@ public sealed class LocalFileInventoryInspectionTests : IDisposable
         Assert.Null(result.Value);
         Assert.Equal(
             $"“{movie}” changed while ffprobe was reading it, so what was read can't be said to belong to either version.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.True(new FileInfo(movie).Length > 5, "The stub didn't append to the file.");
     }
 
@@ -122,7 +123,7 @@ public sealed class LocalFileInventoryInspectionTests : IDisposable
         // ffprobe's verdict, without the name it was given: the sentence quotes the path as the app knows it.
         Assert.Equal(FileInventoryStatus.MediaUnreadable, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal($"ffprobe couldn't read “{movie}” as media: it said “Invalid data found when processing input”.", result.Error);
+        Assert.Equal($"ffprobe couldn't read “{movie}” as media: it said “Invalid data found when processing input”.", TestTexts.En(result.Error));
     }
 
     [Fact(Timeout = 60_000)]
@@ -138,7 +139,7 @@ public sealed class LocalFileInventoryInspectionTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.MediaUnreadable, result.Status);
-        Assert.Equal($"ffprobe couldn't read “{movie}” as media: it didn't finish within 1 second.", result.Error);
+        Assert.Equal($"ffprobe couldn't read “{movie}” as media: it didn't finish within 1 second.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -154,7 +155,7 @@ public sealed class LocalFileInventoryInspectionTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.MediaUnreadable, result.Status);
-        Assert.Equal($"ffprobe couldn't read “{movie}” as media: its answer wasn't the JSON ffprobe writes.", result.Error);
+        Assert.Equal($"ffprobe couldn't read “{movie}” as media: its answer wasn't the JSON ffprobe writes.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -170,10 +171,10 @@ public sealed class LocalFileInventoryInspectionTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.InspectorUnavailable, result.Status);
         Assert.Null(result.Value);
-        Assert.StartsWith("The app couldn't start ffprobe (", result.Error, StringComparison.Ordinal);
+        Assert.StartsWith("The app couldn't start ffprobe (", TestTexts.En(result.Error), StringComparison.Ordinal);
         Assert.EndsWith(
             "); the Docker image includes it, and elsewhere FFmpeg must be installed with ffprobe on the PATH.",
-            result.Error, StringComparison.Ordinal);
+            TestTexts.En(result.Error), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -222,7 +223,7 @@ public sealed class LocalFileInventoryInspectionTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.NotFound, result.Status);
-        Assert.Equal($"There is no file at “{missing}”.", result.Error);
+        Assert.Equal($"There is no file at “{missing}”.", TestTexts.En(result.Error));
         Assert.False(File.Exists(record));
     }
 
@@ -261,7 +262,7 @@ public sealed class LocalFileInventoryInspectionTests : IDisposable
 
         //Assert
         Assert.Equal(FileInventoryStatus.MediaUnreadable, result.Status);
-        Assert.Equal($"ffprobe couldn't read “{notes}” as media: it said “Invalid data found when processing input”.", result.Error);
+        Assert.Equal($"ffprobe couldn't read “{notes}” as media: it said “Invalid data found when processing input”.", TestTexts.En(result.Error));
     }
 
     private static LocalFileInventory InventoryWith(string executable) =>

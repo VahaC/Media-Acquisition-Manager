@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 
@@ -9,9 +10,7 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 // allowlist (VendorSamples/QBittorrent/torrent-files-multi.json, 5.2.3). Every request is the sign-in or a GET.
 internal sealed partial class QBittorrentAdapter
 {
-    private const string NotFilesError = "The service at this address answered, but not with qBittorrent's files.";
-
-    private const string TorrentGoneError = "qBittorrent doesn't have this torrent any more.";
+    private static readonly Message NotFilesError = IntegrationAdapterMessages.NotFiles(DisplayName);
 
     /// <summary>
     /// Linux's <c>PATH_MAX</c>, what a file path column holds (<see cref="PhysicalFileEntity.ServicePath"/>): no
@@ -54,7 +53,7 @@ internal sealed partial class QBittorrentAdapter
 
         var (answer, readFailure) = await GetAsync(
             client, settings, call!, path, sessionSecrets, cancellationToken,
-            notFound: ConnectionTestResult.Failed(IntegrationCallStatus.NotFound, TorrentGoneError));
+            notFound: ConnectionTestResult.Failed(IntegrationCallStatus.NotFound, IntegrationAdapterMessages.TorrentGone(Descriptor.DisplayName)));
         if (readFailure is not null)
             return Failed<IReadOnlyList<ClientJobFile>>(readFailure);
 

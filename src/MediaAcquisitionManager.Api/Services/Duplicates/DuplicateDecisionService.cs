@@ -26,10 +26,10 @@ public sealed class DuplicateDecisionService(
     ILogger<DuplicateDecisionService> logger) : IDuplicateDecisionService
 {
     /// <summary>
-    /// The sentence a body that can't be read as a decision gets — not JSON, or a decision that isn't text, such as
-    /// <c>1</c> — instead of the validation body MVC would send: it says what the body must be.
+    /// The key of the sentence a body that can't be read as a decision gets — not JSON, or a decision that isn't text,
+    /// such as <c>1</c> — instead of the validation body MVC would send: it says what the body must be.
     /// </summary>
-    public const string UnreadableBodyError = "The body must be JSON with a decision, such as { \"decision\": \"Confirmed\" }.";
+    public const string UnreadableBodyError = "duplicates.decision.unreadable-body";
 
     public async Task<DuplicateDecisionResult> DecideAsync(
         string key, string? decision, Guid ownerUserId, CancellationToken cancellationToken = default)

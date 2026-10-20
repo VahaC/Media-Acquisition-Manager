@@ -11,6 +11,7 @@ using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -341,7 +342,7 @@ public sealed class DownloadsPersonalAccessTokenHttpTests : IClassFixture<MediaA
         var cancellationToken = TestContext.Current.CancellationToken;
         // The owner cancelled the replacement alone, or it failed: the download is still followed, and nothing would end
         // with it.
-        var (job, replacement) = await PlantJobWithReplacementAsync(state, reason: "Ended before the download.");
+        var (job, replacement) = await PlantJobWithReplacementAsync(state, reason: "You cancelled the replacement, so nothing will be replaced.");
         var token = await _tokens.Create(_owner.User, PersonalAccessTokenAccess.ReadAndDownload);
         var replacementBefore = await ReplacementAsync(replacement.Id, cancellationToken);
 
@@ -419,7 +420,7 @@ public sealed class DownloadsPersonalAccessTokenHttpTests : IClassFixture<MediaA
     {
         var job = await PlantJobAsync(_owner.User, jobStatus);
         var replacement = await new ReplacementJobDataFactory(_factory.Scope.GetRequiredService<ApplicationDbContext>(), _factory.Time)
-            .Create(job.Id, _owner.User.Id, state, reason);
+            .Create(job.Id, _owner.User.Id, state, reason is null ? null : PlantedMessage.Of(reason));
         return (job, replacement);
     }
 

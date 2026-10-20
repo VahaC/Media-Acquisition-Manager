@@ -1,9 +1,9 @@
-using System.Globalization;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.CopyRemovals;
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Api.Services.Search;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
@@ -30,7 +30,7 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// a work matched by its id while it is also the copy of a work matched by its title alone (ADR 0032).
 /// </para>
 /// </remarks>
-public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, IFileInventory files, ILibraryMapper mapper)
+public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, IFileInventory files, ILibraryMapper mapper, IRequestTexts texts)
     : IReplacementCandidateReader
 {
     public async Task<IReadOnlyList<ReplacementCandidateWork>> ReadAsync(
@@ -48,7 +48,7 @@ public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, 
         List<WorkPlan> plans = [.. release.LibraryMatches.Select(match => PlanOf(match, works[match.WorkId], isTv, rows))];
         var listings = ListingsOf(plans, rows);
         var copies = await CopiesOfAsync(plans, listings, gates, rows, cancellationToken);
-        return Assemble(plans, listings, copies, rows);
+        return Assemble(plans, listings, copies, rows, texts);
     }
 
     // ── reads ───────────────────────────────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, 
 
     /// <summary>The works with their copies and episodes in their order, and each work's libraries and words.</summary>
     private static List<ReplacementCandidateWork> Assemble(
-        IReadOnlyList<WorkPlan> plans, IReadOnlyList<Listing> listings, IReadOnlyList<ReplacementCandidateCopy> copies, LibraryRows rows)
+        IReadOnlyList<WorkPlan> plans, IReadOnlyList<Listing> listings, IReadOnlyList<ReplacementCandidateCopy> copies, LibraryRows rows, IRequestTexts texts)
     {
         var assembled = new List<ReplacementCandidateWork>(plans.Count);
         for (var index = 0; index < plans.Count; index++)
@@ -194,61 +194,71 @@ public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, 
                 plan.Year,
                 plan.Match.Match,
                 plan.Match.Match is { Evidence: MatchEvidence.TitleAndYear, ConflictingSchemes.Count: 0 },
-                plan.ConfirmationText,
+                ReplacementConfirmation.Of(plan.Title, plan.Year, plan.Claimed),
                 libraryNames,
                 plan.Unavailable,
                 filmCopies,
                 episodes));
         }
 
-        return TellTwinsApart(assembled);
+        return TellTwinsApart(assembled, plans, texts);
     }
 
     /// <summary>
     /// R3 — two works whose confirmations would read the same (one film in two libraries, two shows of one title) are
     /// told apart by their libraries: "This release is Alien (1979) in “Фільми”". The owner must see which one he
-    /// confirms, and the audit row keeps the same words.
+    /// confirms, and the job's row keeps the same claim.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Two that still read the same — two works of one title and year in one library, one of them left without an id (the
     /// duplicates MAM-20 finds), each matched by title and year — are told apart by the name of the first copy each
     /// lists, when those differ: "… (the copy “Halloween.2018.1080p.mkv”)". Otherwise by their place among them in the
-    /// dialog's order: "… (1 of 2)" — and so is a name that would make the words longer than the audit row keeps
-    /// (<see cref="AuditTarget.TargetNameMaximumLength"/>), whose cut would take what tells them apart.
+    /// dialog's order: "… (1 of 2)" — and so is a name that would make the words longer than
+    /// <see cref="AuditTarget.TargetNameMaximumLength"/>, kept as what reads at a glance in a checkbox.
+    /// </para>
+    /// <para>
+    /// MAM-47 (ADR 0042, design §5.4) — compared as claims (a message's structural equality), and that length measured in
+    /// the English words whatever the reader's language: the twin's tail is part of the claim the job keeps, so it can't
+    /// change with the language of whoever opened the dialog — and English keeps today's choice.
+    /// </para>
     /// </remarks>
-    private static List<ReplacementCandidateWork> TellTwinsApart(IReadOnlyList<ReplacementCandidateWork> works)
+    private static List<ReplacementCandidateWork> TellTwinsApart(
+        IReadOnlyList<ReplacementCandidateWork> works, IReadOnlyList<WorkPlan> plans, IRequestTexts texts)
     {
         List<ReplacementCandidateWork> told =
         [
-            .. works.Select(work =>
-                work.LibraryNames.Count > 0
-                && works.Count(other => string.Equals(other.ConfirmationText, work.ConfirmationText, StringComparison.Ordinal)) > 1
-                    ? work with { ConfirmationText = $"{work.ConfirmationText} in “{string.Join(", ", work.LibraryNames)}”" }
+            .. works.Select((work, at) =>
+                work.LibraryNames.Count > 0 && works.Count(other => other.ConfirmationText.Equals(work.ConfirmationText)) > 1
+                    ? work with { ConfirmationText = ReplacementConfirmation.Of(plans[at].Title, plans[at].Year, plans[at].Claimed, work.LibraryNames) }
                     : work),
         ];
         List<List<int>> twins =
         [
             .. Enumerable.Range(0, told.Count)
-                .GroupBy(at => told[at].ConfirmationText, StringComparer.Ordinal)
+                .GroupBy(at => told[at].ConfirmationText)
                 .Where(group => group.Count() > 1)
                 .Select(group => group.ToList()),
         ];
         foreach (var group in twins)
         {
-            var text = told[group[0]].ConfirmationText;
+            var confirmation = told[group[0]].ConfirmationText;
             // The copy's file name, as the planner's sentences name it: what the owner sees the copy by.
             List<string?> names =
             [
                 .. group.Select(at => told[at].AllCopies.FirstOrDefault() is { } copy ? CopyEditions.FileNameOf(copy.Row.ServicePath) : null),
             ];
-            var byName = names.All(name => name is not null && $"{text} (the copy “{name}”)".Length <= AuditTarget.TargetNameMaximumLength)
+            var byName = names.All(name => name is not null
+                    && texts.English(ReplacementConfirmation.TheCopy(confirmation, name)).Length <= AuditTarget.TargetNameMaximumLength)
                 && names.Distinct(StringComparer.Ordinal).Count() == names.Count;
             for (var place = 0; place < group.Count; place++)
             {
-                var tail = byName
-                    ? $" (the copy “{names[place]}”)"
-                    : string.Create(CultureInfo.InvariantCulture, $" ({place + 1} of {group.Count})");
-                told[group[place]] = told[group[place]] with { ConfirmationText = text + tail };
+                told[group[place]] = told[group[place]] with
+                {
+                    ConfirmationText = byName
+                        ? ReplacementConfirmation.TheCopy(confirmation, names[place]!)
+                        : ReplacementConfirmation.Place(confirmation, place + 1, group.Count),
+                };
             }
         }
 

@@ -2,11 +2,13 @@ using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
@@ -208,7 +210,7 @@ public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionMan
 
         //Assert
         var row = await LinkAsync(link.Id, cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.InLibrary, (string?)null, (DateTime?)now), (row.WriteState, row.WriteError, row.WriteStateUtc));
+        Assert.Equal((LibraryLinkWriteState.InLibrary, (string?)null, (DateTime?)now), (row.WriteState, TestTexts.En(row.WriteError), row.WriteStateUtc));
     }
 
     [Fact]
@@ -223,7 +225,7 @@ public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionMan
         await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
         var link = await _links.Create(
             jellyfin, LinkedItemId, await WorkOfAsync(LinkedItemId, cancellationToken), MediaIdentifierScheme.Tmdb, LandingStriplingTmdbId,
-            writeState: LibraryLinkWriteState.NotWritten, setBy: _owner.User, configure: row => row.WriteError = WriteError);
+            writeState: LibraryLinkWriteState.NotWritten, setBy: _owner.User, configure: row => row.WriteError = Message.Legacy(WriteError));
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
 
         //Act
@@ -232,7 +234,7 @@ public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionMan
 
         //Assert
         var row = await LinkAsync(link.Id, cancellationToken);
-        Assert.Equal((LibraryLinkWriteState.NotWritten, (string?)WriteError, link.WriteStateUtc), (row.WriteState, row.WriteError, row.WriteStateUtc));
+        Assert.Equal((LibraryLinkWriteState.NotWritten, (string?)WriteError, link.WriteStateUtc), (row.WriteState, TestTexts.En(row.WriteError), row.WriteStateUtc));
         // Still in the not identified list, with its sentence.
         var shown = Assert.Single(listed.Items);
         Assert.Equal((link.Id, WriteError), (shown.LinkId, shown.WriteError));
@@ -312,7 +314,7 @@ public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionMan
         await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
         var link = await _links.Create(
             jellyfin, LinkedItemId, await WorkOfAsync(LinkedItemId, cancellationToken), MediaIdentifierScheme.Tmdb, LandingStriplingTmdbId, writeState: state,
-            configure: row => row.WriteError = state == LibraryLinkWriteState.NotWritten ? WriteError : null);
+            configure: row => row.WriteError = state == LibraryLinkWriteState.NotWritten ? Message.Legacy(WriteError) : null);
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
 
         //Act

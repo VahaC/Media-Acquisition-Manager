@@ -35,7 +35,7 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
 {
     private const string BaseUrl = "/api/settings/allowed-roots";
     private const string JellyfinApiKey = "0123456789abcdef0123456789abcdef";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
 
     // Spelled out rather than read from the product code: these are what the settings page shows.
     private const string UnknownFolderError = "“{0}” isn't a library folder the app knows, so it can't be ticked for replacement.";

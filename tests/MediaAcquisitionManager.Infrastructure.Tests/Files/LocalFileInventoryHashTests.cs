@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
@@ -216,7 +217,7 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.OutsideAllowedRoots, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal($"“{secret}” is outside the media folders the app may read.", result.Error);
+        Assert.Equal($"“{secret}” is outside the media folders the app may read.", TestTexts.En(result.Error));
         Assert.Empty(_chunksRead);
     }
 
@@ -233,7 +234,7 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.OutsideAllowedRoots, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal(NoAllowedRoots, result.Error);
+        Assert.Equal(NoAllowedRoots, TestTexts.En(result.Error));
         Assert.Empty(_chunksRead);
     }
 
@@ -255,7 +256,7 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         Assert.Null(result.Value);
         Assert.Equal(
             $"“{throughLink}” leads through a link to “{secret}”, outside the media folders the app may read.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Empty(_chunksRead);
     }
 
@@ -272,7 +273,7 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.NotFound, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal($"There is no file at “{missing}”.", result.Error);
+        Assert.Equal($"There is no file at “{missing}”.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -288,7 +289,7 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.NotARegularFile, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal($"“{folder}” is a folder, not a file.", result.Error);
+        Assert.Equal($"“{folder}” is a folder, not a file.", TestTexts.En(result.Error));
         Assert.Empty(_chunksRead);
     }
 
@@ -307,7 +308,7 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         // What was read belongs to neither version, so nothing may be kept under either key.
         Assert.Equal(FileInventoryStatus.ChangedWhileReading, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal(ChangedWhileHashing(movie), result.Error);
+        Assert.Equal(ChangedWhileHashing(movie), TestTexts.En(result.Error));
         Assert.Equal(TenBytes.Length + "and more".Length, new FileInfo(movie).Length);
     }
 
@@ -332,7 +333,7 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.ChangedWhileReading, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal(ChangedWhileHashing(movie), result.Error);
+        Assert.Equal(ChangedWhileHashing(movie), TestTexts.En(result.Error));
         Assert.Equal(TenBytes.Length, new FileInfo(movie).Length);
     }
 
@@ -366,7 +367,7 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.ChangedWhileReading, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal(ChangedWhileHashing(movie), result.Error);
+        Assert.Equal(ChangedWhileHashing(movie), TestTexts.En(result.Error));
         // 15 bytes read from a file whose facts said 10, before the read and after it.
         Assert.Equal(TenBytes.Length + appended.Length, _chunksRead[^1]);
         Assert.Equal(((long)TenBytes.Length, Written), (described.Value!.SizeBytes, described.Value.ModifiedUtc));
@@ -425,7 +426,7 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.Unreadable, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal($"The app isn't allowed to read “{movie}”.", result.Error);
+        Assert.Equal($"The app isn't allowed to read “{movie}”.", TestTexts.En(result.Error));
         Assert.Empty(_chunksRead);
     }
 
@@ -448,9 +449,9 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         // its frame is pinned. .NET ends it with the handle's \\?\ path, which isn't the path the owner knows.
         Assert.Equal(FileInventoryStatus.Unreadable, result.Status);
         Assert.Null(result.Value);
-        Assert.StartsWith($"The app couldn't read “{movie}”: ", result.Error, StringComparison.Ordinal);
-        Assert.EndsWith(".", result.Error, StringComparison.Ordinal);
-        Assert.DoesNotContain(@"\\?\", result.Error, StringComparison.Ordinal);
+        Assert.StartsWith($"The app couldn't read “{movie}”: ", TestTexts.En(result.Error), StringComparison.Ordinal);
+        Assert.EndsWith(".", TestTexts.En(result.Error), StringComparison.Ordinal);
+        Assert.DoesNotContain(@"\\?\", TestTexts.En(result.Error), StringComparison.Ordinal);
         Assert.Empty(_chunksRead);
     }
 
@@ -476,7 +477,7 @@ public sealed class LocalFileInventoryHashTests : IDisposable
         //Assert
         Assert.Equal(FileInventoryStatus.ChangedWhileReading, result.Status);
         Assert.Null(result.Value);
-        Assert.Equal(ChangedWhileHashing(movie), result.Error);
+        Assert.Equal(ChangedWhileHashing(movie), TestTexts.En(result.Error));
         long[] chunks = [SmallChunkBytes];
         Assert.Equal(chunks, _chunksRead);
     }

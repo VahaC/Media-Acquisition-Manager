@@ -1,13 +1,14 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
 /// <summary>MAM-34 — library items' TMDb links into what the TMDb dialog and the TMDb page's lists show.</summary>
 /// <remarks>
 /// Every endpoint showing them is the installation owner's (R19), so who set a link and why the library doesn't hold it
-/// are always in.
+/// are always in. MAM-47 (ADR 0042) — the reasons are rendered in the request's language, each with its key beside it.
 /// </remarks>
 public interface ILibraryLinkMapper
 {
@@ -24,7 +25,7 @@ public interface ILibraryLinkMapper
         string? itemTitle,
         MediaWorkKind itemKind,
         bool canWrite,
-        string? cannotWriteReason,
+        Message? cannotWriteReason,
         LibraryItemLinkEntity? link,
         IReadOnlyList<MediaWorkIdentifierEntity> libraryRows);
 

@@ -9,6 +9,7 @@ using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -122,7 +123,7 @@ public sealed class ReplacementCancelHttpTests : IClassFixture<MediaAcquisitionM
             (planted.Download.Id, planted.Download.Status, ReplacementJobState.Cancelled, (string?)KeptBothReason, planted.Replacement.Id),
             (job.Id, job.Status, job.Replacement!.State, job.Replacement.Reason, job.Replacement.Id));
         var replacement = await JobAsync(planted.Replacement.Id, cancellationToken);
-        Assert.Equal((ReplacementJobState.Cancelled, (string?)KeptBothReason, now), (replacement.State, replacement.Reason, replacement.StateChangedUtc));
+        Assert.Equal((ReplacementJobState.Cancelled, (string?)KeptBothReason, now), (replacement.State, TestTexts.En(replacement.Reason), replacement.StateChangedUtc));
         // Only the replacement's row: the download job and the ticked copies are as they were.
         var after = await SnapshotAsync(cancellationToken);
         Assert.Equal((before.Downloads, before.Copies, before.NewFiles), (after.Downloads, after.Copies, after.NewFiles));
@@ -148,12 +149,12 @@ public sealed class ReplacementCancelHttpTests : IClassFixture<MediaAcquisitionM
             ReplacementJobState.NeedsReview,
             [
                 new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1), ReplacementNameState.Planned),
-                new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: 98_304), ReplacementNameState.Stayed, HeldReason),
+                new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: 98_304), ReplacementNameState.Stayed, PlantedMessage.Of(HeldReason)),
                 new PlantedName(ReplacementNameKind.Video, ExtendedPath, TestMedia.File(inode: 3), ReplacementNameState.Restored),
                 new PlantedName(ReplacementNameKind.Video, WorkprintPath, TestMedia.File(inode: 4), ReplacementNameState.Lost),
             ],
             quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime,
-            reason: HeldReason);
+            reason: PlantedMessage.Of(HeldReason));
 
         //Act
         var response = await CancelAsync(planted.Replacement.Id);
@@ -184,7 +185,7 @@ public sealed class ReplacementCancelHttpTests : IClassFixture<MediaAcquisitionM
         // ADR 0033 — the switch guards writes to the media; Keep both writes none.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var replacement = await JobAsync(planted.Replacement.Id, cancellationToken);
-        Assert.Equal((ReplacementJobState.Cancelled, (string?)KeptBothReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Cancelled, (string?)KeptBothReason), (replacement.State, TestTexts.En(replacement.Reason)));
     }
 
     // ── afterwards ──────────────────────────────────────────────────────────────────────────────
@@ -273,7 +274,7 @@ public sealed class ReplacementCancelHttpTests : IClassFixture<MediaAcquisitionM
         var replacement = await JobAsync(replacementId, cancellationToken);
         Assert.Equal(
             (ReplacementJobState.Cancelled, (string?)KeptBothReason, keptBoth.StateChangedUtc),
-            (replacement.State, replacement.Reason, replacement.StateChangedUtc));
+            (replacement.State, TestTexts.En(replacement.Reason), replacement.StateChangedUtc));
         await _factory.WithDbAsync(async db =>
         {
             Assert.Equal(1, await db.AuditEvents.CountAsync(audit => audit.Action == AuditAction.ReplacementCancelledAlone, cancellationToken));
@@ -307,7 +308,7 @@ public sealed class ReplacementCancelHttpTests : IClassFixture<MediaAcquisitionM
         //Assert
         Assert.Equal(HttpStatusCode.OK, keptBoth?.StatusCode);
         var replacement = await JobAsync(replacementId, cancellationToken);
-        Assert.Equal((ReplacementJobState.Cancelled, (string?)KeptBothReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Cancelled, (string?)KeptBothReason), (replacement.State, TestTexts.En(replacement.Reason)));
         // The pass's decision and its evidence went with its write: no Verified row, no pair; and no move after.
         Assert.Equal(
             [AuditAction.ReplacementCheckStarted, AuditAction.ReplacementCancelledAlone],
@@ -355,7 +356,7 @@ public sealed class ReplacementCancelHttpTests : IClassFixture<MediaAcquisitionM
                 new PlantedName(ReplacementNameKind.Video, ExtendedPath, TestMedia.File(inode: 3), ReplacementNameState.Planned),
             ],
             quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime,
-            reason: HeldReason);
+            reason: PlantedMessage.Of(HeldReason));
         var before = await SnapshotAsync(cancellationToken);
 
         //Act
@@ -431,7 +432,7 @@ public sealed class ReplacementCancelHttpTests : IClassFixture<MediaAcquisitionM
             _ => _factory.WithDbAsync(db => db.ReplacementJobs
                 .Where(job => job.Id == id)
                 .ExecuteUpdateAsync(
-                    setters => setters.SetProperty(job => job.State, ReplacementJobState.Failed).SetProperty(job => job.Reason, FailedReason),
+                    setters => setters.SetProperty(job => job.State, ReplacementJobState.Failed).SetProperty(job => job.Reason, PlantedMessage.Of(FailedReason)),
                     CancellationToken.None)));
 
         //Act
@@ -442,7 +443,7 @@ public sealed class ReplacementCancelHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(AlreadyEndedError, await response.ReadErrorAsync(cancellationToken));
         var replacement = await JobAsync(id, cancellationToken);
-        Assert.Equal((ReplacementJobState.Failed, (string?)FailedReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Failed, (string?)FailedReason), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Empty(await _harness.ReplacementAuditsAsync(cancellationToken));
         Assert.False(_factory.Resolve<ReplacementJobsInHand>().Holds(id));
     }
@@ -468,7 +469,7 @@ public sealed class ReplacementCancelHttpTests : IClassFixture<MediaAcquisitionM
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var replacement = await JobAsync(id, cancellationToken);
-        Assert.Equal((ReplacementJobState.Cancelled, (string?)KeptBothReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Cancelled, (string?)KeptBothReason), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Equal([AuditAction.ReplacementCancelledAlone], (await _harness.ReplacementAuditsAsync(cancellationToken)).Select(audit => audit.Action));
         // The line names the state the write found, never the one the request read before the follower moved it on.
         Assert.Equal(

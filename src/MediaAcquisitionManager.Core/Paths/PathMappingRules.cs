@@ -1,10 +1,12 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Paths;
 
 /// <summary>
 /// What an integration's path mappings may be when the owner saves them (MAM-7, ADR 0003). Each rule
-/// answers one readable sentence, or <c>null</c> when the mappings are acceptable.
+/// answers why they are refused, as a message the Api renders (ADR 0042), or <c>null</c> when the mappings are
+/// acceptable.
 /// </summary>
 /// <remarks>
 /// Accepted on purpose: no pairs (the identity), nested pairs that agree
@@ -22,24 +24,24 @@ public static class PathMappingRules
     /// <summary>Longer than any mount point anyone types; bounds what is stored.</summary>
     public const int MaximumPathLength = 1024;
 
-    private const string TooManyError = "An integration can have at most 20 path mappings.";
-    private const string AppPathMissingError = "Each path mapping needs the folder as this app sees it.";
-    private const string TooLongError = "A path in a path mapping can be at most 1024 characters long.";
-    private const string ControlCharacterError = "A path in a path mapping can't contain line breaks or other control characters.";
+    private static readonly Message TooManyError = Message.Of("integrations.path-mapping.too-many", ("count", MaximumCount));
+    private static readonly Message AppPathMissingError = Message.Of("integrations.path-mapping.app-path-missing");
+    private static readonly Message TooLongError = Message.Of("integrations.path-mapping.too-long", ("count", MaximumPathLength));
+    private static readonly Message ControlCharacterError = Message.Of("integrations.path-mapping.control-characters");
 
     /// <summary>
-    /// The sentence saying what is wrong with <paramref name="pairs"/> for <paramref name="adapter"/>,
+    /// Why <paramref name="pairs"/> are refused for <paramref name="adapter"/>,
     /// or <c>null</c>. Pass the pairs as typed: surrounding whitespace is ignored. The first failure
     /// wins — the rules of each pair in turn, then those between pairs — and a path that parsed is
     /// echoed in its canonical form.
     /// </summary>
-    public static string? Validate(IReadOnlyList<PathMappingPair> pairs, IntegrationAdapterDescriptor adapter)
+    public static Message? Validate(IReadOnlyList<PathMappingPair> pairs, IntegrationAdapterDescriptor adapter)
     {
         var display = adapter.DisplayName;
         // An indexer's paths are never trusted (specification §4), so a mapping for one would only
         // look like it does something.
         if (pairs.Count > 0 && !adapter.ReportsFilePaths)
-            return $"{display} reports no file paths, so it takes no path mappings.";
+            return Message.Of("integrations.path-mapping.no-file-paths", ("service", display));
         if (pairs.Count > MaximumCount)
             return TooManyError;
 
@@ -49,7 +51,7 @@ public static class PathMappingRules
             var servicePrefix = pair?.ServicePrefix?.Trim() ?? "";
             var appPrefix = pair?.AppPrefix?.Trim() ?? "";
             if (servicePrefix.Length == 0)
-                return $"Each path mapping needs the folder as {display} sees it.";
+                return Message.Of("integrations.path-mapping.service-path-missing", ("service", display));
             if (appPrefix.Length == 0)
                 return AppPathMissingError;
             if (servicePrefix.Length > MaximumPathLength || appPrefix.Length > MaximumPathLength)
@@ -66,7 +68,7 @@ public static class PathMappingRules
         // One service runs on one operating system; a mix means one of the paths was typed for
         // another service, and the two styles never cover each other.
         if (parsed.Select(pair => pair.Service.Style).Distinct().Count() > 1)
-            return $"All the paths of {display} in one integration must be of one kind: Linux-style (/…) or Windows-style (D:\\…).";
+            return Message.Of("integrations.path-mapping.mixed-styles", ("service", display));
 
         // The unique index is a case-sensitive backstop; this also catches D:\DL and d:\dl, which
         // name one Windows folder.
@@ -75,7 +77,7 @@ public static class PathMappingRules
             for (var second = first + 1; second < parsed.Count; second++)
             {
                 if (parsed[first].Service.IsSameAs(parsed[second].Service))
-                    return $"The path “{parsed[first].Service}” of {display} is mapped twice. Keep one mapping for it.";
+                    return Message.Of("integrations.path-mapping.mapped-twice", ("path", parsed[first].Service.ToString()), ("service", display));
             }
         }
 
@@ -95,15 +97,22 @@ public static class PathMappingRules
                 // /media/movies/x.mkv at once, and PathMapper answers Ambiguous.
                 if (outer.Service.Style == PathStyle.Windows && outer.App.Style == PathStyle.Posix)
                 {
-                    return $"“{inner.Service}” is inside “{outer.Service}”. " +
-                        $"With Windows paths on the {display} side and Linux paths in this app, keep only one of them.";
+                    return Message.Of(
+                        "integrations.path-mapping.nested-windows-on-linux",
+                        ("inner", inner.Service.ToString()),
+                        ("outer", outer.Service.ToString()),
+                        ("service", display));
                 }
 
                 var viaOuter = outer.App.Append(inner.Service.SegmentsAfter(outer.Service));
                 if (!viaOuter.IsSameAs(inner.App))
                 {
-                    return $"The mappings for “{outer.Service}” and “{inner.Service}” send “{inner.Service}” to different places: " +
-                        $"“{viaOuter}” and “{inner.App}”. Remove one, or make them agree.";
+                    return Message.Of(
+                        "integrations.path-mapping.nested-disagree",
+                        ("outer", outer.Service.ToString()),
+                        ("inner", inner.Service.ToString()),
+                        ("viaOuter", viaOuter.ToString()),
+                        ("innerApp", inner.App.ToString()));
                 }
             }
         }
@@ -116,15 +125,19 @@ public static class PathMappingRules
     public static IReadOnlyList<PathMappingPair> Normalize(IReadOnlyList<PathMappingPair> pairs) =>
         [.. pairs.Select(pair => new PathMappingPair(Canonical(pair.ServicePrefix), Canonical(pair.AppPrefix)))];
 
-    private static string? Parse(string text, out NormalizedPath? path)
+    private static Message? Parse(string text, out NormalizedPath? path)
     {
         if (NormalizedPath.TryParse(text, out path, out var error))
             return null;
 
         return error == PathParseError.DotSegment
-            ? $"“{text}” contains . or .. as a folder name. Write the folder's full path without them."
-            : $"“{text}” is not a full path. Start it with / (Linux) or a drive letter such as D:\\ (Windows).";
+            ? DotSegmentError(text)
+            : Message.Of("integrations.path-mapping.not-full-path", ("path", text));
     }
+
+    /// <summary>MAM-47 — a path holding <c>.</c> or <c>..</c> as a folder name: one wording, one key, for the path
+    /// mappings and the media folders (<see cref="Files.AllowedRootRules"/>).</summary>
+    internal static Message DotSegmentError(string path) => Message.Of("integrations.path.dot-segment", ("path", path));
 
     private static string Canonical(string text) =>
         NormalizedPath.TryParse(text.Trim(), out var path, out var error)

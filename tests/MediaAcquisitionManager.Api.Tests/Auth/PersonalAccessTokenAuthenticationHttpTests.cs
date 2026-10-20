@@ -30,7 +30,7 @@ public sealed class PersonalAccessTokenAuthenticationHttpTests : IClassFixture<M
     private const string UnknownApiUrl = "/api/nothing-lives-here";
 
     // Spelled out rather than read from the product code: what every refused credential and every limited address gets.
-    private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+    private static readonly string SignInRequiredBody = ErrorBody.Json("Sign in to continue.", "account.sign-in-required");
     private const string TooManyAttempts = "Too many attempts. Wait a minute and try again.";
 
     // A bearer the session check refuses for not being a JWT at all: the reference the token's 401 is compared with.
@@ -199,6 +199,41 @@ public sealed class PersonalAccessTokenAuthenticationHttpTests : IClassFixture<M
             Assert.False(await db.PersonalAccessTokens.AnyAsync(token => token.LastUsedUtc != null, cancellationToken));
             Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken));
         });
+    }
+
+    // MAM-47 (ADR 0042) — the 401's words follow the request's own Accept-Language, never the account behind the
+    // credential, so asked in Ukrainian an expired session, an unknown token, a revoked token and a disabled user's token
+    // still answer the same bytes, with the one code. The accounts saved English, which an answer read from
+    // Users.Language would show instead of the Ukrainian asked for.
+    [Fact]
+    public async Task Get_with_any_refused_credential_asked_in_ukrainian_is_the_identical_401_with_the_sign_in_code()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var alice = await _users.CreateAuthorized("alice");
+        var dora = await _users.Create("dora", isDisabled: true);
+        await _users.SetLanguage(alice.User, "en");
+        await _users.SetLanguage(dora, "en");
+        var revoked = (await _tokens.CreateRevoked(alice.User)).Secret;
+        var disabledUsers = (await _tokens.Create(dora)).Secret;
+        // Past the access token's 15 minutes and the clock skew: alice's session is live, her access token isn't.
+        _factory.Time.Advance(TimeSpan.FromMinutes(16));
+
+        //Act
+        var expiredSession = await _factory.GetHttpRequest(BaseUrl, alice.AccessToken, language: "uk");
+        var unknownToken = await _factory.GetHttpRequest(BaseUrl, NewSecret(), language: "uk");
+        var revokedToken = await _factory.GetHttpRequest(BaseUrl, revoked, language: "uk");
+        var disabledUsersToken = await _factory.GetHttpRequest(BaseUrl, disabledUsers, language: "uk");
+
+        //Assert
+        Assert.Equal(
+            [HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized],
+            [expiredSession.StatusCode, unknownToken.StatusCode, revokedToken.StatusCode, disabledUsersToken.StatusCode]);
+        var expiredSessionBody = await expiredSession.Content.ReadAsByteArrayAsync(cancellationToken);
+        Assert.Equal(expiredSessionBody, await unknownToken.Content.ReadAsByteArrayAsync(cancellationToken));
+        Assert.Equal(expiredSessionBody, await revokedToken.Content.ReadAsByteArrayAsync(cancellationToken));
+        Assert.Equal(expiredSessionBody, await disabledUsersToken.Content.ReadAsByteArrayAsync(cancellationToken));
+        Assert.Equal("account.sign-in-required", await expiredSession.ReadErrorCodeAsync(cancellationToken));
     }
 
     [Fact]
@@ -371,7 +406,7 @@ public sealed class PersonalAccessTokenAuthenticationHttpTests : IClassFixture<M
         Assert.All(failed, status => Assert.Equal(HttpStatusCode.Unauthorized, status));
         Assert.Equal(HttpStatusCode.TooManyRequests, validToken.StatusCode);
         Assert.Equal("application/json", validToken.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(TooManyAttempts, await validToken.ReadErrorAsync(cancellationToken));
+        Assert.Equal((TooManyAttempts, "account.too-many-attempts"), await validToken.ReadErrorBodyAsync(cancellationToken));
         Assert.Equal(TimeSpan.FromSeconds(60), validToken.Headers.RetryAfter?.Delta);
         Assert.Equal(HttpStatusCode.TooManyRequests, unknownToken.StatusCode);
         Assert.Equal(TooManyAttempts, await unknownToken.ReadErrorAsync(cancellationToken));

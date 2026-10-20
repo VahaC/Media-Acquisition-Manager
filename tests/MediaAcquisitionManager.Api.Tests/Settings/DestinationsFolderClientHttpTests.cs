@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
@@ -514,7 +515,7 @@ public sealed class DestinationsFolderClientHttpTests : IClassFixture<FolderClie
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(
-            """{"error":"The destination being edited isn't a valid id. Reload the page and open it again."}""",
+            ErrorBody.Json("The destination being edited isn't a valid id. Reload the page and open it again.", "destinations.edited-invalid"),
             await response.Content.ReadAsStringAsync(cancellationToken));
         Assert.Empty(_factory.FolderClient.Calls);
     }
@@ -550,7 +551,7 @@ public sealed class DestinationsFolderClientHttpTests : IClassFixture<FolderClie
         await _libraries.Create(_jellyfin, "Мульфільми", "/srv/cartoons");
         var client = await CreateClientAsync();
         _factory.FolderClient.ListingFailure = IntegrationCallResult<IReadOnlyList<ClientDestination>>.Failed(
-            IntegrationCallStatus.Refused, "Transmission refused the user name or password.");
+            IntegrationCallStatus.Refused, Message.Of("integrations.adapter.credentials-refused", ("service", "Transmission")));
 
         //Act
         var body = await ReadAsync(await ListAsync(client), cancellationToken);

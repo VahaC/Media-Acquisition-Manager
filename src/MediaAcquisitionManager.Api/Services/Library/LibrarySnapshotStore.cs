@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -241,7 +242,7 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
                     .SetProperty(run => run.SeriesCount, seriesCount)
                     .SetProperty(run => run.VersionsCount, versionsCount)
                     .SetProperty(run => run.FilesCount, filesCount)
-                    .SetProperty(run => run.Error, (string?)null),
+                    .SetProperty(run => run.Error, (Message?)null),
                 CancellationToken.None) == 1;
     }
 

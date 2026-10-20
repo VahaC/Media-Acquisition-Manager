@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -70,7 +71,7 @@ public sealed partial class ReplacementQuarantiner
     /// for the copies the stop isn't about), and a <c>ReplacementNeedsReview</c> row of the app's own. Nothing renamed, no
     /// name row written; nothing at all when another writer moved the job first.
     /// </summary>
-    private async Task StopAsync(QuarantineJob job, string reason, MoveCheck check, DateTime now)
+    private async Task StopAsync(QuarantineJob job, Message reason, MoveCheck check, DateTime now)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(CancellationToken.None);
         if (await db.ReplacementJobs.StopBeforeQuarantineAsync(job.Replacement.Id, reason, now) == 0)
@@ -139,7 +140,7 @@ public sealed partial class ReplacementQuarantiner
         }
 
         db.ReplacementJobNames.AddRange(names);
-        await SetProblemsAsync(copyIds, new Dictionary<Guid, string>());
+        await SetProblemsAsync(copyIds, new Dictionary<Guid, Message>());
         auditTrail.Record(AuditAction.ReplacementQuarantineStarted, null, TargetOf(job));
         await db.SaveChangesAsync(CancellationToken.None);
         await transaction.CommitAsync(CancellationToken.None);
@@ -155,7 +156,7 @@ public sealed partial class ReplacementQuarantiner
     /// staying where it is when <paramref name="heldBy"/> says a torrent holds it.
     /// </summary>
     private static ReplacementJobNameEntity NameRow(
-        Guid replacementJobId, CheckedCopy copy, NormalizedPath appPath, FileFacts facts, ReplacementNameKind kind, string? heldBy, int position) =>
+        Guid replacementJobId, CheckedCopy copy, NormalizedPath appPath, FileFacts facts, ReplacementNameKind kind, Message? heldBy, int position) =>
         new()
         {
             ReplacementJobId = replacementJobId,
@@ -171,7 +172,7 @@ public sealed partial class ReplacementQuarantiner
             ModifiedUtc = facts.ModifiedUtc,
             LinkCount = facts.LinkCount,
             State = heldBy is null ? ReplacementNameState.Planned : ReplacementNameState.Stayed,
-            Problem = heldBy is null ? null : FileInspectionRunUpdates.Cut(heldBy, ReplacementJobNameEntity.ProblemMaximumLength),
+            Problem = heldBy,
         };
 
     // ── the names ───────────────────────────────────────────────────────────────────────────────
@@ -187,7 +188,7 @@ public sealed partial class ReplacementQuarantiner
     {
         var replacementJobId = job.Replacement.Id;
         var moved = 0;
-        string? reason = null;
+        Message? reason = null;
         Guid? stoppedCopyId = null;
         foreach (var name in names.Where(name => name.State == ReplacementNameState.Planned))
         {
@@ -307,7 +308,7 @@ public sealed partial class ReplacementQuarantiner
     /// <summary>The outcome of <paramref name="name"/>'s rename that wasn't done — <c>Stayed</c> where it was — or that
     /// moved another file — <c>Lost</c> —, committed after it with <paramref name="problem"/>, and a
     /// <c>ReplacementNameNotMoved</c> row of the app's own.</summary>
-    private async Task RecordNotMovedAsync(ReplacementJobNameEntity name, ReplacementNameState state, string problem)
+    private async Task RecordNotMovedAsync(ReplacementJobNameEntity name, ReplacementNameState state, Message problem)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(CancellationToken.None);
         if (await db.ReplacementJobNames.RecordNameNotMovedAsync(name.Id, state, problem) == 0)
@@ -329,7 +330,7 @@ public sealed partial class ReplacementQuarantiner
     /// (<paramref name="stoppedCopyId"/>) given it as its problem. A library notice owed from then when
     /// <paramref name="noticeDue"/>, and the audit row of the app's own. Whether it was written.
     /// </summary>
-    private async Task<bool> SettleAsync(QuarantineJob job, string? reason, Guid? stoppedCopyId, bool noticeDue, DateTime now)
+    private async Task<bool> SettleAsync(QuarantineJob job, Message? reason, Guid? stoppedCopyId, bool noticeDue, DateTime now)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(CancellationToken.None);
         var state = reason is not null ? ReplacementJobState.NeedsReview : await RestingStateAsync(job.Replacement.Id);
@@ -340,7 +341,7 @@ public sealed partial class ReplacementQuarantiner
         }
 
         if (stoppedCopyId is { } copyId)
-            await SetProblemsAsync([copyId], new Dictionary<Guid, string> { [copyId] = reason! });
+            await SetProblemsAsync([copyId], new Dictionary<Guid, Message> { [copyId] = reason! });
         auditTrail.Record(
             state switch
             {
@@ -377,21 +378,20 @@ public sealed partial class ReplacementQuarantiner
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Writes each of <paramref name="copyIds"/>' problem: its sentence in <paramref name="problems"/>, cut to the column,
-    /// or none — a problem of an earlier stop no longer holds. Inside the caller's transaction.
+    /// Writes each of <paramref name="copyIds"/>' problem: its message in <paramref name="problems"/> — the column's
+    /// converter fits it —, or none — a problem of an earlier stop no longer holds. Inside the caller's transaction.
     /// </summary>
-    private async Task SetProblemsAsync(IReadOnlyList<Guid> copyIds, IReadOnlyDictionary<Guid, string> problems)
+    private async Task SetProblemsAsync(IReadOnlyList<Guid> copyIds, IReadOnlyDictionary<Guid, Message> problems)
     {
         List<Guid> cleared = [.. copyIds.Where(copyId => !problems.ContainsKey(copyId))];
         await db.ReplacementJobFiles
             .Where(copy => cleared.Contains(copy.Id) && copy.Problem != null)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(copy => copy.Problem, (string?)null), CancellationToken.None);
+            .ExecuteUpdateAsync(setters => setters.SetProperty(copy => copy.Problem, (Message?)null), CancellationToken.None);
         foreach (var (copyId, problem) in problems)
         {
-            var stored = FileInspectionRunUpdates.Cut(problem, ReplacementJobFileEntity.ProblemMaximumLength);
             await db.ReplacementJobFiles
                 .Where(copy => copy.Id == copyId)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(copy => copy.Problem, stored), CancellationToken.None);
+                .ExecuteUpdateAsync(setters => setters.SetProperty(copy => copy.Problem, problem), CancellationToken.None);
         }
     }
 

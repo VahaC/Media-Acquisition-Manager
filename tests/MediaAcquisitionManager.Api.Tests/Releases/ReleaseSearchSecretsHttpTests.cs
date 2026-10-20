@@ -8,6 +8,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -99,7 +100,7 @@ public sealed class ReleaseSearchSecretsHttpTests : IClassFixture<MediaAcquisiti
             JsonSerializer.Deserialize<ReleaseSearchResponse>(body, MediaAcquisitionManagerApiFactory.JsonOptions)!.Sources
                 .Single(source => source.Name == "Toloka").Releases.Count));
         Assert.Equal(2 * PlantedItems().Length, releaseCiphertexts.Length);
-        Assert.Contains("refused the API key (error 100:", bodies[0], StringComparison.Ordinal);
+        Assert.Contains("refused the API key (error 100:", PseudoText.Strip(bodies[0]), StringComparison.Ordinal);
         Assert.All(bodies, body =>
         {
             var text = ReadableText(body);

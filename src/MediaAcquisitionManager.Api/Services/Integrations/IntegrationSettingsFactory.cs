@@ -3,13 +3,16 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.Integrations;
 
 /// <inheritdoc cref="IIntegrationSettingsFactory"/>
 /// <remarks>
 /// MAM-8 — lifted out of the connection test's Keep path, so the test and a library sync open a stored
-/// secret with one implementation, one sentence and one log line.
+/// secret with one implementation, one sentence and one log line. MAM-47 (ADR 0042) — the sentence is one key per
+/// secret (<c>integrations.stored-secret.*</c>): "password" and "API key" are no words put into a sentence, so each
+/// language writes the whole sentence for each.
 /// </remarks>
 public sealed class IntegrationSettingsFactory(IEncryptionService encryption, ILogger<IntegrationSettingsFactory> logger)
     : IIntegrationSettingsFactory
@@ -32,7 +35,7 @@ public sealed class IntegrationSettingsFactory(IEncryptionService encryption, IL
         IntegrationConnectionEntity integration,
         IntegrationSecretField field,
         out string? secret,
-        [NotNullWhen(false)] out string? error)
+        [NotNullWhen(false)] out Message? error)
     {
         secret = null;
         error = null;
@@ -42,17 +45,19 @@ public sealed class IntegrationSettingsFactory(IEncryptionService encryption, IL
         if (encryption.TryDecrypt(sealedValue, IntegrationSecretPurpose.For(integration.Id, field), out secret))
             return true;
 
-        var name = SecretFieldName(field);
         // Warning, so it ships off the box: an operator must act (a changed key, a restored or edited
         // database). Neither the value nor the key is named.
         logger.LogWarning(
             "The stored {SecretField} of integration {IntegrationId} could not be decrypted with the configured encryption key.",
-            name,
+            SecretFieldName(field),
             integration.Id);
-        error = $"The stored {name} of “{integration.Name}” can't be read with this installation's encryption key. Enter the {name} again and save.";
+        error = field == IntegrationSecretField.Password
+            ? Message.Of("integrations.stored-secret.password-unreadable", ("name", integration.Name))
+            : Message.Of("integrations.stored-secret.api-key-unreadable", ("name", integration.Name));
         return false;
     }
 
+    /// <summary>The secret's name in the log line, which stays English (ADR 0042).</summary>
     private static string SecretFieldName(IntegrationSecretField field) =>
         field == IntegrationSecretField.Password ? "password" : "API key";
 }

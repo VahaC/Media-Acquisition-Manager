@@ -300,12 +300,15 @@ Vasyl decides again on the recorded facts.**
   /3/tv/{id}/season/{s}/episode/{e}?append_to_response=external_ids&language=uk-UA`, its
   `external_ids.imdb_id`, kept on the link as `EpisodeImdbId`) where the item holds no IMDb id, and
   nothing else — never a TMDb id, which on a movie item names a film. Without both numbers ("Without a
-  season and an episode the app has no id of this episode to write."), or when TMDb gives the episode no
-  IMDb id ("TMDb knows no IMDb id of this episode, so its link stays in the app.", kept as the link's
-  error, as only asking TMDb tells it), the link stays in the app; the same pick saved again asks TMDb
-  again, and writes the id once TMDb gives one. An item holding another IMDb id keeps it, the link
-  `NotWritten` with the sentence saying to change it in Jellyfin. An episode item no series holds keeps
-  its link in the app as before. A film link the episode's link replaces is put back in the same write.
+  season and an episode the app has no id of this episode to write.", code
+  `library-links.kept.no-numbers` since MAM-47, its words "… to identify it by." since Identify), or
+  when TMDb gives the episode no IMDb id ("TMDb knows no IMDb id of this episode, so its link stays in
+  the app.", code `library-links.kept.no-episode-imdb`, kept as the link's error — its key and no
+  sentence since MAM-47, ADR 0042 —, as only asking TMDb tells it), the link stays in the app; the
+  same pick saved again asks TMDb again, and writes the id once TMDb gives one. An item holding
+  another IMDb id keeps it, the link `NotWritten` with the sentence saying to change it in Jellyfin.
+  An episode item no series holds keeps its link in the app as before. A film link the episode's link
+  replaces is put back in the same write.
 - **Each link has a written key** — a link to the work its TMDb id, an episode's link its episode's
   IMDb id — by which a sync judges it (`InLibrary`, `Lost`), the history knows what the app wrote, and
   a removal takes back only that. The film id an episode's link replaced keeps giving way whatever the

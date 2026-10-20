@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -17,7 +18,7 @@ public interface IMediaInspectionDataFactory
         long sizeBytes,
         DateTime modifiedUtc,
         IReadOnlyList<MediaInspectionTrackEntity>? tracks = null,
-        string? error = null,
+        Message? error = null,
         long? durationMilliseconds = null,
         long? bitRate = null);
 }

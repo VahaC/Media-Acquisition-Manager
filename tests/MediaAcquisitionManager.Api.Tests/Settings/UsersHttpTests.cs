@@ -414,7 +414,9 @@ public sealed class UsersHttpTests : IClassFixture<MediaAcquisitionManagerApiFac
 
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal($"A user named “{userName.Trim()}” already exists.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(
+            ($"A user named “{userName.Trim()}” already exists.", "account.users.name-taken"),
+            await response.ReadErrorBodyAsync(cancellationToken));
         await AssertOnlyTheSeededUsersAsync(2, cancellationToken);
     }
 

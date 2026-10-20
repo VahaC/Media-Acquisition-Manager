@@ -37,6 +37,14 @@
     </PackageReference>
   </ItemGroup>
 
+  <!-- MAM-47 (ADR 0042) — the server's sentences, one file per area and language. Embedded, so the image, `dotnet run`
+       and the tests read the same bytes and no file can be missing next to the DLL; removed from Content, so the Web SDK
+       doesn't also publish them as loose files. -->
+  <ItemGroup>
+    <Content Remove="Locales\**\*.json" />
+    <EmbeddedResource Include="Locales\**\*.json" LogicalName="Locales/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="MediaAcquisitionManager.Api.Tests" />
     <InternalsVisibleTo Include="MediaAcquisitionManager.TestInfrastructure" />

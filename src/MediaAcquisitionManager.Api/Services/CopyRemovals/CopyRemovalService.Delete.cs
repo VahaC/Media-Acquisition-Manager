@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
 
@@ -12,12 +13,12 @@ namespace MediaAcquisitionManager.Api.Services.CopyRemovals;
 /// </summary>
 public sealed partial class CopyRemovalService
 {
-    private const string NothingToDeleteError = "This removal holds nothing in the quarantine to delete.";
+    private static readonly Message NothingToDeleteError = Message.Of("duplicates.removal.delete.nothing");
 
-    private const string DeleteSwitchedOffError =
-        "Replacing and removing copies is switched off on the Media folders page, so nothing can be deleted. Turn on “Replace copies after verification”, then press Delete permanently again.";
+    private static readonly Message DeleteSwitchedOffError = Message.Of("duplicates.removal.delete.switched-off");
 
-    private const string DeleteNotSupportedError = "The app can't write to the media folders on the platform it runs on, so nothing was deleted.";
+    // A replacement's own words: the same platform and the same deletes.
+    private static readonly Message DeleteNotSupportedError = Message.Of("replacements.delete-for-good.unsupported");
 
     public async Task<CopyRemovalResult> DeleteForGoodAsync(Guid copyRemovalId, Guid callerUserId, CancellationToken cancellationToken = default)
     {
@@ -35,7 +36,7 @@ public sealed partial class CopyRemovalService
         if (!inHand.TryTake(copyRemovalId))
             return CopyRemovalResult.Refused(BeingWorkedOnError);
 
-        string? stopped;
+        Message? stopped;
         try
         {
             stopped = await RunAsync(removal, quarantined, DeleteWrite(), actor);
@@ -53,7 +54,7 @@ public sealed partial class CopyRemovalService
     /// switch is on, and every name passes <see cref="QuarantineNameChecks.DeleteRefusalAsync"/>. No tick is read: the
     /// quarantine belongs to the allowed root, not to a library folder (ADR 0033).
     /// </summary>
-    private async Task<string?> DeleteRefusalAsync(IReadOnlyList<CopyRemovalNameEntity> names, CancellationToken cancellationToken)
+    private async Task<Message?> DeleteRefusalAsync(IReadOnlyList<CopyRemovalNameEntity> names, CancellationToken cancellationToken)
     {
         if (!quarantine.Capabilities.CanRename)
             return DeleteNotSupportedError;

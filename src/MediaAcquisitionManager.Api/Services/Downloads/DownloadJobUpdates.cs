@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Downloads;
@@ -55,29 +56,26 @@ public static class DownloadJobUpdates
 
     /// <summary>
     /// Writes the job's outcome at <paramref name="changedUtc"/>: its status, the client's id of the
-    /// download, and the error, cut to fit its column, with whose sentence it is; how many jobs it wrote (0
-    /// or 1).
+    /// download, and the error, with whose sentence it is; how many jobs it wrote (0 or 1). MAM-47 — the column's
+    /// converter fits the message into it (ADR 0042).
     /// </summary>
     public static Task<int> FinishAsync(
         this IQueryable<DownloadJobEntity> jobs,
         Guid jobId,
         DownloadJobStatus status,
         string? clientJobId,
-        string? error,
+        Message? error,
         DownloadJobErrorOrigin? errorOrigin,
-        DateTime changedUtc)
-    {
-        var storedError = error is null ? null : Cut(error);
-        return jobs.Where(job => job.Id == jobId && job.Status == DownloadJobStatus.Created)
+        DateTime changedUtc) =>
+        jobs.Where(job => job.Id == jobId && job.Status == DownloadJobStatus.Created)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.Status, status)
                     .SetProperty(job => job.ClientJobId, clientJobId)
-                    .SetProperty(job => job.Error, storedError)
+                    .SetProperty(job => job.Error, error)
                     .SetProperty(job => job.ErrorOrigin, errorOrigin)
                     .SetProperty(job => job.StatusChangedUtc, changedUtc),
                 CancellationToken.None);
-    }
 
     /// <summary>
     /// MAM-14 — writes what one look at the client said about the followed job <paramref name="jobId"/>, read
@@ -94,12 +92,10 @@ public static class DownloadJobUpdates
         double? progress,
         string clientJobId,
         string? infoHashV2,
-        string? blockReason,
+        Message? blockReason,
         DownloadJobErrorOrigin? blockReasonOrigin,
-        DateTime changedUtc)
-    {
-        var storedReason = Stored(blockReason);
-        return jobs.Where(job => job.Id == jobId && job.Status == observedStatus)
+        DateTime changedUtc) =>
+        jobs.Where(job => job.Id == jobId && job.Status == observedStatus)
             .ExecuteUpdateAsync(
                 setters =>
                 {
@@ -108,13 +104,12 @@ public static class DownloadJobUpdates
                         .SetProperty(job => job.Progress, progress)
                         .SetProperty(job => job.ClientJobId, clientJobId)
                         .SetProperty(job => job.InfoHashV2, infoHashV2)
-                        .SetProperty(job => job.BlockReason, storedReason)
+                        .SetProperty(job => job.BlockReason, blockReason)
                         .SetProperty(job => job.BlockReasonOrigin, blockReasonOrigin);
                     if (status != observedStatus)
                         setters.SetProperty(job => job.StatusChangedUtc, changedUtc);
                 },
                 CancellationToken.None);
-    }
 
     /// <summary>
     /// MAM-14 — claims the followed job <paramref name="jobId"/>, read as <paramref name="observedStatus"/>, for
@@ -136,17 +131,14 @@ public static class DownloadJobUpdates
         this IQueryable<DownloadJobEntity> jobs,
         Guid jobId,
         DownloadJobStatus observedStatus,
-        string? blockReason,
-        DownloadJobErrorOrigin? blockReasonOrigin)
-    {
-        var storedReason = Stored(blockReason);
-        return jobs.Where(job => job.Id == jobId && job.Status == observedStatus)
+        Message? blockReason,
+        DownloadJobErrorOrigin? blockReasonOrigin) =>
+        jobs.Where(job => job.Id == jobId && job.Status == observedStatus)
             .ExecuteUpdateAsync(
                 setters => setters
-                    .SetProperty(job => job.BlockReason, storedReason)
+                    .SetProperty(job => job.BlockReason, blockReason)
                     .SetProperty(job => job.BlockReasonOrigin, blockReasonOrigin),
                 CancellationToken.None);
-    }
 
     /// <summary>
     /// MAM-14 — ends the following of the job <paramref name="jobId"/>, read as <paramref name="observedStatus"/>,
@@ -159,18 +151,17 @@ public static class DownloadJobUpdates
         Guid jobId,
         DownloadJobStatus observedStatus,
         DownloadJobStatus status,
-        string? error,
+        Message? error,
         DateTime changedUtc)
     {
-        var storedError = Stored(error);
         DownloadJobErrorOrigin? errorOrigin = error is null ? null : DownloadJobErrorOrigin.App;
         return jobs.Where(job => job.Id == jobId && job.Status == observedStatus)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.Status, status)
-                    .SetProperty(job => job.Error, storedError)
+                    .SetProperty(job => job.Error, error)
                     .SetProperty(job => job.ErrorOrigin, errorOrigin)
-                    .SetProperty(job => job.BlockReason, (string?)null)
+                    .SetProperty(job => job.BlockReason, (Message?)null)
                     .SetProperty(job => job.BlockReasonOrigin, (DownloadJobErrorOrigin?)null)
                     .SetProperty(job => job.StatusChangedUtc, changedUtc),
                 CancellationToken.None);
@@ -205,24 +196,9 @@ public static class DownloadJobUpdates
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.Status, DownloadJobStatus.Cancelled)
-                    .SetProperty(job => job.BlockReason, (string?)null)
+                    .SetProperty(job => job.BlockReason, (Message?)null)
                     .SetProperty(job => job.BlockReasonOrigin, (DownloadJobErrorOrigin?)null)
                     .SetProperty(job => job.StatusChangedUtc, changedUtc),
                 CancellationToken.None);
     }
-
-    /// <summary>
-    /// MAM-14 — <paramref name="text"/> as its column keeps it (<see cref="DownloadJobEntity.ErrorMaximumLength"/>,
-    /// which <see cref="DownloadJobEntity.Error"/> and <see cref="DownloadJobEntity.BlockReason"/> share): the
-    /// poller compares a new reason with the stored one as it would be stored, so a long one isn't written
-    /// again on every pass.
-    /// </summary>
-    internal static string? Stored(string? text) => text is null ? null : Cut(text);
-
-    // A sentence past the column is cut with an ellipsis, so the reader sees it was cut. The column's own
-    // constant, so the cut and the column can't drift apart.
-    private static string Cut(string error) =>
-        error.Length <= DownloadJobEntity.ErrorMaximumLength
-            ? error
-            : string.Concat(error.AsSpan(0, DownloadJobEntity.ErrorMaximumLength - 1), "…");
 }

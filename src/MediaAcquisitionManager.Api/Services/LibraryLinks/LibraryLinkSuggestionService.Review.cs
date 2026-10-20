@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Media;
 using MediaAcquisitionManager.Core.Paging;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
@@ -21,35 +22,27 @@ public sealed partial class LibraryLinkSuggestionService
     /// </summary>
     public const int MaximumAccepted = PagingRules.MaximumPageSize;
 
-    private const string NothingAcceptedError = "Tick at least one work to link.";
+    private static readonly Message NothingAcceptedError = Message.Of("library-links.review.nothing-accepted");
 
-    private const string AcceptItemMissingError = "Each ticked work needs its work, its kind and its TMDb id.";
+    private static readonly Message AcceptItemMissingError = Message.Of("library-links.review.accept-item-missing");
 
-    private const string WorkMissingError = "Give the work to link.";
+    private static readonly Message WorkMissingError = Message.Of("library-links.review.work-missing");
 
-    private const string IdMissingError = "Give the TMDb id to link.";
+    private static readonly Message HasIdReason = Message.Of("library-links.batch.has-id");
 
-    private const string WorkGoneReason = "The work is no longer in the library.";
+    private static readonly Message NoneFitsReason = Message.Of("library-links.batch.none-fits");
 
-    private const string LinkedMeanwhileReason = "It was linked meanwhile.";
+    private static readonly Message NoLongerConfidentReason = Message.Of("library-links.batch.no-longer-confident");
 
-    private const string HasIdReason = "Its library reports a TMDb id for it now.";
+    private static readonly Message TooManyAcceptedError = Message.Of("library-links.review.too-many", ("count", MaximumAccepted));
 
-    private const string NoneFitsReason = "You marked that none fits.";
+    private static Message IndexInvalidError(string index) => Message.Of("library-links.review.index-invalid", ("value", Echo(index)));
 
-    private const string NoLongerConfidentReason = "It is no longer the work's confident suggestion.";
+    private static Message LocationInvalidError(string location) => Message.Of("library-links.review.location-invalid", ("value", Echo(location)));
 
-    private static string TooManyAcceptedError => $"At most {MaximumAccepted} works can be linked at once.";
+    private static Message WorkIdInvalidError(string workId) => Message.Of("library-links.review.work-id-invalid", ("value", Echo(workId)));
 
-    private static string IndexInvalidError(string index) => $"“{Echo(index)}” is not a place in the queue. Use 0 or more.";
-
-    private static string LocationInvalidError(string location) => $"“{Echo(location)}” is not a library id.";
-
-    private static string WorkIdInvalidError(string workId) => $"“{Echo(workId)}” is not a work id.";
-
-    private static string IdInvalidError(string id) => $"“{Echo(id)}” is not a TMDb id.";
-
-    private static string TickedTwiceError(Guid workId) => $"“{workId}” is ticked twice.";
+    private static Message TickedTwiceError(Guid workId) => Message.Of("library-links.review.ticked-twice", ("value", workId.ToString()));
 
     public async Task<LibraryLinkQueueResult> ReadQueueAsync(string? index, CancellationToken cancellationToken = default)
     {
@@ -230,9 +223,9 @@ public sealed partial class LibraryLinkSuggestionService
         var noneFits = await NoneFitsAsync(ids, cancellationToken);
         var confident = await suggestions.ReadConfidentAsync([.. ids.Where(id => population.Contains(id) && !noneFits.Contains(id))], cancellationToken);
 
-        string? SkipReasonOf(LibraryLinkBatchPick pick) =>
-            !existing.Contains(pick.WorkId) ? WorkGoneReason
-            : linked.Contains(pick.WorkId) ? LinkedMeanwhileReason
+        Message? SkipReasonOf(LibraryLinkBatchPick pick) =>
+            !existing.Contains(pick.WorkId) ? LibraryLinkService.WorkGoneError
+            : linked.Contains(pick.WorkId) ? LibraryLinkService.LinkedMeanwhileError
             : !population.Contains(pick.WorkId) ? HasIdReason
             : noneFits.Contains(pick.WorkId) ? NoneFitsReason
             : confident.TryGetValue(pick.WorkId, out var candidate) && candidate.CatalogKind == pick.CatalogKind
@@ -244,8 +237,8 @@ public sealed partial class LibraryLinkSuggestionService
         return LibraryLinkAcceptResult.Accepted(batch);
     }
 
-    /// <summary>One ticked work parsed (R18: strings, so every mistake gets its sentence), or the sentence.</summary>
-    private static (LibraryLinkBatchPick? Pick, string? Error) Parse(LibraryLinkAcceptItemRequest? item)
+    /// <summary>One ticked work parsed (R18: strings, so every mistake gets its sentence), or why not.</summary>
+    private static (LibraryLinkBatchPick? Pick, Message? Error) Parse(LibraryLinkAcceptItemRequest? item)
     {
         if (item is null)
             return (null, AcceptItemMissingError);
@@ -258,15 +251,15 @@ public sealed partial class LibraryLinkSuggestionService
 
         var kindText = item.CatalogKind?.Trim();
         if (string.IsNullOrEmpty(kindText))
-            return (null, KindMissingError);
+            return (null, LibraryLinkService.KindMissingError);
         if (CatalogKindOf(kindText) is not { } kind)
-            return (null, KindInvalidError(kindText));
+            return (null, LibraryLinkService.KindInvalidError(kindText));
 
         var id = item.CatalogId?.Trim();
         if (string.IsNullOrEmpty(id))
-            return (null, IdMissingError);
+            return (null, LibraryLinkService.IdMissingError);
         if (!MediaIdentifierRules.IsTmdbId(id))
-            return (null, IdInvalidError(id));
+            return (null, LibraryLinkService.IdInvalidError(id));
 
         return (new LibraryLinkBatchPick(workId, kind, id), null);
     }

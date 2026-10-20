@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -24,7 +25,9 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class DownloadJobEntity : AuditableEntity
 {
-    /// <summary>The longest <see cref="Error"/> kept; a longer sentence is cut with "…".</summary>
+    /// <summary>The longest <see cref="Error"/> kept. MAM-47 (ADR 0042) — the column holds the message as JSON, fitted
+    /// into this many characters by cutting its longest value with "…" (<c>MessageFit</c>), as it was the sentence's
+    /// length before: the same TEXT column, so no table is rebuilt.</summary>
     public const int ErrorMaximumLength = 1000;
 
     /// <summary>
@@ -75,10 +78,10 @@ public class DownloadJobEntity : AuditableEntity
     /// <summary>When <see cref="Status"/> last changed.</summary>
     public DateTime StatusChangedUtc { get; set; }
 
-    /// <summary>A readable sentence saying what went wrong, with every secret masked; <c>null</c>
-    /// unless the job failed.</summary>
+    /// <summary>What went wrong, with every secret masked, as a message the Api renders in the reader's language (ADR
+    /// 0042); <c>null</c> unless the job failed.</summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? Error { get; set; }
+    public Message? Error { get; set; }
 
     /// <summary>Whose sentence <see cref="Error"/> is (MAM-13): a service's goes to the owner only, as it can
     /// name the service's address; <c>null</c> without an error.</summary>
@@ -115,10 +118,10 @@ public class DownloadJobEntity : AuditableEntity
     /// MAM-14 — why a followed job isn't moving on, every secret masked: the client reports an error for it,
     /// no longer lists it, or can't be asked (ADR 0014). <c>null</c> when nothing blocks it. Not an end: the job
     /// keeps its status and is still followed, and the reason goes once what caused it does (MAM-14's
-    /// decisions 2 and 3).
+    /// decisions 2 and 3). MAM-47 — a message the Api renders in the reader's language (ADR 0042).
     /// </summary>
     [MaxLength(ErrorMaximumLength)]
-    public string? BlockReason { get; set; }
+    public Message? BlockReason { get; set; }
 
     /// <summary>MAM-14 — whose sentence <see cref="BlockReason"/> is, with <see cref="ErrorOrigin"/>'s rule: a
     /// client's own goes to the owner only, as it can name the client's address; <c>null</c> without a

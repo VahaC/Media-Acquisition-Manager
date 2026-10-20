@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -5,8 +6,8 @@ namespace MediaAcquisitionManager.Api.Http;
 
 /// <summary>
 /// MAM-33 — answers a request body MVC couldn't read — not JSON, or a field of the wrong type — with
-/// <c>{ "error": <see cref="Error"/> }</c> and 400, instead of the ValidationProblemDetails body <c>[ApiController]</c>
-/// would send: a second error format the SPA can't show.
+/// <c>{ "error": …, "code": <see cref="Key"/> }</c> and 400, instead of the ValidationProblemDetails body
+/// <c>[ApiController]</c> would send: a second error format the SPA can't show.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -18,13 +19,17 @@ namespace MediaAcquisitionManager.Api.Http;
 /// Runs before <c>[ApiController]</c>'s model-state filter (order -2000), which would otherwise answer first; only for
 /// the actions that carry it, so every other action keeps its behaviour.
 /// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — an attribute's argument must be a constant, so it names the sentence by its key, and the answer
+/// is written in the request's language when the body is refused (<c>KeysInUseTests</c> checks every argument is a key).
+/// </para>
 /// </remarks>
-/// <param name="error">The sentence the caller gets: what the body must be.</param>
+/// <param name="key">The key of the sentence the caller gets: what the body must be.</param>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-public sealed class UnreadableBodyErrorAttribute(string error) : Attribute, IActionFilter, IOrderedFilter
+public sealed class UnreadableBodyErrorAttribute(string key) : Attribute, IActionFilter, IOrderedFilter
 {
-    /// <summary>The sentence the caller gets.</summary>
-    public string Error { get; } = error;
+    /// <summary>The key of the sentence the caller gets (a value-less one).</summary>
+    public string Key { get; } = key;
 
     /// <summary>Before <c>ModelStateInvalidFilter</c>'s -2000.</summary>
     public int Order => -3000;
@@ -32,7 +37,7 @@ public sealed class UnreadableBodyErrorAttribute(string error) : Attribute, IAct
     public void OnActionExecuting(ActionExecutingContext context)
     {
         if (!context.ModelState.IsValid && context.Controller is ControllerBase controller)
-            context.Result = controller.BadRequestError(Error);
+            context.Result = controller.BadRequestError(Message.Of(Key));
     }
 
     public void OnActionExecuted(ActionExecutedContext context)

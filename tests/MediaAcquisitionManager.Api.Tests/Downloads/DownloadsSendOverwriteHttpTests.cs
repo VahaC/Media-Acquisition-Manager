@@ -13,6 +13,7 @@ using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -884,7 +885,7 @@ public sealed class DownloadsSendOverwriteHttpTests : IClassFixture<MediaAcquisi
             var row = await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
                 (DownloadJobStatus.Failed, error, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App, (DownloadOverwriteCheck?)null),
-                (row.Status, row.Error, row.ErrorOrigin, row.OverwriteCheck));
+                (row.Status, TestTexts.En(row.Error), row.ErrorOrigin, row.OverwriteCheck));
         });
         Assert.Empty(_qbittorrent.AddRequests);
     }

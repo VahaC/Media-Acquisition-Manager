@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
+using MediaAcquisitionManager.Core.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -19,20 +20,18 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 public sealed partial class ReplacementJobActions
 {
     // MAM-27 — the replacement's own reason after Keep both: both copies stay, and the download is left as it is.
-    private const string KeptBothReason = "You cancelled the replacement, so nothing will be replaced.";
+    private static readonly Message KeptBothReason = Message.Of("replacements.keep-both.reason");
 
-    private const string AlreadyEndedError = "This replacement has already ended, so there's nothing to cancel.";
+    private static readonly Message AlreadyEndedError = Message.Of("replacements.keep-both.ended");
 
     // MAM-27 — a name that left its folder comes back through Restore, never by forgetting the job that holds it.
-    private const string LeftFoldersError =
-        "Part of this replacement has left its folders already, so it can't be cancelled: Restore puts back what is in the quarantine.";
+    private static readonly Message LeftFoldersError = Message.Of("replacements.keep-both.left-folders");
 
     // MAM-27, Vasyl 2026-10-11 — a copy is dropped only from a replacement that stopped for review: nothing changes under a
     // check or a move that runs.
-    private const string NotStoppedForReviewDropError = "A copy can be dropped only from a replacement that stopped for review.";
+    private static readonly Message NotStoppedForReviewDropError = Message.Of("replacements.drop.not-in-review");
 
-    private const string DownloadNotFollowedDropError =
-        "The app can't follow this replacement's download, so dropping a copy wouldn't change anything: keep both copies, or cancel the job.";
+    private static readonly Message DownloadNotFollowedDropError = Message.Of("replacements.drop.download-not-followed");
 
     public async Task<ReplacementActionResult> CancelAsync(Guid replacementJobId, Guid callerUserId, CancellationToken cancellationToken = default)
     {
@@ -139,7 +138,7 @@ public sealed partial class ReplacementJobActions
     /// (<paramref name="holdsTakenNames"/>) —; or a write to the media is under way, or was cut and the mover's recovery
     /// settles it.
     /// </summary>
-    private static string? CancelRefusal(ReplacementJobState state, bool holdsTakenNames) =>
+    private static Message? CancelRefusal(ReplacementJobState state, bool holdsTakenNames) =>
         ReplacementJobOffers.CanCancel(state, holdsTakenNames) ? null
         : state is ReplacementJobState.Failed or ReplacementJobState.Cancelled or ReplacementJobState.Completed or ReplacementJobState.Restored
             ? AlreadyEndedError
@@ -149,7 +148,7 @@ public sealed partial class ReplacementJobActions
     /// <summary>Why the replacement <paramref name="replacementJobId"/>, which Keep both's write just missed, can't be
     /// cancelled as it is now; <c>null</c> when nothing explains it. Read inside the caller's transaction, which holds the
     /// write lock.</summary>
-    private async Task<string?> CancelRefusalNowAsync(Guid replacementJobId) =>
+    private async Task<Message?> CancelRefusalNowAsync(Guid replacementJobId) =>
         CancelRefusal(await StateNowAsync(replacementJobId), await HoldsTakenNamesAsync(replacementJobId, null, CancellationToken.None));
 
     /// <summary>The state the replacement <paramref name="replacementJobId"/> is stored in now; read inside the caller's
@@ -167,7 +166,7 @@ public sealed partial class ReplacementJobActions
     /// of: not stopped for review; a download the app can't follow; dropped already; a name of it left its folder; the last
     /// copy the job would replace.
     /// </summary>
-    private async Task<string?> DropRefusalAsync(
+    private async Task<Message?> DropRefusalAsync(
         ReplacementJobState state, ReplacementStop? stop, ReplacementJobFileEntity copy, CancellationToken cancellationToken)
     {
         var dropped = copy.DroppedUtc is not null;
@@ -177,16 +176,16 @@ public sealed partial class ReplacementJobActions
         if (ReplacementJobOffers.CanDrop(state, stop, dropped, holdsTakenNames, undroppedCopyCount))
             return null;
 
-        var name = ReplacementText.Quote(ReplacementText.FileNameOf(copy.AppPath));
+        var name = MessageText.Clean(ReplacementText.FileNameOf(copy.AppPath));
         if (state != ReplacementJobState.NeedsReview)
             return NotStoppedForReviewDropError;
         if (stop is not (ReplacementStop.Check or ReplacementStop.Move))
             return DownloadNotFollowedDropError;
         if (dropped)
-            return $"{name} is dropped from this replacement already.";
+            return Message.Of("replacements.drop.already-dropped", ("file", name));
         if (holdsTakenNames)
-            return $"{name} has left its folder already, so it can't be dropped: Restore puts it back.";
-        return $"{name} is the last copy this replacement would replace, so it can't be dropped: keep both copies instead.";
+            return Message.Of("replacements.drop.left-folder", ("file", name));
+        return Message.Of("replacements.drop.last-copy", ("file", name));
     }
 
     // ── reads ───────────────────────────────────────────────────────────────────────────────────

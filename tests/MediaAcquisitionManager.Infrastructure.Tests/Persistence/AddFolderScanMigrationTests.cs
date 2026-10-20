@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Data;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -284,7 +285,8 @@ public sealed class AddFolderScanMigrationTests : DatabaseTestBase
                 file.Inode,
                 file.LinkCount,
                 file.InspectionStatus,
-                file.InspectionError,
+                // MAM-47 — English an older build stored reads back as its words (the column's Tolerant Reader).
+                TestTexts.En(file.InspectionError),
                 file.InspectedUtc,
                 file.MediaInspectionId,
                 file.SourceKind,

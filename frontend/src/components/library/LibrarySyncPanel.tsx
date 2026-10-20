@@ -370,7 +370,7 @@ function SourceRow({ source, isOwner, starting, startError, onSync }: SourceRowP
             bar's chip for this library counts them. */}
         <ProblemLine
           inspection={source.inspection}
-          problem={source.inspection.problem === source.pathProblem ? null : source.inspection.problem}
+          problem={repeatsPathProblem(source) ? null : source.inspection.problem}
           isOwner={isOwner}
         />
         {/* MAM-19 — after the warnings, which belong to the files line above them. */}
@@ -396,6 +396,19 @@ function SourceRow({ source, isOwner, starting, startError, onSync }: SourceRowP
       </div>
     </li>
   )
+}
+
+/**
+ * Whether the first unreadable file's problem is the path problem the warning above already explains.
+ *
+ * MAM-47 — by the two sentences' codes when the server sends both: the same code is the same kind of
+ * mapping problem, whichever file it names and however it is worded. By the words otherwise (a server
+ * before MAM-47), which match only for the same file's same sentence.
+ */
+function repeatsPathProblem(source: LibrarySource): boolean {
+  const { problem, problemCode } = source.inspection
+  if (problemCode != null && source.pathProblemCode != null) return problemCode === source.pathProblemCode
+  return problem === source.pathProblem
 }
 
 /**

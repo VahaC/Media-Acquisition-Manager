@@ -9,6 +9,7 @@ using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 
@@ -46,6 +47,10 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     /// </summary>
     public const string IdentifyHttpClientName = "jellyfin-identify";
 
+    /// <summary>MAM-47 — the service's name, which the descriptor shows and the sentences shared with the other adapters
+    /// name it by (<see cref="IntegrationAdapterMessages"/>), static readers included.</summary>
+    private const string DisplayName = "Jellyfin";
+
     /// <summary>
     /// The most items one page may ask for. The heaviest sample movie is about 12 KB as Jellyfin sends
     /// it (VendorSamples, MAM-6), so 200 stay far inside the client's 4 MiB buffer
@@ -75,27 +80,17 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     /// <summary>Linux's <c>PATH_MAX</c>, what a file path column holds (<see cref="PhysicalFileEntity.ServicePath"/>).</summary>
     private const int PathMaximumLength = PhysicalFileEntity.ServicePathMaximumLength;
 
-    private const string KeyRefusedError =
-        "Jellyfin refused the API key. Create one in Jellyfin under Dashboard → API Keys and enter it here.";
+    // MAM-47 (ADR 0042) — every sentence of this adapter is a key of jellyfin.json with its values (the shared transport
+    // ones are http.json's, HttpIntegrationAdapter, and "Connected to Jellyfin 10.9.1." is the one the download clients
+    // say alike, IntegrationAdapterMessages): a kind of item is part of each key ("a movie", "an episode", "a series",
+    // MAM-32), never a word put into a sentence, so a language that declines the noun has a whole sentence per kind.
+    private static readonly Message KeyRefusedError = Message.Of("jellyfin.key-refused");
 
-    private const string ForbiddenError =
-        "Jellyfin accepted the key but won't show it the server's details (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token.";
+    private static readonly Message ForbiddenError = Message.Of("jellyfin.forbidden.server");
 
-    private const string LibraryForbiddenError =
-        "Jellyfin accepted the key but won't let it read the library (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token.";
+    private static readonly Message LibraryForbiddenError = Message.Of("jellyfin.forbidden.library");
 
-    // {0} is what the list holds, one of it ("a movie", "an episode", "a series", MAM-32).
-    private const string PartsNotFoundError =
-        "Jellyfin no longer finds the other parts of {0} it has just listed (404 Not Found); its library is changing. Try again once Jellyfin's library scan has finished.";
-
-    private const string NotJellyfinError =
-        "The service at this address answered, but not the way Jellyfin does. Check the address.";
-
-    private const string ItemWithoutIdError =
-        "The service at this address listed {0} without an id, which Jellyfin never does. Check the address.";
-
-    private const string PartsOfOddIdError =
-        "The service at this address listed {0} in several parts under an id Jellyfin never gives, so the app won't ask for its other parts. Check the address.";
+    private static readonly Message NotJellyfinError = Message.Of("jellyfin.not-jellyfin");
 
     /// <summary>
     /// MAM-8 — the oldest Jellyfin the app reads libraries from: the owner's choice. The adapter was
@@ -111,7 +106,7 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     /// <inheritdoc/>
     public override IntegrationAdapterDescriptor Descriptor { get; } = new(
         TypeId,
-        "Jellyfin",
+        DisplayName,
         IntegrationKind.MediaLibrary,
         UserName: CredentialRequirement.NotUsed,
         Password: CredentialRequirement.NotUsed,
@@ -276,12 +271,12 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
         // {base}/AdditionalParts instead. Jellyfin's item ids are Guids, so only one that parses as a
         // Guid is sent, in Jellyfin's own 32-hex-digit form; any other fails the page.
         if (!Guid.TryParse(itemId, out var id))
-            return IntegrationCallResult<IReadOnlyList<LibraryFile>>.Failed(IntegrationCallStatus.UnexpectedResponse, Sentence(PartsOfOddIdError, kind));
+            return IntegrationCallResult<IReadOnlyList<LibraryFile>>.Failed(IntegrationCallStatus.UnexpectedResponse, PartsOfOddIdError(kind));
 
         using var request = CreateRequest(settings, string.Create(CultureInfo.InvariantCulture, $"Videos/{id:N}/AdditionalParts"));
         using var response = await client.SendAsync(request, cancellationToken);
         if (response.StatusCode != HttpStatusCode.OK)
-            return DescribeLibraryCallStatus<IReadOnlyList<LibraryFile>>(response, Sentence(PartsNotFoundError, kind), settings, sessionSecrets);
+            return DescribeLibraryCallStatus<IReadOnlyList<LibraryFile>>(response, PartsNotFoundError(kind), settings, sessionSecrets);
 
         using var document = await TryReadJsonAsync(response, cancellationToken);
         if (document?.RootElement is not { ValueKind: JsonValueKind.Object } root
@@ -304,7 +299,7 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     /// on the call. Anything else is the shared sentence a connection test would get.
     /// </summary>
     private IntegrationCallResult<T> DescribeLibraryCallStatus<T>(
-        HttpResponseMessage response, string notFoundError, IntegrationConnectionSettings settings, ICollection<string> sessionSecrets)
+        HttpResponseMessage response, Message notFoundError, IntegrationConnectionSettings settings, ICollection<string> sessionSecrets)
         where T : class =>
         response.StatusCode switch
         {
@@ -334,16 +329,16 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
         {
             if (productElement.ValueKind != JsonValueKind.String)
                 return NotJellyfin();
-            var product = RemoteText.Clean(productElement.GetString(), RemoteValueMaximumLength, secrets);
-            if (product.Length == 0)
+            var product = VendorText.Clean(productElement.GetString(), RemoteValueMaximumLength, secrets);
+            if (product.Text.Length == 0)
                 return NotJellyfin();
-            if (!product.StartsWith("Jellyfin", StringComparison.OrdinalIgnoreCase))
+            if (!product.Text.StartsWith("Jellyfin", StringComparison.OrdinalIgnoreCase))
                 return ConnectionTestResult.Failed(
-                    IntegrationCallStatus.UnexpectedResponse, $"The service at this address is {product}, not Jellyfin.");
+                    IntegrationCallStatus.UnexpectedResponse, Message.Of("jellyfin.other-product", ("product", product)));
         }
 
-        var version = TextProperty(root, "Version", RemoteValueMaximumLength, secrets);
-        if (version.Length == 0)
+        var version = VendorProperty(root, "Version", RemoteValueMaximumLength, secrets);
+        if (version.Text.Length == 0)
             return NotJellyfin();
 
         // MAM-8 — the version gate: the sync runs this test first, so an old server is refused before
@@ -351,10 +346,10 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
         if (DescribeUnsupportedVersion(version) is { } unsupported)
             return ConnectionTestResult.Failed(IntegrationCallStatus.UnsupportedVersion, unsupported);
 
-        var serverName = TextProperty(root, "ServerName", RemoteValueMaximumLength, secrets);
-        return ConnectionTestResult.Succeeded(serverName.Length > 0
-            ? $"Connected to Jellyfin {version} ({serverName})."
-            : $"Connected to Jellyfin {version}.");
+        var serverName = VendorProperty(root, "ServerName", RemoteValueMaximumLength, secrets);
+        return ConnectionTestResult.Succeeded(serverName.Text.Length > 0
+            ? Message.Of("jellyfin.connected.with-server", ("version", version), ("server", serverName))
+            : IntegrationAdapterMessages.Connected(DisplayName, version));
     }
 
     /// <summary>
@@ -363,16 +358,16 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     /// <c>10.9.11</c> and <c>12.1.0-rc1</c> compare; a version without one can't be compared, and is
     /// refused rather than guessed at.
     /// </summary>
-    private static string? DescribeUnsupportedVersion(string version)
+    private static Message? DescribeUnsupportedVersion(VendorText version)
     {
-        var match = VersionPattern().Match(version);
+        var match = VersionPattern().Match(version.Text);
         if (!match.Success
             || !int.TryParse(match.Groups[1].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture, out var major)
             || !int.TryParse(match.Groups[2].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture, out var minor))
-            return $"Jellyfin reported the version “{version}”, which the app can't compare with {MinimumVersion}, the oldest version it reads libraries from.";
+            return Message.Of("jellyfin.version.not-comparable", ("version", version), ("minimum", MinimumVersion.ToString()));
 
         return new Version(major, minor) < MinimumVersion
-            ? $"This is Jellyfin {version}; the app reads libraries from Jellyfin {MinimumVersion} or later. Update Jellyfin, then test again."
+            ? Message.Of("jellyfin.version.too-old", ("version", version), ("minimum", MinimumVersion.ToString()))
             : null;
     }
 
@@ -439,18 +434,18 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     /// Jellyfin lists from the show's metadata) is read like any other, so the pages still add up, and
     /// marked missing; its placeholder source has no path, so it gives no file either way.
     /// </remarks>
-    private static (LibraryItem? Item, bool IsStacked, string? Error) ReadItem(JsonElement element, MediaWorkKind kind, string?[] secrets)
+    private static (LibraryItem? Item, bool IsStacked, Message? Error) ReadItem(JsonElement element, MediaWorkKind kind, string?[] secrets)
     {
         if (element.ValueKind != JsonValueKind.Object)
             return (null, false, NotJellyfinError);
         if (IdProperty(element, "Id") is not { } id)
-            return (null, false, Sentence(ItemWithoutIdError, kind));
+            return (null, false, ItemWithoutIdError(kind));
         if (element.TryGetProperty("Type", out var type) && type.ValueKind != JsonValueKind.Null)
         {
             if (type.ValueKind != JsonValueKind.String)
                 return (null, false, NotJellyfinError);
             if (!string.Equals(type.GetString(), TypeName(kind), StringComparison.Ordinal))
-                return (null, false, $"Jellyfin listed an item of type “{RemoteText.Clean(type.GetString(), RemoteValueMaximumLength, secrets)}” when asked for {Plural(kind)} only, so the app can't rely on the list. Check the address.");
+                return (null, false, ListedWrongTypeError(VendorText.Clean(type.GetString(), RemoteValueMaximumLength, secrets), kind));
         }
 
         if (element.TryGetProperty("MediaSources", out var sources)
@@ -586,23 +581,37 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
         _ => "Movie",
     };
 
-    /// <summary>What a sentence calls the items of <paramref name="kind"/>'s list.</summary>
-    private static string Plural(MediaWorkKind kind) => kind switch
+    // MAM-47 — one key per kind of the list (see the head of the class). Any kind but a series or an episode is a movie,
+    // as the list it reads is (TypeName).
+
+    /// <summary>Jellyfin lost the other parts of a movie or an episode it had just listed. Never of a series: a series has
+    /// no files, so it is never stacked (<see cref="ReadItem"/>), and no sentence is kept for one.</summary>
+    private static Message PartsNotFoundError(MediaWorkKind kind) =>
+        kind == MediaWorkKind.Episode
+            ? Message.Of("jellyfin.items.parts-not-found.episode")
+            : Message.Of("jellyfin.items.parts-not-found.movie");
+
+    /// <summary>An item of <paramref name="kind"/>'s list came without an id.</summary>
+    private static Message ItemWithoutIdError(MediaWorkKind kind) => kind switch
     {
-        MediaWorkKind.Series => "series",
-        MediaWorkKind.Episode => "episodes",
-        _ => "movies",
+        MediaWorkKind.Series => Message.Of("jellyfin.items.without-id.series"),
+        MediaWorkKind.Episode => Message.Of("jellyfin.items.without-id.episode"),
+        _ => Message.Of("jellyfin.items.without-id.movie"),
     };
 
-    /// <summary><paramref name="format"/> with one item of <paramref name="kind"/>'s list as its
-    /// <c>{0}</c>.</summary>
-    private static string Sentence(string format, MediaWorkKind kind) =>
-        string.Format(CultureInfo.InvariantCulture, format, kind switch
-        {
-            MediaWorkKind.Series => "a series",
-            MediaWorkKind.Episode => "an episode",
-            _ => "a movie",
-        });
+    /// <summary>A movie or an episode in several parts under an id Jellyfin never gives; never a series, as above.</summary>
+    private static Message PartsOfOddIdError(MediaWorkKind kind) =>
+        kind == MediaWorkKind.Episode
+            ? Message.Of("jellyfin.items.odd-id.episode")
+            : Message.Of("jellyfin.items.odd-id.movie");
+
+    /// <summary>The list of <paramref name="kind"/> held an item of the type <paramref name="type"/>.</summary>
+    private static Message ListedWrongTypeError(VendorText type, MediaWorkKind kind) => kind switch
+    {
+        MediaWorkKind.Series => Message.Of("jellyfin.items.wrong-type.series", ("type", type)),
+        MediaWorkKind.Episode => Message.Of("jellyfin.items.wrong-type.episode", ("type", type)),
+        _ => Message.Of("jellyfin.items.wrong-type.movie", ("type", type)),
+    };
 
     /// <summary>
     /// One version per media source, the first of any two with one id. The source's name labels it only
@@ -750,6 +759,14 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
             ? RemoteText.Clean(textElement.GetString(), maximumLength, secrets)
             : "";
 
+    /// <summary>MAM-47 — <see cref="TextProperty"/> as Jellyfin's own words inside one of the app's sentences: the same
+    /// cleaning and cut, kept as a vendor's value.</summary>
+    private static VendorText VendorProperty(JsonElement element, string name, int maximumLength, string?[] secrets) =>
+        VendorText.Clean(
+            element.TryGetProperty(name, out var textElement) && textElement.ValueKind == JsonValueKind.String ? textElement.GetString() : null,
+            maximumLength,
+            secrets);
+
     private static bool TryGetCount(JsonElement element, string name, out int count)
     {
         count = 0;
@@ -759,9 +776,9 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
             && count >= 0;
     }
 
-    /// <summary>Where Jellyfin wasn't found, and what to do about a base path.</summary>
-    private static string NotFoundError(string path) =>
-        $"Jellyfin wasn't found at this address (404 Not Found for {path}). If Jellyfin runs under a base path, include it, for example http://192.168.1.10:8096/jellyfin.";
+    /// <summary>Where Jellyfin wasn't found (<paramref name="route"/>, the route asked, such as <c>/System/Info</c>), and
+    /// what to do about a base path.</summary>
+    private static Message NotFoundError(string route) => Message.Of("jellyfin.not-found", ("route", route));
 
     private static ConnectionTestResult NotJellyfin() =>
         ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotJellyfinError);

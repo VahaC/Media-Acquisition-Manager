@@ -13,6 +13,7 @@ using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -143,7 +144,7 @@ public sealed class DownloadJobRecoveryHttpTests : IClassFixture<MediaAcquisitio
         var row = await RowAsync(sent.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Downloading, SampleInfoHash, (double?)0, (string?)null),
-            (row.Status, row.ClientJobId, row.Progress, row.BlockReason));
+            (row.Status, row.ClientJobId, row.Progress, TestTexts.En(row.BlockReason)));
         var read = await ReadAsync(sent.Id, cancellationToken);
         Assert.Equal((DownloadJobStatus.Downloading, SampleInfoHash), (read.Status, read.ClientJobId));
     }
@@ -191,7 +192,7 @@ public sealed class DownloadJobRecoveryHttpTests : IClassFixture<MediaAcquisitio
         var row = await RowAsync(job.Id, cancellationToken);
         Assert.Equal(
             (expected, Hash(1), passUtc, (string?)null, (string?)null),
-            (row.Status, row.ClientJobId, row.StatusChangedUtc, row.Error, row.BlockReason));
+            (row.Status, row.ClientJobId, row.StatusChangedUtc, TestTexts.En(row.Error), TestTexts.En(row.BlockReason)));
     }
 
     [Fact]
@@ -216,7 +217,7 @@ public sealed class DownloadJobRecoveryHttpTests : IClassFixture<MediaAcquisitio
         var row = await RowAsync(job.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.NeedsLinking, (string?)null, (string?)null, (string?)null),
-            (row.Status, row.ClientJobId, row.Error, row.BlockReason));
+            (row.Status, row.ClientJobId, TestTexts.En(row.Error), TestTexts.En(row.BlockReason)));
     }
 
     [Fact]
@@ -238,7 +239,7 @@ public sealed class DownloadJobRecoveryHttpTests : IClassFixture<MediaAcquisitio
         var row = await RowAsync(job.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Failed, InterruptedNotListedError, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App, (string?)null),
-            (row.Status, row.Error, row.ErrorOrigin, row.BlockReason));
+            (row.Status, TestTexts.En(row.Error), row.ErrorOrigin, TestTexts.En(row.BlockReason)));
         Assert.Equal(InterruptedNotListedError, (await ReadAsync(job.Id, cancellationToken)).Error);
     }
 
@@ -261,7 +262,7 @@ public sealed class DownloadJobRecoveryHttpTests : IClassFixture<MediaAcquisitio
         var row = await RowAsync(job.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Failed, InterruptedBeforeHashesError, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.App, passUtc),
-            (row.Status, row.Error, row.ErrorOrigin, row.StatusChangedUtc));
+            (row.Status, TestTexts.En(row.Error), row.ErrorOrigin, row.StatusChangedUtc));
     }
 
     [Fact]
@@ -284,9 +285,9 @@ public sealed class DownloadJobRecoveryHttpTests : IClassFixture<MediaAcquisitio
         // followed, the reason gone, once it answers.
         Assert.Equal(
             (DownloadJobStatus.Created, UnreachableError, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.DownloadClient),
-            (waiting.Status, waiting.BlockReason, waiting.BlockReasonOrigin));
+            (waiting.Status, TestTexts.En(waiting.BlockReason), waiting.BlockReasonOrigin));
         var row = await RowAsync(job.Id, cancellationToken);
-        Assert.Equal((DownloadJobStatus.Downloading, Hash(1), (string?)null), (row.Status, row.ClientJobId, row.BlockReason));
+        Assert.Equal((DownloadJobStatus.Downloading, Hash(1), (string?)null), (row.Status, row.ClientJobId, TestTexts.En(row.BlockReason)));
     }
 
     [Theory]
@@ -322,11 +323,11 @@ public sealed class DownloadJobRecoveryHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal([SignIn, Version, Lookup(Hash(1)), Version, MoviesListing], askedWhileFailing);
         Assert.Equal(
             (DownloadJobStatus.Created, expectedReason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.DownloadClient, (string?)null),
-            (waiting.Status, waiting.BlockReason, waiting.BlockReasonOrigin, waiting.Error));
+            (waiting.Status, TestTexts.En(waiting.BlockReason), waiting.BlockReasonOrigin, TestTexts.En(waiting.Error)));
         var row = await RowAsync(job.Id, cancellationToken);
         Assert.Equal(
             (DownloadJobStatus.Failed, InterruptedNotListedError, (string?)null),
-            (row.Status, row.Error, row.BlockReason));
+            (row.Status, TestTexts.En(row.Error), TestTexts.En(row.BlockReason)));
     }
 
     [Fact]

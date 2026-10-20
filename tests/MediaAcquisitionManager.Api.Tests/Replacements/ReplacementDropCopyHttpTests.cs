@@ -11,6 +11,7 @@ using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
@@ -114,7 +115,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
                 (EpisodeFivePath, (DateTime?)now, (string?)RenumberedProblem, true, (Guid?)null),
                 (EpisodeSixPath, null, null, false, planted.NewFiles[0].Id),
             ],
-            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.AppPath, copy.DroppedUtc, copy.Problem, copy.OnlyDropSettles, copy.PairedNewFileId)));
+            (await _harness.CopiesAsync(cancellationToken)).Select(copy => (copy.AppPath, copy.DroppedUtc, TestTexts.En(copy.Problem), copy.OnlyDropSettles, copy.PairedNewFileId)));
         // MAM-27 — aimed at the copy itself, named by its file's own name.
         Assert.Equal(
             [(AuditAction.ReplacementCopyDropped, _harness.Owner.User.Id, AuditTargetKind.ReplacementJobFile, planted.Copies[0].Id, EpisodeFiveName)],
@@ -136,15 +137,15 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
             ReplacementJobState.NeedsReview,
             [
                 new PlantedName(ReplacementNameKind.Video, EpisodeFivePath, TestMedia.File(inode: 25), ReplacementNameState.Planned),
-                new PlantedName(ReplacementNameKind.Companion, EpisodeFiveSubtitlePath, TestMedia.File(inode: 26, sizeBytes: 98_304), ReplacementNameState.Stayed, HeldReason),
+                new PlantedName(ReplacementNameKind.Companion, EpisodeFiveSubtitlePath, TestMedia.File(inode: 26, sizeBytes: 98_304), ReplacementNameState.Stayed, PlantedMessage.Of(HeldReason)),
                 new PlantedName(ReplacementNameKind.Companion, EpisodeFiveNfoPath, TestMedia.File(inode: 27, sizeBytes: 4_096), ReplacementNameState.Lost),
                 new PlantedName(ReplacementNameKind.Video, EpisodeSixPath, TestMedia.File(inode: 28)),
-                new PlantedName(ReplacementNameKind.Companion, EpisodeSixSubtitlePath, TestMedia.File(inode: 29, sizeBytes: 98_304), ReplacementNameState.Stayed, HeldReason),
+                new PlantedName(ReplacementNameKind.Companion, EpisodeSixSubtitlePath, TestMedia.File(inode: 29, sizeBytes: 98_304), ReplacementNameState.Stayed, PlantedMessage.Of(HeldReason)),
                 new PlantedName(ReplacementNameKind.Video, EpisodeSevenPath, TestMedia.File(inode: 30), ReplacementNameState.Planned),
                 new PlantedName(ReplacementNameKind.Companion, EpisodeSevenSubtitlePath, TestMedia.File(inode: 31, sizeBytes: 98_304), ReplacementNameState.Planned),
             ],
             quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime,
-            reason: HeldReason,
+            reason: PlantedMessage.Of(HeldReason),
             inspectionStartedUtc: _factory.Time.GetUtcNow().UtcDateTime);
 
         //Act
@@ -153,7 +154,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var replacement = await JobAsync(planted.Replacement.Id, cancellationToken);
-        Assert.Equal((ReplacementJobState.NeedsReview, (string?)HeldReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.NeedsReview, (string?)HeldReason), (replacement.State, TestTexts.En(replacement.Reason)));
         // Episode 5's planned and stayed names would read "waits to move"; its lost .nfo stays, and so does every name of
         // the other copies — the moved, the stayed and the planned alike.
         Assert.Equal(
@@ -202,11 +203,11 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
             await db.ReplacementJobs.Where(row => row.Id == replacementId).ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(row => row.State, ReplacementJobState.NeedsReview)
-                    .SetProperty(row => row.Reason, RenumberedProblem)
+                    .SetProperty(row => row.Reason, PlantedMessage.Of(RenumberedProblem))
                     .SetProperty(row => row.InspectionStartedUtc, _factory.Time.GetUtcNow().UtcDateTime),
                 cancellationToken);
             await db.ReplacementJobFiles.Where(copy => copy.ReplacementJobId == replacementId && copy.Position == 0).ExecuteUpdateAsync(
-                setters => setters.SetProperty(copy => copy.Problem, RenumberedProblem).SetProperty(copy => copy.OnlyDropSettles, true),
+                setters => setters.SetProperty(copy => copy.Problem, PlantedMessage.Of(RenumberedProblem)).SetProperty(copy => copy.OnlyDropSettles, true),
                 cancellationToken);
         });
         var episodeFive = (await _harness.CopiesAsync(cancellationToken))[0];
@@ -262,7 +263,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
         var cancellationToken = TestContext.Current.CancellationToken;
         // The following stopped it before any check started.
         var planted = await _planter.PlantAsync(
-            ReplacementJobState.NeedsReview, [], reason: NeedsLinkingReason, copies: [Episode(5), Episode(6)]);
+            ReplacementJobState.NeedsReview, [], reason: PlantedMessage.Of(NeedsLinkingReason), copies: [Episode(5), Episode(6)]);
         var before = await SnapshotAsync(cancellationToken);
 
         //Act
@@ -281,7 +282,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
         var cancellationToken = TestContext.Current.CancellationToken;
         var planted = await PlantCheckStopAsync(
         [
-            Episode(5) with { Problem = RenumberedProblem, OnlyDropSettles = true, DroppedUtc = _factory.Time.GetUtcNow().UtcDateTime },
+            Episode(5) with { Problem = PlantedMessage.Of(RenumberedProblem), OnlyDropSettles = true, DroppedUtc = _factory.Time.GetUtcNow().UtcDateTime },
             Episode(6),
             Episode(7),
         ]);
@@ -313,7 +314,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
                 new PlantedName(ReplacementNameKind.Video, EpisodeSixPath, TestMedia.File(inode: 26), ReplacementNameState.Planned),
             ],
             quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime,
-            reason: HeldReason,
+            reason: PlantedMessage.Of(HeldReason),
             inspectionStartedUtc: _factory.Time.GetUtcNow().UtcDateTime);
         var before = await SnapshotAsync(cancellationToken);
 
@@ -333,7 +334,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        var episodeFive = Episode(5) with { Problem = RenumberedProblem, OnlyDropSettles = true };
+        var episodeFive = Episode(5) with { Problem = PlantedMessage.Of(RenumberedProblem), OnlyDropSettles = true };
         var planted = which == "the only copy"
             ? await PlantCheckStopAsync([episodeFive])
             : await PlantCheckStopAsync([episodeFive, Episode(6) with { DroppedUtc = _factory.Time.GetUtcNow().UtcDateTime }]);
@@ -441,7 +442,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
             _ => _factory.WithDbAsync(db => db.ReplacementJobs
                 .Where(job => job.Id == id)
                 .ExecuteUpdateAsync(
-                    setters => setters.SetProperty(job => job.State, ReplacementJobState.Failed).SetProperty(job => job.Reason, FailedReason),
+                    setters => setters.SetProperty(job => job.State, ReplacementJobState.Failed).SetProperty(job => job.Reason, PlantedMessage.Of(FailedReason)),
                     CancellationToken.None)));
 
         //Act
@@ -451,7 +452,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(ChangedMeanwhileError, await response.ReadErrorAsync(cancellationToken));
         var replacement = await JobAsync(id, cancellationToken);
-        Assert.Equal((ReplacementJobState.Failed, (string?)FailedReason), (replacement.State, replacement.Reason));
+        Assert.Equal((ReplacementJobState.Failed, (string?)FailedReason), (replacement.State, TestTexts.En(replacement.Reason)));
         Assert.Equal([false, false], (await _harness.CopiesAsync(cancellationToken)).Select(copy => copy.DroppedUtc is not null));
         Assert.Empty(await _harness.ReplacementAuditsAsync(cancellationToken));
         Assert.False(_factory.Resolve<ReplacementJobsInHand>().Holds(id));
@@ -507,7 +508,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
     /// </summary>
     private Task<PlantedReplacement> PlantSeasonStopAsync(Guid? requestedByUserId = null) =>
         PlantCheckStopAsync(
-            [Episode(5) with { Problem = RenumberedProblem, OnlyDropSettles = true }, Episode(6) with { PairedWithNewFile = 0 }],
+            [Episode(5) with { Problem = PlantedMessage.Of(RenumberedProblem), OnlyDropSettles = true }, Episode(6) with { PairedWithNewFile = 0 }],
             requestedByUserId);
 
     /// <summary>A replacement the check of its new files stopped for review, holding <paramref name="copies"/> and episode 6's
@@ -518,7 +519,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
         return _planter.PlantAsync(
             ReplacementJobState.NeedsReview,
             [],
-            reason: RenumberedProblem,
+            reason: PlantedMessage.Of(RenumberedProblem),
             requestedByUserId: requestedByUserId,
             copies: copies,
             newFiles:

@@ -1,0 +1,70 @@
+{
+  "set": {
+    "no-items": "No library reports this work, so there is nothing to link.",
+    "kind-missing": "Choose a TMDb film (Movie) or show (Series).",
+    "kind-invalid": "“{{value}}” is not a TMDb kind. Use Movie or Series.",
+    "id-missing": "Give the TMDb id to link.",
+    "id-invalid": "“{{value}}” is not a TMDb id.",
+    "season-invalid": "“{{value}}” is not a season number. Use 0 to {{max, number}}.",
+    "episode-invalid": "“{{value}}” is not an episode number. Use 1 to {{max, number}}.",
+    "episode-without-season": "An episode number needs a season number.",
+    "numbers-not-allowed": "Season and episode numbers go only with a show linked to a film or to an episode.",
+    "film-for-show": "A show or an episode can be linked only to a TMDb show.",
+    "series-episode": "Link its series instead: an episode is known by its series' ids.",
+    "unknown-item": "“{{value}}” is not an item of this work."
+  },
+  "catalog": {
+    "film-not-found": "TMDb has no film {{id}}.",
+    "show-not-found": "TMDb has no show {{id}}."
+  },
+  "list": {
+    "filter-missing": "Choose which links to list: Unattached, Pending, Conflict, NotWritten or Lost.",
+    "filter-invalid": "“{{value}}” is not a link filter. Use Unattached, Pending, Conflict, NotWritten or Lost."
+  },
+  "write": {
+    "under-way": "A write to the library is under way for this work; try again in a moment.",
+    "nothing-linked": "There is nothing to write: no item of this work is linked.",
+    "nothing-unattached": "There is nothing to write: the library no longer reports this item.",
+    "nothing-to-write": "There is nothing to write: {{reason, message}}",
+    "app-error": "The identification stopped because of an error in the app. Its log says more.",
+    "switched-off": "“{{integration}}” is switched off. Switch it on under Integrations, then retry.",
+    "series-still-working": "Jellyfin may still be working on this series after the last attempt; try again after {{time}} UTC.",
+    "batch-stopped": "The app stopped this batch after Jellyfin failed to confirm two identifications in a row, and sent nothing for this item. Check Jellyfin, then Retry, or press Update Jellyfin again.",
+    "restarted": "The app restarted while identifying the item in Jellyfin. Jellyfin may still be working on it: Retry in a few minutes checks what it holds before anything is sent."
+  },
+  "kept": {
+    "no-identifier": "“{{integration}}” can't identify items, so a link stays in the app.",
+    "no-numbers": "Without a season and an episode the app has no id of this episode to identify it by.",
+    "no-episode-imdb": "TMDb knows no IMDb id of this episode, so its link stays in the app."
+  },
+  "batch": {
+    "work-gone": "The work is no longer in the library.",
+    "linked-meanwhile": "It was linked meanwhile.",
+    "has-id": "Its library reports a TMDb id for it now.",
+    "none-fits": "You marked that none fits.",
+    "no-longer-confident": "It is no longer the work's confident suggestion."
+  },
+  "review": {
+    "index-invalid": "“{{value}}” is not a place in the queue. Use 0 or more.",
+    "location-invalid": "“{{value}}” is not a library id.",
+    "nothing-accepted": "Tick at least one work to link.",
+    "too-many_one": "At most {{count, number}} work can be linked at once.",
+    "too-many_other": "At most {{count, number}} works can be linked at once.",
+    "accept-item-missing": "Each ticked work needs its work, its kind and its TMDb id.",
+    "work-missing": "Give the work to link.",
+    "work-id-invalid": "“{{value}}” is not a work id.",
+    "ticked-twice": "“{{value}}” is ticked twice."
+  },
+  "find": {
+    "title-missing": "Type a title to search for.",
+    "paste-invalid": "Paste a TMDb or IMDb link, an IMDb id like tt0056164, or a TMDb number.",
+    "bare-number-kind": "Choose film or show for a bare number.",
+    "imdb-not-found": "TMDb has no film or show with that IMDb id. If it is an episode's, paste the show's link instead."
+  },
+  "suggestions": {
+    "queue-full": "Too many TMDb suggestion runs are waiting. Try again in a minute.",
+    "app-error": "The TMDb suggestions stopped being prepared because of an error in the app. Its log says more.",
+    "restarted": "The app restarted before these TMDb suggestions were prepared. The works searched so far are kept.",
+    "catalog-removed": "The metadata catalog was removed while the TMDb suggestions were prepared. The works searched so far are kept."
+  }
+}

@@ -19,7 +19,8 @@ namespace MediaAcquisitionManager.Api.Services.Recommendations;
 /// <para>
 /// A source that answered clears its failure; one the app didn't ask (no search of the kind, a type this build can't
 /// use, a key it can't read) changes nothing: the Integrations and Search pages say why, and it didn't fail here.
-/// The error is the source's own sentence, already masked of every secret (<c>ReleaseSources</c>).
+/// The error is the source's own message, its values already masked of every secret (<c>ReleaseSources</c>). MAM-47
+/// (ADR 0042) — kept as a message and rendered when a page or a tool reads it, in that request's language.
 /// </para>
 /// </remarks>
 public sealed class RecommendationSourceFailures(TimeProvider time)
@@ -43,9 +44,3 @@ public sealed class RecommendationSourceFailures(TimeProvider time)
     /// <summary>Every failure recorded, by the source's integration id: a copy, safe to read while the loops record.</summary>
     public IReadOnlyDictionary<Guid, RecommendationSourceFailure> Read() => new Dictionary<Guid, RecommendationSourceFailure>(_failures);
 }
-
-/// <summary>MAM-31 — how a release source's last call for the recommendations failed.</summary>
-/// <param name="Status">How the call went.</param>
-/// <param name="Error">The source's sentence, every secret masked; the owner's to read.</param>
-/// <param name="FailedUtc">When.</param>
-public sealed record RecommendationSourceFailure(IntegrationCallStatus Status, string? Error, DateTime FailedUtc);

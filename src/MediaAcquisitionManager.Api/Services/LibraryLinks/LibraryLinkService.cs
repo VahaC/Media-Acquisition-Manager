@@ -4,10 +4,12 @@ using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Api.Services.Recommendations;
+using MediaAcquisitionManager.Api.Texts;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,14 +33,15 @@ public sealed partial class LibraryLinkService(
     LibraryLinkWriteQueue writeQueue,
     IAuditTrail auditTrail,
     IRecommendationRunService recommendations,
+    IRequestTexts texts,
     TimeProvider time,
     ILogger<LibraryLinkService> logger) : ILibraryLinkService
 {
     /// <summary>R9 — one identification at a time per work: a second one would race the first for the same library items. The
     /// sentence keeps saying "write": it is what the page and its tests already show for it.</summary>
-    internal const string UnderWayError = "A write to the library is under way for this work; try again in a moment.";
+    internal static readonly Message UnderWayError = Message.Of("library-links.write.under-way");
 
-    internal const string NoItemsError = "No library reports this work, so there is nothing to link.";
+    internal static readonly Message NoItemsError = Message.Of("library-links.set.no-items");
 
     /// <summary>The longest part of a request echoed back in a sentence.</summary>
     private const int EchoLength = 64;
@@ -176,7 +179,7 @@ public sealed partial class LibraryLinkService(
     /// capability keeps its links in the app (ADR 0005), and so does one for a kind of item it doesn't identify — the
     /// library's own sentence (Jellyfin: an episode item); a library switched off is never identified in (R12).
     /// </summary>
-    private (bool CanWrite, string? Reason) WriteAbility(IntegrationConnectionEntity connection, MediaWorkKind workKind)
+    private (bool CanWrite, Message? Reason) WriteAbility(IntegrationConnectionEntity connection, MediaWorkKind workKind)
     {
         if (LibraryLinkWritability.ItemReason(adapters.Find<IMediaLibraryItemIdentifier>(connection.AdapterType), connection.Name, workKind) is { } reason)
             return (false, reason);
@@ -185,7 +188,7 @@ public sealed partial class LibraryLinkService(
 
     /// <summary>MAM-34 — why an episode's link on an item the library identifies identifies none: without its numbers, or
     /// with an episode TMDb gives no IMDb id; <c>null</c> for any other link.</summary>
-    private static string? EpisodeKeptReason(LibraryItemLinkEntity link) =>
+    private static Message? EpisodeKeptReason(LibraryItemLinkEntity link) =>
         LibraryLinkWritability.LinkReason(link.Target, link.SeasonNumber, link.EpisodeNumber)
         ?? (LibraryLinkWritability.KnowsNoEpisodeImdb(link) ? LibraryLinkWritability.NoEpisodeImdbReason : null);
 

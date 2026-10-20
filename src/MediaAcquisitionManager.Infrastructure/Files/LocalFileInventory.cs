@@ -124,7 +124,7 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
         if (probed.Status == MediaProbeStatus.Unavailable)
         {
             return FileSystemFailure.Refused<MediaInspection>(
-                FileInventoryStatus.InspectorUnavailable, FileInventoryMessages.InspectorUnavailable(probed.Reason ?? ""));
+                FileInventoryStatus.InspectorUnavailable, FileInventoryMessages.InspectorUnavailable(probed.StartError ?? ""));
         }
 
         // Asked again after ffprobe, and before its answer is judged: a file still being written makes ffprobe
@@ -140,13 +140,13 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
         if (probed.Status != MediaProbeStatus.Succeeded || probed.Output is null)
         {
             return FileSystemFailure.Refused<MediaInspection>(
-                FileInventoryStatus.MediaUnreadable, FileInventoryMessages.MediaUnreadable(appPath, probed.Reason ?? "it gave no answer"));
+                FileInventoryStatus.MediaUnreadable, FileInventoryMessages.MediaUnreadable(appPath, probed.Reason ?? FileInventoryMessages.NoAnswer));
         }
 
         if (!FfprobeOutputParser.TryParse(probed.Output, out var media))
         {
             return FileSystemFailure.Refused<MediaInspection>(
-                FileInventoryStatus.MediaUnreadable, FileInventoryMessages.MediaUnreadable(appPath, "its answer wasn't the JSON ffprobe writes"));
+                FileInventoryStatus.MediaUnreadable, FileInventoryMessages.MediaUnreadable(appPath, FileInventoryMessages.NotJson));
         }
 
         return new FileInventoryResult<MediaInspection>(FileInventoryStatus.Found, new MediaInspection(facts, media), null);

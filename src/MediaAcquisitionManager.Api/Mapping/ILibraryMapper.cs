@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
@@ -111,7 +112,7 @@ public interface ILibraryMapper
         LibrarySyncRunDto? latestRun,
         LibrarySyncRunDto? lastSucceededRun,
         int filesWithoutAppPathCount,
-        string? pathProblem,
+        Message? pathProblem,
         LibrarySourceInspectionDto inspection,
         LibrarySpaceDto space);
 }

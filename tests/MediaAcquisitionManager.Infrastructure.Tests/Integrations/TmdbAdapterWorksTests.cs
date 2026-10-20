@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -479,7 +480,7 @@ public sealed class TmdbAdapterWorksTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal(expectedError, result.Error);
+        Assert.Equal(expectedError, TestTexts.En(result.Error));
         Assert.Single(_harness.TmdbHttp.Requests);
     }
 
@@ -495,7 +496,7 @@ public sealed class TmdbAdapterWorksTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("TMDb's API wasn't found at this address (404 Not Found). Use https://api.themoviedb.org.", result.Error);
+        Assert.Equal("TMDb's API wasn't found at this address (404 Not Found). Use https://api.themoviedb.org.", TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -518,7 +519,7 @@ public sealed class TmdbAdapterWorksTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTmdbError, result.Error);
+        Assert.Equal(NotTmdbError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -596,7 +597,7 @@ public sealed class TmdbAdapterWorksTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal("TMDb has no collection with the id 284433.", result.Error);
+        Assert.Equal("TMDb has no collection with the id 284433.", TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -690,7 +691,7 @@ public sealed class TmdbAdapterWorksTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.NotFound, result.Status);
-        Assert.Equal("TMDb has no person with the id 24.", result.Error);
+        Assert.Equal("TMDb has no person with the id 24.", TestTexts.En(result.Error));
     }
 
     [Fact]

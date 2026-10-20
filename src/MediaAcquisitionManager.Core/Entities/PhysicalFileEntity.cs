@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -111,10 +112,10 @@ public class PhysicalFileEntity : ProvenancedEntity
     /// </summary>
     public FileInspectionStatus? InspectionStatus { get; set; }
 
-    /// <summary>The sentence saying why the last look didn't read the file's streams; <c>null</c> when
-    /// it did, or hasn't looked yet.</summary>
+    /// <summary>Why the last look didn't read the file's streams, as a message the Api renders (ADR 0042); <c>null</c>
+    /// when it did, or hasn't looked yet.</summary>
     [MaxLength(MediaInspectionEntity.ErrorMaximumLength)]
-    public string? InspectionError { get; set; }
+    public Message? InspectionError { get; set; }
 
     /// <summary>When the app last looked at this name; <c>null</c> until it has.</summary>
     public DateTime? InspectedUtc { get; set; }

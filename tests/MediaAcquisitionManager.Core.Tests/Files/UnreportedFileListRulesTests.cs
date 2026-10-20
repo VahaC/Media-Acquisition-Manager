@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Files;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Files;
 
@@ -55,7 +56,7 @@ public sealed class UnreportedFileListRulesTests
         var error = UnreportedFileListRules.ValidateView(view, out var filter);
 
         //Assert
-        Assert.Equal($"“{echoed}” is not a view of the files in no library. Use Problems, Extras or Ignored, or leave it out for every file.", error);
+        Assert.Equal($"“{echoed}” is not a view of the files in no library. Use Problems, Extras or Ignored, or leave it out for every file.", TestTexts.En(error));
         Assert.Null(filter);
     }
 
@@ -69,6 +70,6 @@ public sealed class UnreportedFileListRulesTests
         var error = UnreportedFileListRules.ValidateView("x", out _);
 
         //Assert
-        Assert.All(Enum.GetNames<UnreportedFileView>(), name => Assert.Contains($" {name}", error, StringComparison.Ordinal));
+        Assert.All(Enum.GetNames<UnreportedFileView>(), name => Assert.Contains($" {name}", TestTexts.En(error), StringComparison.Ordinal));
     }
 }

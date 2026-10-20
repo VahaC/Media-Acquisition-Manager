@@ -7,6 +7,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Recommendations;
@@ -199,7 +200,7 @@ public sealed class RecommendationTriggerHttpTests : IClassFixture<MediaAcquisit
         {
             Assert.Equal(1, await db.IntegrationConnections.CountAsync(cancellationToken));
             var run = await db.RecommendationRuns.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal((RecommendationRunStatus.Failed, QueueFullError), (run.Status, run.Error));
+            Assert.Equal((RecommendationRunStatus.Failed, QueueFullError), (run.Status, TestTexts.En(run.Error)));
         });
     }
 

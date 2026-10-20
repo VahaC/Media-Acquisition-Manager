@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
@@ -304,7 +305,7 @@ public sealed class LibraryWorksLinksHttpTests : IClassFixture<MediaAcquisitionM
             _livingRoom, JellyfinSamples.AliensTheatricalId, aliens, MediaIdentifierScheme.Tmdb, "679", writeState: LibraryLinkWriteState.InLibrary, setBy: _owner.User);
         await _links.Create(
             _livingRoom, JellyfinSamples.AliensSpecialEditionId, aliens, MediaIdentifierScheme.Tmdb, "679", writeState: LibraryLinkWriteState.NotWritten, setBy: _owner.User,
-            configure: link => link.WriteError = "The special edition's library refused the ids.");
+            configure: link => link.WriteError = Message.Legacy("The special edition's library refused the ids."));
 
         //Act
         var work = await CardAsync("Чужі", _owner, cancellationToken);
@@ -343,7 +344,7 @@ public sealed class LibraryWorksLinksHttpTests : IClassFixture<MediaAcquisitionM
             configure: link => link.IdentifiedUtc = now);
         await _links.Create(
             _livingRoom, JellyfinSamples.AliensSpecialEditionId, aliens, MediaIdentifierScheme.Tmdb, "679", writeState: LibraryLinkWriteState.NotWritten, setBy: _owner.User,
-            configure: link => link.WriteError = "The special edition's library refused the match.");
+            configure: link => link.WriteError = Message.Legacy("The special edition's library refused the match."));
 
         //Act
         var landing = await CardAsync(LandingStripling, _owner, cancellationToken);
@@ -397,7 +398,7 @@ public sealed class LibraryWorksLinksHttpTests : IClassFixture<MediaAcquisitionM
                 link.ImdbId = "tt0056164";
                 link.ImdbSourceName = "TMDb";
                 link.ImdbObservedUtc = link.SetUtc;
-                link.WriteError = state == LibraryLinkWriteState.NotWritten ? "Jellyfin refused to change the item's ids." : null;
+                link.WriteError = state == LibraryLinkWriteState.NotWritten ? Message.Legacy("Jellyfin refused to change the item's ids.") : null;
             });
 
     /// <summary>"Чужий" linked to TMDb's 348 in <paramref name="state"/>, replacing <paramref name="supersededValue"/>.</summary>

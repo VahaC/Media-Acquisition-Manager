@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -117,7 +118,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
                 "TV Shows | TV Shows | /downloads/tv-shows",
             ],
             Describe(result.Value!));
-        Assert.All(result.Value!, destination => Assert.Equal((false, (string?)null), (destination.IsClientDefaultFolder, destination.Problem)));
+        Assert.All(result.Value!, destination => Assert.Equal((false, (string?)null), (destination.IsClientDefaultFolder, TestTexts.En(destination.Problem))));
         Assert.Equal([SignInPath, VersionPath, CategoriesPath], _harness.QBittorrentHttp.Requests.Select(request => request.Uri.AbsolutePath));
     }
 
@@ -401,7 +402,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotCategoriesError, result.Error);
+        Assert.Equal(NotCategoriesError, TestTexts.En(result.Error));
         Assert.Null(result.Value);
     }
 
@@ -424,7 +425,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
-        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", result.Error);
+        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.DoesNotContain(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == CategoriesPath);
     }
@@ -461,7 +462,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
         Assert.Equal(
             "qBittorrent reported the version “v4.99999999999.0”, which the app can't compare with 4.4.1, the oldest version it works with.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -478,7 +479,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal("The service at this address answered, but not with a qBittorrent version.", result.Error);
+        Assert.Equal("The service at this address answered, but not with a qBittorrent version.", TestTexts.En(result.Error));
         Assert.DoesNotContain(_harness.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == CategoriesPath);
     }
 
@@ -507,7 +508,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         // Nothing after the read that failed; a failure is never sent again.
         Assert.Equal(failingPath, _harness.QBittorrentHttp.Requests[^1].Uri.AbsolutePath);
@@ -530,7 +531,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -547,7 +548,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to http://qbittorrent.test:8080/session/***/***/. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact]

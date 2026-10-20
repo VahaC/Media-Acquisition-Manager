@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Core.Tests.Integrations;
 
@@ -33,7 +34,7 @@ public sealed class IntegrationSecretRulesTests
         var error = IntegrationSecretRules.ValidateNewApiKey(apiKey);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -49,7 +50,7 @@ public sealed class IntegrationSecretRulesTests
         var error = IntegrationSecretRules.ValidateNewApiKey(apiKey);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -81,7 +82,7 @@ public sealed class IntegrationSecretRulesTests
         var error = IntegrationSecretRules.ValidateNewPassword(password);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Theory]
@@ -97,7 +98,7 @@ public sealed class IntegrationSecretRulesTests
         var error = IntegrationSecretRules.ValidateNewPassword(password);
 
         //Assert
-        Assert.Equal(expected, error);
+        Assert.Equal(expected, TestTexts.En(error));
     }
 
     [Fact]
@@ -116,6 +117,6 @@ public sealed class IntegrationSecretRulesTests
         //Assert
         Assert.Null(spacesOnlyError);
         Assert.Null(paddedToTheLimitError);
-        Assert.Equal(PasswordTooLongError, paddedPastTheLimitError);
+        Assert.Equal(PasswordTooLongError, TestTexts.En(paddedPastTheLimitError));
     }
 }

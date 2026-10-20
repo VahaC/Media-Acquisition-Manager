@@ -11,6 +11,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -369,7 +370,7 @@ public sealed class DownloadsSecretsHttpTests : IClassFixture<MediaAcquisitionMa
         await _factory.WithDbAsync(async db =>
         {
             var rows = await db.DownloadJobs.AsNoTracking().Where(job => jobIds.Contains(job.Id)).ToListAsync(cancellationToken);
-            errors = [.. jobIds.Select(id => rows.Single(row => row.Id == id).Error ?? "")];
+            errors = [.. jobIds.Select(id => TestTexts.En(rows.Single(row => row.Id == id).Error) ?? "")];
         });
         return errors;
     }

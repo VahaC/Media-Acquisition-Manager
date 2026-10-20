@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -261,7 +262,7 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
         Assert.Null(result.Value);
         Assert.Equal((test.Status, test.Message), (result.Status, result.Error!));
     }
@@ -286,7 +287,7 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -300,7 +301,7 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotTorznabError, result.Error);
+        Assert.Equal(NotTorznabError, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -316,7 +317,7 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
         Assert.Equal(IntegrationCallStatus.Unreachable, result.Status);
         Assert.Equal(
             "Couldn't reach Torznab at http://prowlarr.test:9696/1/api: nothing accepted the connection. Check the address and port, and that Torznab is running.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -331,7 +332,7 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", result.Error);
+        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", TestTexts.En(result.Error));
     }
 
     private static HttpResponseMessage Xml(string body, HttpStatusCode status = HttpStatusCode.OK) =>

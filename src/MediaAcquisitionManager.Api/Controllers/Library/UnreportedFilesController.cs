@@ -35,7 +35,7 @@ public class UnreportedFilesController(IUnreportedFileService files) : Controlle
         return result.Status switch
         {
             UnreportedFileListStatus.Listed => Ok(result.List),
-            _ => this.BadRequestError(result.Error),
+            _ => this.BadRequestError(result.Error!),
         };
     }
 

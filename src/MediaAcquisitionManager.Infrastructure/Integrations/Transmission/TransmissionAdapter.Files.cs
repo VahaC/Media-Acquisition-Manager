@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 
@@ -10,9 +11,7 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 // allowlist (VendorSamples/Transmission/torrent-get-seeding.json). Every request is session-get or torrent-get.
 internal sealed partial class TransmissionAdapter
 {
-    private const string NotFilesError = "The service at this address answered, but not with Transmission's files.";
-
-    private const string TorrentGoneError = "Transmission doesn't have this torrent any more.";
+    private static readonly Message NotFilesError = IntegrationAdapterMessages.NotFiles(DisplayName);
 
     /// <summary>
     /// Linux's <c>PATH_MAX</c>, what a file path column holds (<see cref="PhysicalFileEntity.ServicePath"/>): no file's
@@ -46,7 +45,7 @@ internal sealed partial class TransmissionAdapter
         {
             return LowerHex(clientJobId, V2HashLength) is null
                 ? throw new ArgumentException("A job id must be 40 or 64 hexadecimal characters.", nameof(clientJobId))
-                : Task.FromResult(IntegrationCallResult<IReadOnlyList<ClientJobFile>>.Failed(IntegrationCallStatus.NotFound, TorrentGoneError));
+                : Task.FromResult(IntegrationCallResult<IReadOnlyList<ClientJobFile>>.Failed(IntegrationCallStatus.NotFound, IntegrationAdapterMessages.TorrentGone(Descriptor.DisplayName)));
         }
 
         return CallAsync<IReadOnlyList<ClientJobFile>>(
@@ -71,7 +70,7 @@ internal sealed partial class TransmissionAdapter
         switch (TorrentsOf(answer.Arguments))
         {
             case []:
-                return IntegrationCallResult<IReadOnlyList<ClientJobFile>>.Failed(IntegrationCallStatus.NotFound, TorrentGoneError);
+                return IntegrationCallResult<IReadOnlyList<ClientJobFile>>.Failed(IntegrationCallStatus.NotFound, IntegrationAdapterMessages.TorrentGone(Descriptor.DisplayName));
             case [var torrent] when LowerHex(Text(torrent, "hashString"), V1HashLength) == hash:
                 if (Fraction(torrent, "metadataPercentComplete") is not >= 1)
                     return IntegrationCallResult<IReadOnlyList<ClientJobFile>>.Succeeded([]);

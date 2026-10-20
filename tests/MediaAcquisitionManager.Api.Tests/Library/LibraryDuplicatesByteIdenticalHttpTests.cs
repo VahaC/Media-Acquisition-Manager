@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
@@ -387,7 +388,7 @@ public sealed class LibraryDuplicatesByteIdenticalHttpTests : IClassFixture<Medi
         // The backup was written to since it was a copy, and this run couldn't read it whole: its new bytes have
         // no hash yet.
         _factory.Files.AddFile(
-            CopyPath, copyFacts, TestMedia.Taken(), hash: new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, CopyLockedError));
+            CopyPath, copyFacts, TestMedia.Taken(), hash: new FileInventoryResult<FileContentHash>(FileInventoryStatus.Unreadable, null, Message.Legacy(CopyLockedError)));
         await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
         // What an earlier run kept of the backup while it was still a copy: the film's hash, under the key of the
         // bytes it held then — its identity and size, and the time of that older write.

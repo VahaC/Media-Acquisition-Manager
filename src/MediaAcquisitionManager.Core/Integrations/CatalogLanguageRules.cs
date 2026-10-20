@@ -1,10 +1,11 @@
 using MediaAcquisitionManager.Core.Accounts;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Core.Integrations;
 
 /// <summary>
 /// MAM-46 — what a metadata catalog integration's language may be, and the one a new catalog starts with: the
-/// MAM-4 rules-class pattern, each rule one readable sentence or <c>null</c>.
+/// MAM-4 rules-class pattern, each rule a message the Api renders (ADR 0042) or <c>null</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -14,7 +15,7 @@ namespace MediaAcquisitionManager.Core.Integrations;
 /// request sent reaches a catalog call.
 /// </para>
 /// <para>
-/// <c>{Display}</c> in a sentence is the adapter type's display name, a product name the owner knows.
+/// <c>{{service}}</c> in a message is the adapter type's display name, a product name the owner knows.
 /// </para>
 /// </remarks>
 public static class CatalogLanguageRules
@@ -34,23 +35,27 @@ public static class CatalogLanguageRules
     private const int EchoLength = 32;
 
     /// <summary>
-    /// The sentence saying what is wrong with <paramref name="language"/> for an adapter whose catalog languages are
+    /// Why <paramref name="language"/> is refused, as a message, for an adapter whose catalog languages are
     /// <paramref name="catalogLanguages"/> (<c>null</c> for an adapter that is no catalog), or <c>null</c> with the
     /// list's own spelling of it in <paramref name="matched"/> — compared in any letter case. A blank or missing value
     /// is no value: <c>null</c> and <c>null</c>, for the caller to read as "left out".
     /// </summary>
-    public static string? Validate(string? language, IReadOnlyList<string>? catalogLanguages, string adapterDisplayName, out string? matched)
+    public static Message? Validate(string? language, IReadOnlyList<string>? catalogLanguages, string adapterDisplayName, out string? matched)
     {
         matched = null;
         var trimmed = language?.Trim() ?? "";
         if (trimmed.Length == 0)
             return null;
         if (catalogLanguages is null)
-            return $"{adapterDisplayName} has no catalog language to choose. Leave catalogLanguage out.";
+            return Message.Of("integrations.catalog-language.none", ("service", adapterDisplayName));
 
         matched = Find(catalogLanguages, trimmed);
         return matched is null
-            ? $"“{Echo(trimmed)}” is not one of {adapterDisplayName}'s catalog languages. Use one of the tags its adapter type lists, such as {Examples(catalogLanguages)}."
+            ? Message.Of(
+                "integrations.catalog-language.unknown",
+                ("value", Echo(trimmed)),
+                ("service", adapterDisplayName),
+                ("examples", Examples(catalogLanguages)))
             : null;
     }
 
@@ -106,9 +111,13 @@ public static class CatalogLanguageRules
             .Select(entry => entry.Split(';')[0].Trim())
             .FirstOrDefault(entry => entry.Length > 0 && entry != "*");
 
-    // The tags each UI language starts a catalog with: a sentence's examples are entries of the adapter's own list.
-    private static string Examples(IReadOnlyList<string> catalogLanguages) =>
-        string.Join(" or ", UiLanguages.Supported.Select(language => Map(catalogLanguages, language)).Distinct(StringComparer.Ordinal));
+    // The tags each UI language starts a catalog with: a sentence's examples are entries of the adapter's own list, joined
+    // by the template's list:or ("en-US or uk-UA": two UI languages, so never a third tag and never a comma).
+    private static ListValue Examples(IReadOnlyList<string> catalogLanguages) =>
+        new(UiLanguages.Supported
+            .Select(language => Map(catalogLanguages, language))
+            .Distinct(StringComparer.Ordinal)
+            .Select(tag => (MessageValue)tag));
 
     private static string? Find(IReadOnlyList<string> catalogLanguages, string tag) =>
         catalogLanguages.FirstOrDefault(entry => string.Equals(entry, tag, StringComparison.OrdinalIgnoreCase));

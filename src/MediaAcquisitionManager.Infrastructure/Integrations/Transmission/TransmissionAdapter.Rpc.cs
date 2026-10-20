@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 
@@ -20,29 +21,21 @@ internal sealed partial class TransmissionAdapter
     /// <summary>Far longer than Transmission's 48-character session id; a longer one is not one this app sends back.</summary>
     private const int SessionIdMaximumLength = 256;
 
-    private const string CredentialsRefusedError = "Transmission refused the user name or password.";
+    private static readonly Message SignInNeededError = Message.Of("transmission.sign-in-needed");
 
-    private const string SignInNeededError = "Transmission asks for a user name and password. Enter them under Integrations.";
+    private static readonly Message RememberedCredentialsRefusedError = Message.Of("transmission.remembered.credentials-refused");
 
-    private const string RememberedCredentialsRefusedError =
-        "Transmission refused the user name or password the last time the app used them, so the app won't send them again: with its anti-brute-force setting on, every refusal counts towards locking its RPC. Correct them under Integrations, or test the connection there once Transmission accepts them.";
+    private static readonly Message RememberedSignInNeededError = Message.Of("transmission.remembered.sign-in-needed");
 
-    private const string RememberedSignInNeededError =
-        "Transmission asked for a user name and password the last time the app asked it, so the app won't ask again until they are entered under Integrations or the connection is tested there.";
+    private static readonly Message ForbiddenError = Message.Of("transmission.forbidden");
 
-    private const string ForbiddenError =
-        "Transmission refused this app (403 Forbidden): this app's address isn't on its RPC whitelist (WHITELIST in the linuxserver image, rpc-whitelist in its settings), or it locked its RPC after too many wrong passwords, which only a restart of Transmission ends.";
+    private static readonly Message RememberedForbiddenError = Message.Of("transmission.remembered.forbidden");
 
-    private const string RememberedForbiddenError =
-        "Transmission refused this app the last time it asked (403 Forbidden), so the app won't ask it again until the connection is tested under Integrations.";
+    private static readonly Message HostNotAllowedError = Message.Of("transmission.host-not-allowed");
 
-    private const string HostNotAllowedError =
-        "Transmission doesn't accept the host name in this address (421 Misdirected Request); it checks host names only while it has no password. Give Transmission a user name and password (USER and PASS in the linuxserver image), add the host name to its rpc-host-whitelist (HOST_WHITELIST), or use its IP address, then test again.";
+    private static readonly Message RpcNotFoundError = Message.Of("transmission.rpc-not-found");
 
-    private const string RpcNotFoundError =
-        "Transmission's RPC wasn't found at this address (404 Not Found). Use the address of Transmission's web interface, such as http://192.168.1.10:9091.";
-
-    private const string SessionIdRefusedError = "Transmission refused the session id it had just sent.";
+    private static readonly Message SessionIdRefusedError = Message.Of("transmission.session-id-refused");
 
     /// <summary>The session ids this singleton keeps, one per saved integration, and the refusals Transmission answered
     /// (D7).</summary>
@@ -137,7 +130,7 @@ internal sealed partial class TransmissionAdapter
                     Remember(call, IntegrationCallStatus.AuthenticationFailed);
                     return (null, ConnectionTestResult.Failed(
                         IntegrationCallStatus.AuthenticationFailed,
-                        string.IsNullOrEmpty(call.Settings.UserName) ? SignInNeededError : CredentialsRefusedError));
+                        string.IsNullOrEmpty(call.Settings.UserName) ? SignInNeededError : IntegrationAdapterMessages.CredentialsRefused(Descriptor.DisplayName)));
                 case HttpStatusCode.Forbidden:
                     Remember(call, IntegrationCallStatus.Refused);
                     return (null, ConnectionTestResult.Failed(IntegrationCallStatus.Refused, ForbiddenError));
@@ -220,7 +213,7 @@ internal sealed partial class TransmissionAdapter
     private static ConnectionTestResult RequestRefused(RpcAnswer answer, IntegrationConnectionSettings settings, IEnumerable<string> sessionSecrets) =>
         ConnectionTestResult.Failed(
             IntegrationCallStatus.Refused,
-            $"Transmission refused the request: {RemoteText.Clean(answer.Result, ResultMaximumLength, CallSecrets(settings, sessionSecrets))}.");
+            Message.Of("transmission.request-refused", ("result", VendorText.Clean(answer.Result, ResultMaximumLength, CallSecrets(settings, sessionSecrets)))));
 
     /// <summary>A failure a read answered, as a kind-contract call's failure.</summary>
     private static IntegrationCallResult<T> Failed<T>(ConnectionTestResult failure) where T : class =>

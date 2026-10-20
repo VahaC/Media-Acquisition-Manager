@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations;
 
@@ -19,8 +20,13 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations;
 /// opened on the way, out of it (<see cref="SecretRedaction"/>). Doing that here rather than in each
 /// adapter means a new adapter can't forget it: whatever sentence it builds, remote text included,
 /// passes through <see cref="TestConnectionAsync"/> or <see cref="CallAsync{T}"/> on its way out.
-/// Remote text is masked once more before it is cut to length (<see cref="RemoteText.Clean"/>), where
+/// Remote text is masked once more before it is cut to length (<see cref="VendorText.Clean"/>), where
 /// a key cut in half would no longer match.
+/// </para>
+/// <para>
+/// MAM-47 (ADR 0042) — a message is a key of <c>http.json</c> and its values, never English: the service's name, the
+/// saved address and the status are values, a redirect target a vendor's words, and a timeout a number the template
+/// counts. Finishing it masks every value (<see cref="Message.Redacted"/>), as the finished sentence was masked before.
 /// </para>
 /// <para>
 /// An exception's text never becomes a message: <see cref="HttpRequestException"/>'s can name the
@@ -50,7 +56,7 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
             (client, sessionSecrets, token) => TestAsync(client, settings, sessionSecrets, token),
             ConnectionTestResult.Failed,
             // Success included: its sentence repeats what the service calls itself.
-            (result, secrets) => result with { Message = SecretRedaction.Redact(result.Message, secrets)! },
+            (result, secrets) => result with { Message = result.Message.Redacted(secrets) },
             httpClientName,
             cancellationToken);
 
@@ -75,7 +81,7 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
     /// that needs its own timeout: an <see cref="HttpClient"/>'s timeout can't change once it has been used, so a call that
     /// may legitimately run for minutes (Jellyfin's Apply) takes a client registered with that timeout instead of the
     /// shared one's. The timeout sentence reports that client's.</param>
-    /// <param name="oversizeError">MAM-24 — the sentence for an answer larger than the client buffers
+    /// <param name="oversizeError">MAM-24 — the message for an answer larger than the client buffers
     /// (<see cref="IntegrationsInfrastructureExtensions.MaximumResponseBytes"/>), for a call whose answer may honestly
     /// outgrow it: the default sentence says that no answer of the service is that large and points at the address,
     /// which misleads where a big installation's whole list is that large. Still
@@ -85,12 +91,12 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
         Func<HttpClient, ICollection<string>, CancellationToken, Task<IntegrationCallResult<T>>> call,
         CancellationToken cancellationToken,
         string? clientName = null,
-        string? oversizeError = null) where T : class =>
+        Message? oversizeError = null) where T : class =>
         RunAsync(
             settings,
             call,
             IntegrationCallResult<T>.Failed,
-            (result, secrets) => result.Error is null ? result : result with { Error = SecretRedaction.Redact(result.Error, secrets) },
+            (result, secrets) => result.Error is null ? result : result with { Error = result.Error.Redacted(secrets) },
             clientName ?? httpClientName,
             cancellationToken,
             oversizeError);
@@ -98,7 +104,7 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
     /// <summary>
     /// Every secret of the call so far: the connection's, and each session value the adapter has put
     /// into <paramref name="sessionSecrets"/>. Remote text is masked against them before it is cleaned
-    /// and cut (<see cref="RemoteText.Clean"/>), and the finished message after.
+    /// and cut (<see cref="VendorText.Clean"/>), and the finished message after.
     /// </summary>
     protected static string?[] CallSecrets(IntegrationConnectionSettings settings, IEnumerable<string> sessionSecrets) =>
         [.. settings.Secrets, .. sessionSecrets];
@@ -172,11 +178,11 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
     private async Task<TResult> RunAsync<TResult>(
         IntegrationConnectionSettings settings,
         Func<HttpClient, ICollection<string>, CancellationToken, Task<TResult>> call,
-        Func<IntegrationCallStatus, string, TResult> failed,
+        Func<IntegrationCallStatus, Message, TResult> failed,
         Func<TResult, string?[], TResult> redact,
         string clientName,
         CancellationToken cancellationToken,
-        string? oversizeError = null)
+        Message? oversizeError = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
@@ -204,62 +210,57 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
         return redact(result, CallSecrets(settings, sessionSecrets));
     }
 
-    private (IntegrationCallStatus Status, string Message) UnexpectedStatus(
+    private (IntegrationCallStatus Status, Message Message) UnexpectedStatus(
         HttpResponseMessage response, IntegrationConnectionSettings settings, IEnumerable<string> sessionSecrets)
     {
-        var display = Descriptor.DisplayName;
+        var service = Descriptor.DisplayName;
         var status = (int)response.StatusCode;
         if (status is >= 300 and < 400)
         {
-            var sentence = RedirectTarget(response, settings, sessionSecrets) is { Length: > 0 } location
-                ? $"The address answered with a redirect to {location}."
-                : "The address answered with a redirect.";
             return (
                 IntegrationCallStatus.UnexpectedResponse,
-                $"{sentence} Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.");
+                RedirectTarget(response, settings, sessionSecrets) is { Text.Length: > 0 } location
+                    ? Message.Of("http.redirect.to", ("location", location))
+                    : Message.Of("http.redirect.bare"));
         }
 
         if (status is >= 500 and < 600)
-            return (IntegrationCallStatus.ServiceError, $"{display} answered {StatusText(response)}. Its own log says why.");
+            return (IntegrationCallStatus.ServiceError, Message.Of("http.status.server-error", ("service", service), ("status", StatusText(response))));
 
         return (
             IntegrationCallStatus.UnexpectedResponse,
-            $"{display} answered {StatusText(response)}, which it doesn't send for this request. Check the address.");
+            Message.Of("http.status.unexpected", ("service", service), ("status", StatusText(response))));
     }
 
-    private (IntegrationCallStatus Status, string Message) DescribeTransportFailure(
-        HttpRequestException exception, IntegrationConnectionSettings settings, string? oversizeError)
+    private (IntegrationCallStatus Status, Message Message) DescribeTransportFailure(
+        HttpRequestException exception, IntegrationConnectionSettings settings, Message? oversizeError)
     {
-        var display = Descriptor.DisplayName;
-        var address = settings.BaseUrl;
+        (string, MessageValue) service = ("service", Descriptor.DisplayName);
+        (string, MessageValue) address = ("address", settings.BaseUrl);
         return exception.HttpRequestError switch
         {
             HttpRequestError.NameResolutionError => (
-                IntegrationCallStatus.Unreachable,
-                $"Couldn't reach {display} at {address}: the host name can't be found."),
+                IntegrationCallStatus.Unreachable, Message.Of("http.unreachable.host-not-found", service, address)),
             HttpRequestError.ConnectionError => (
-                IntegrationCallStatus.Unreachable,
-                $"Couldn't reach {display} at {address}: nothing accepted the connection. Check the address and port, and that {display} is running."),
+                IntegrationCallStatus.Unreachable, Message.Of("http.unreachable.refused", service, address)),
             HttpRequestError.SecureConnectionError => (
-                IntegrationCallStatus.Unreachable,
-                $"Couldn't reach {display} at {address}: the secure (HTTPS) connection failed, for example because its certificate isn't trusted."),
+                IntegrationCallStatus.Unreachable, Message.Of("http.unreachable.secure-connection", service, address)),
             // The answer outgrew the client's buffer limit (MaximumResponseBytes) — MAM-24: in the call's own words
             // when it gave some.
             HttpRequestError.ConfigurationLimitExceeded => (
-                IntegrationCallStatus.UnexpectedResponse,
-                oversizeError ?? $"The answer from {address} is far larger than anything {display} sends. Check the address."),
+                IntegrationCallStatus.UnexpectedResponse, oversizeError ?? Message.Of("http.too-large", service, address)),
             _ => (
-                IntegrationCallStatus.Unreachable,
-                $"Couldn't reach {display} at {address}: the connection failed before it answered."),
+                IntegrationCallStatus.Unreachable, Message.Of("http.unreachable.failed", service, address)),
         };
     }
 
     // "0.##", not the whole seconds: the same "15 seconds" in production, and a test's 100 ms timeout
     // reads as what it is instead of "0 seconds".
-    private (IntegrationCallStatus Status, string Message) DescribeTimeout(
+    private (IntegrationCallStatus Status, Message Message) DescribeTimeout(
         OperationCanceledException exception, HttpClient client, IntegrationConnectionSettings settings)
     {
-        var display = Descriptor.DisplayName;
+        (string, MessageValue) service = ("service", Descriptor.DisplayName);
+        (string, MessageValue) address = ("address", settings.BaseUrl);
         // MAM-7 — the handler's ConnectTimeout (5 s) ends in a cancellation too, holding a
         // TimeoutException with nothing inside it; HttpClient.Timeout's TimeoutException holds the
         // cancellation it caused. Told apart, the sentence neither claims 15 seconds after 5 nor
@@ -269,34 +270,38 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
         {
             return (
                 IntegrationCallStatus.TimedOut,
-                string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"{display} at {settings.BaseUrl} didn't accept the connection within {IntegrationsInfrastructureExtensions.ConnectTimeout.TotalSeconds:0.##} seconds. Check the address and port, and that {display} is running."));
+                Message.Of("http.timeout.connect", service, address, ("count", Seconds(IntegrationsInfrastructureExtensions.ConnectTimeout))));
         }
 
         return (
             IntegrationCallStatus.TimedOut,
-            string.Create(
-                CultureInfo.InvariantCulture,
-                $"{display} at {settings.BaseUrl} didn't answer within {client.Timeout.TotalSeconds:0.##} seconds."));
+            Message.Of("http.timeout.answer", service, address, ("count", Seconds(client.Timeout))));
     }
+
+    /// <summary>
+    /// A timeout's seconds as the format <c>0.##</c> wrote them: at most two decimals, a midpoint rounded away from zero.
+    /// MAM-47 — rounded here, before the template counts them: its number hint writes every digit the value keeps
+    /// (pinned by <c>EnglishFormatPinTests</c>).
+    /// </summary>
+    private static NumberValue Seconds(TimeSpan timeout) =>
+        new(Math.Round((decimal)timeout.TotalSeconds, 2, MidpointRounding.AwayFromZero));
 
     /// <summary>
     /// Where a redirect points, resolved against the request, as scheme, host, port and path only: the
     /// query and the user info are left out because either can hold a credential (a Jellyfin
     /// <c>api_key=</c>, a Prowlarr <c>apikey=</c>). Empty when the answer names no usable target.
     /// </summary>
-    private static string RedirectTarget(
+    private static VendorText RedirectTarget(
         HttpResponseMessage response, IntegrationConnectionSettings settings, IEnumerable<string> sessionSecrets)
     {
         if (response.Headers.Location is not { } location)
-            return "";
+            return VendorText.Clean(null, LocationMaximumLength);
 
         var requestUri = response.RequestMessage?.RequestUri ?? new Uri(settings.BaseUrl);
         if (!Uri.TryCreate(requestUri, location, out var target))
-            return "";
+            return VendorText.Clean(null, LocationMaximumLength);
 
-        return RemoteText.Clean(
+        return VendorText.Clean(
             target.GetComponents(UriComponents.SchemeAndServer | UriComponents.Path, UriFormat.UriEscaped),
             LocationMaximumLength,
             CallSecrets(settings, sessionSecrets));

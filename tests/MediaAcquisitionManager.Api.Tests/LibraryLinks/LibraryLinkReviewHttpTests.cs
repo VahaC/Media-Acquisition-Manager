@@ -583,6 +583,27 @@ public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionM
     }
 
     [Fact]
+    public async Task Accept_all_of_an_empty_item_is_400_with_its_code_and_links_nothing()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await PrepareAsync(cancellationToken);
+        var landingWorkId = await WorkOfAsync(LandingId, cancellationToken);
+
+        //Act
+        var response = await _factory.PostHttpRequest(
+            $"{BaseUrl}/tmdb/confident", _owner.AccessToken, new LibraryLinkAcceptRequest([Accept(landingWorkId, "Movie", "223021"), null]));
+
+        //Assert
+        // MAM-47 (ADR 0042) — the sentence with its key as the code; it had no test before.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            ("Each ticked work needs its work, its kind and its TMDb id.", "library-links.review.accept-item-missing"),
+            await response.ReadErrorBodyAsync(cancellationToken));
+        await _factory.WithDbAsync(async db => Assert.Equal(0, await db.LibraryItemLinks.CountAsync(cancellationToken)));
+    }
+
+    [Fact]
     public async Task Accept_all_of_a_work_ticked_twice_is_400()
     {
         //Arrange

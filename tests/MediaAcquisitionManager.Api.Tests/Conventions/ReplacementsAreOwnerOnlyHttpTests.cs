@@ -38,7 +38,7 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
     // Spelled out rather than read from the convention: this pins where the replacement controllers live.
     private const string ReplacementsNamespace = "MediaAcquisitionManager.Api.Controllers.Replacements";
     private const string RemovalsRoute = "api/replacements/removals";
-    private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private static readonly string OwnerOnlyBody = ErrorBody.Json("Only the installation owner can do this.", "account.owner-only");
     private const string TheatricalPath = "/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.mkv";
     private const string SubtitlePath = "/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.uk.srt";
     private const string ExtendedPath = "/media/movies/Alien (1979)/Alien (1979) Extended.mkv";
@@ -209,10 +209,10 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
             ReplacementJobState.NeedsReview,
             [
                 new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1), ReplacementNameState.Planned),
-                new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: 98_304), ReplacementNameState.Stayed, HeldReason),
+                new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: 98_304), ReplacementNameState.Stayed, PlantedMessage.Of(HeldReason)),
             ],
             quarantineCheckedUtc: now,
-            reason: HeldReason,
+            reason: PlantedMessage.Of(HeldReason),
             requestedByUserId: requestedByUserId,
             copies: [new PlantedCopy(ExtendedPath, TestMedia.File(inode: 3), PairedWithNewFile: 0)],
             newFiles:

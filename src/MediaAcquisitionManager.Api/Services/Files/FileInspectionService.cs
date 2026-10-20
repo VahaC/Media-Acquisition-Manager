@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Texts;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,13 +17,12 @@ public sealed class FileInspectionService(
     TimeProvider time,
     ILogger<FileInspectionService> logger) : IFileInspectionService
 {
-    /// <summary>The sentence the owner's Inspect files gets with no folder allowed; the page offers the
-    /// way to the settings next to it.</summary>
-    internal const string NoAllowedRootsError =
-        "No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then inspect again.";
+    /// <summary>What the owner's Inspect files gets with no folder allowed; the page offers the way to the settings
+    /// next to it.</summary>
+    internal static readonly Message NoAllowedRootsError = Message.Of("files.inspection.no-allowed-roots");
 
-    /// <summary>The sentence of a run the queue refused; the reconciler fails one with it too.</summary>
-    internal const string QueueFullError = "Too many file inspections are waiting. Try again in a minute.";
+    /// <summary>Why the queue refused a run; the reconciler fails one with it too.</summary>
+    internal static readonly Message QueueFullError = Message.Of("files.inspection.queue-full");
 
     public async Task<FileInspectionStartResult> StartAsync(Guid requestedByUserId, CancellationToken cancellationToken = default)
     {

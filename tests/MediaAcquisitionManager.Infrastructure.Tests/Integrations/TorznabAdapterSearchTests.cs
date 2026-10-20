@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Texts;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
@@ -644,7 +645,7 @@ public sealed class TorznabAdapterSearchTests : IDisposable
         Assert.Null(result.Value);
         Assert.Equal(
             "The Torznab feed lists its downloads at http://10.0.0.5:9696, not at the address entered for it, so the app couldn't fetch them. Enter the feed at the address its download links use.",
-            result.Error);
+            TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -661,8 +662,8 @@ public sealed class TorznabAdapterSearchTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.StartsWith("The Torznab feed lists its downloads at https://tracker.test:8443, not at", result.Error, StringComparison.Ordinal);
-        Assert.DoesNotContain("planted", result.Error, StringComparison.Ordinal);
+        Assert.StartsWith("The Torznab feed lists its downloads at https://tracker.test:8443, not at", TestTexts.En(result.Error), StringComparison.Ordinal);
+        Assert.DoesNotContain("planted", TestTexts.En(result.Error), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -717,7 +718,7 @@ public sealed class TorznabAdapterSearchTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
     }
 
     [Fact]
@@ -731,7 +732,7 @@ public sealed class TorznabAdapterSearchTests : IDisposable
         var result = await Search.SearchAsync(Settings, Query(), TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal("The Torznab feed failed (error 900: Search of http://prowlarr.test:9696 failed for key ***).", result.Error);
+        Assert.Equal("The Torznab feed failed (error 900: Search of http://prowlarr.test:9696 failed for key ***).", TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -754,7 +755,7 @@ public sealed class TorznabAdapterSearchTests : IDisposable
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
-        Assert.Equal(expectedMessage, result.Error);
+        Assert.Equal(expectedMessage, TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -771,7 +772,7 @@ public sealed class TorznabAdapterSearchTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotSearchResultsError, result.Error);
+        Assert.Equal(NotSearchResultsError, TestTexts.En(result.Error));
     }
 
     [Theory]
@@ -793,7 +794,7 @@ public sealed class TorznabAdapterSearchTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
-        Assert.Equal(NotSearchResultsError, result.Error);
+        Assert.Equal(NotSearchResultsError, TestTexts.En(result.Error));
         Assert.True(TimeProvider.System.GetElapsedTime(started) < TimeSpan.FromSeconds(5), "Reading a deeply nested answer took seconds.");
     }
 
@@ -826,7 +827,7 @@ public sealed class TorznabAdapterSearchTests : IDisposable
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
         Assert.Equal(
             "The address answered with a redirect to http://prowlarr.test:9696/login. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
-            result.Error);
+            TestTexts.En(result.Error));
         Assert.Single(_harness.TorznabHttp.Requests);
     }
 
@@ -857,7 +858,7 @@ public sealed class TorznabAdapterSearchTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", result.Error);
+        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", TestTexts.En(result.Error));
     }
 
     private static ReleaseSearchQuery Query(
