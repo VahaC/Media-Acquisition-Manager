@@ -6,7 +6,17 @@ import { capitalizeFirst } from './format'
 /** The catalog language a new catalog falls back to: TMDb's own default. */
 export const FALLBACK_CATALOG_LANGUAGE = 'en-US'
 
-const namesByLocale = new Map<string, { names: Intl.DisplayNames; known: Intl.DisplayNames }>()
+/**
+ * MAM-48 — the names the app keeps for catalog languages a browser's Intl may have none for, by the UI
+ * language, written as Intl writes language names there (Ukrainian's in lower case). Chrome's own ICU
+ * names no Chamorro, so TMDb's `ch-GU` showed as "Ch-GU", the one code among its 144 languages
+ * (2026-10-21); Node's full ICU names it, with these same words.
+ */
+const OWN_LANGUAGE_NAMES: Readonly<Partial<Record<string, Readonly<Partial<Record<string, string>>>>>> = {
+  ch: { en: 'Chamorro', uk: 'чаморро' },
+}
+
+const namesByLocale = new Map<string, { names: Intl.DisplayNames; known: Intl.DisplayNames; regions: Intl.DisplayNames }>()
 
 function displayNamesFor(uiLanguage: string) {
   let entry = namesByLocale.get(uiLanguage)
@@ -17,6 +27,8 @@ function displayNamesFor(uiLanguage: string) {
       names: new Intl.DisplayNames(uiLanguage, { type: 'language', languageDisplay: 'standard' }),
       // Only to tell a language Intl has a name for from one it would echo back as a code.
       known: new Intl.DisplayNames(uiLanguage, { type: 'language', fallback: 'none' }),
+      // The region beside one of the app's own language names.
+      regions: new Intl.DisplayNames(uiLanguage, { type: 'region' }),
     }
     namesByLocale.set(uiLanguage, entry)
   }
@@ -25,17 +37,33 @@ function displayNamesFor(uiLanguage: string) {
 
 /**
  * A catalog language's name in the UI language, as running text has it (`Ukrainian (Ukraine)`; in
- * Ukrainian, all in lower case). A tag whose language Intl has no name for — TMDb's own `cn-CN` for
- * Cantonese — is shown as the tag rather than as half a name.
+ * Ukrainian, all in lower case). Where Intl has no name for the language, or gives back its code
+ * (`ch (Guam)`), the app's own name stands in, with Intl's name of the region (`Chamorro (Guam)`). A
+ * tag whose language neither names — TMDb's own `cn-CN` for Cantonese — is shown as the tag rather
+ * than as half a name.
  */
 export function catalogLanguageName(tag: string, uiLanguage: string): string {
   try {
-    const { names, known } = displayNamesFor(uiLanguage)
-    if (known.of(new Intl.Locale(tag).language) === undefined) return tag
-    return names.of(tag) ?? tag
+    const { names, known, regions } = displayNamesFor(uiLanguage)
+    const { language, region } = new Intl.Locale(tag)
+    const name = known.of(language) === undefined ? undefined : names.of(tag)
+    if (name !== undefined && !readsAsCode(name, language)) return name
+    const own = OWN_LANGUAGE_NAMES[language]?.[languageOf(uiLanguage)]
+    if (own === undefined) return tag
+    // Both UI languages put the region in brackets after the language, as Intl does: "English (United States)".
+    return region === undefined ? own : `${own} (${regions.of(region) ?? region})`
   } catch {
     return tag /* not a valid language tag */
   }
+}
+
+/**
+ * Whether Intl gave back the language's code instead of a name — "ch", "ch-GU", "ch (Guam)" — told by
+ * the code at the start, in the lower case Intl echoes it in, with no letter after it, so "English" for
+ * `en` is a name, and so is "Fon (Benin)" for `fon-BJ`, a name spelt as its code.
+ */
+function readsAsCode(name: string, language: string): boolean {
+  return name.startsWith(language) && !/^\p{L}/u.test(name.slice(language.length))
 }
 
 /** One option of the catalog language select. */

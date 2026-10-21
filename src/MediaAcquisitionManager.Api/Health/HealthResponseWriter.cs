@@ -27,7 +27,7 @@ public static class HealthResponseWriter
             ]);
 
         // Written straight to the body, outside MVC, so the controllers' JSON options don't apply;
-        // StreamingJson.Options mirrors them (camelCase, enums as strings).
+        // StreamingJson.Options mirrors them (camelCase, enums as strings, raw UTF-8).
         return context.Response.WriteAsJsonAsync(response, StreamingJson.Options, context.RequestAborted);
     }
 

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Http.Probes;
@@ -63,6 +64,29 @@ public sealed class HealthUkrainianHttpTests
             (english.Status, Assert.Single(english.Body.Checks)));
     }
 
+    // MAM-48 F5 — the probe is written outside MVC, so it once kept the serializer's default encoder and sent every Cyrillic
+    // letter as a \uXXXX escape while the controllers sent raw UTF-8. Read as bytes, not through a JSON reader that would
+    // hide the escapes; English, which has nothing to escape, keeps the very bytes it always had.
+    [Fact]
+    public async Task Readiness_writes_the_ukrainian_description_as_raw_utf8_and_the_english_unchanged()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var ukrainian = await ReadyBytesAsync("uk", cancellationToken);
+        var english = await ReadyBytesAsync("en", cancellationToken);
+
+        //Assert
+        Assert.Equal(("utf-8", "utf-8"), (ukrainian.CharSet, english.CharSet));
+        Assert.Equal(
+            """{"status":"Healthy","checks":[{"name":"database","status":"Healthy","description":"База даних доступна, і всі міграції застосовано."}]}""",
+            Encoding.UTF8.GetString(ukrainian.Body));
+        Assert.Equal(
+            """{"status":"Healthy","checks":[{"name":"database","status":"Healthy","description":"The database is reachable and every migration is applied."}]}""",
+            Encoding.UTF8.GetString(english.Body));
+    }
+
     [Fact]
     public async Task Readiness_asked_in_ukrainian_counts_the_pending_migrations_in_their_own_form()
     {
@@ -107,6 +131,12 @@ public sealed class HealthUkrainianHttpTests
         // A probe asked in a language reads as it came; one asked in none reads through the pass's own checks.
         var options = language is null ? MediaAcquisitionManagerApiFactory.JsonOptions : MediaAcquisitionManagerApiFactory.PlainJsonOptions;
         return (response.StatusCode, (await response.Content.ReadFromJsonAsync<HealthResponse>(options, cancellationToken))!);
+    }
+
+    private async Task<(string? CharSet, byte[] Body)> ReadyBytesAsync(string language, CancellationToken cancellationToken)
+    {
+        using var response = await _factory.GetHttpRequest(ReadyUrl, language: language);
+        return (response.Content.Headers.ContentType?.CharSet, await response.Content.ReadAsByteArrayAsync(cancellationToken));
     }
 
     // The newest migration still in the history, forgotten: one more migration pending, the schema untouched — the state

@@ -94,16 +94,17 @@
       "assistant": {
         "title": "Connect an AI assistant",
         "readOnly": "This token is read only: the assistant reads what you can, but can't send downloads, cancel following or mark Not interested.",
+        "address": "The command and the configuration below use this page's address, which the assistant must reach from its own computer: on your home network or through a VPN. If this address asks for a sign-in in the browser (Cloudflare Access, for example), open the app at its home-network address instead and create a new token there: both then use that address.",
         "claudeCode": {
           "label": "Claude Code",
-          "hint": "Run it once in a terminal; Claude Code then has the app in all your projects.",
+          "hint": "Run it once in a terminal; Claude Code then has the app in all your projects, from its next session on.",
           "command": "claude mcp add --transport http --scope user mam {{origin}}/mcp --header \"Authorization: Bearer {{token}}\"",
           "copy": "Copy the Claude Code command",
           "copyFailed": "Select the command and press Ctrl+C."
         },
         "claudeDesktop": {
           "label": "Claude Desktop",
-          "hint": "Paste it into claude_desktop_config.json (into its mcpServers, if it has one already), then restart Claude Desktop. It needs Node.js 18 or later.",
+          "hint": "Quit Claude Desktop completely (closing its window isn't enough), paste it into claude_desktop_config.json (into its mcpServers, if it has one already), then start Claude Desktop again. It needs Node.js 18 or later.",
           "copy": "Copy the Claude Desktop configuration",
           "copyFailed": "Select the configuration and press Ctrl+C."
         }

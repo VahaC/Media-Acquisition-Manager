@@ -83,8 +83,9 @@ which still warned of those twelve shorts, which Jellyfin shows nowhere: the fil
 extras sit on an Extras tab and warn of nothing.
 All eight are in 0.3.0 as Vasyl published it again on 2026-10-13 at 18:55 UTC (Docker Hub's `0.3.0`,
 `0.3` and `latest`, built after his commit 082c84e); the image published on 2026-10-11 has none of
-them. Phase C's heading below is left for Vasyl to mark shipped. MAM-30 then raised the
-version to 0.4.0 (Vasyl's decision of 2026-10-13), so the next image published from `main` is 0.4.0.
+them. Phase C's heading below was left for Vasyl to mark shipped; he had it marked on 2026-10-21
+(MAM-48). MAM-30 then raised the version to 0.4.0 (Vasyl's decision of 2026-10-13), so the next
+image published from `main` is 0.4.0.
 Phase D (release 0.4.0) began on 2026-10-13: MAM-29 chose Transmission 4.0 or newer instead of
 qBittorrent and Jackett instead of Prowlarr, and recorded their answers; MAM-30 (built on 2026-10-14)
 adds the Transmission adapter — connect, destinations that are the library folders it can reach and
@@ -103,42 +104,73 @@ destinations, the Download dialog and the Recommendations page naming the client
 failed, the job page's buttons naming the old copy with "permanently" for "for good", and the
 README's install steps —, and looked at again on an image built with the fixes, but for the new
 sentences and button names, which rest on the tests; the findings left are open, not tickets yet, as
-Vasyl decides (MAM-31's line below). Phase D's heading below is left for Vasyl to mark shipped.
-Vasyl published 0.4.0 on 2026-10-14 at 20:41 UTC (Docker Hub's `0.4.0`, `0.4` and `latest`), built
-after commit 6ef689b, so that image holds Phase D with MAM-31's fixes and the Recommendations page's
-Description dialog.
+Vasyl decides (MAM-31's line below). Phase D's heading below was left for Vasyl to mark shipped; he
+had it marked on 2026-10-21 (MAM-48). Vasyl published 0.4.0 on 2026-10-14 at 20:41 UTC (Docker Hub's
+`0.4.0`, `0.4` and `latest`), built after commit 6ef689b, so that image holds Phase D with MAM-31's
+fixes and the Recommendations page's Description dialog.
 Phase E (release 0.5.0) was planned on 2026-10-14 from Vasyl's request of that day: personal access
 tokens (MAM-5, moved from Phase A), an MCP endpoint through which an AI assistant searches, sends
 downloads and follows jobs (MAM-45), and the app in Ukrainian — the web app's own text (MAM-46) and
 the server's sentences (MAM-47) —, checked on production by MAM-48. MAM-5 (built on 2026-10-16)
 raised the version to 0.5.0: every user creates, lists and revokes their own personal access tokens
 on Profile, `Read only` or `Read and download`, which act as their user and write only what an
-explicit list opens, and the owner counts and revokes each user's on the Users page (ADR 0040); it
-rests on the tests and wasn't tried on production. MAM-45 (built on 2026-10-16 for 0.5.0) gives an
-AI assistant the MCP endpoint `/mcp` for such tokens alone — Claude Code directly, Claude Desktop
-through `mcp-remote` —, with twelve tools that search the library and the release sources, give the
-Download dialog's choice, send the release the user confirms, follow and cancel jobs and read the
-duplicates, the recommendations and the sources' state, the three writes for `Read and download`
-alone, and the Profile lines that connect each assistant (ADR 0041); it rests on the tests and a
-live check on canned data (the MCP TypeScript SDK's client and `mcp-remote`, its Profile lines in a
-browser), and wasn't tried with Claude Code, Claude Desktop or on production.
+explicit list opens, and the owner counts and revokes each user's on the Users page (ADR 0040).
+MAM-45 (built on 2026-10-16 for 0.5.0) gives an AI assistant the MCP endpoint `/mcp` for such tokens
+alone — Claude Code directly, Claude Desktop through `mcp-remote` —, with twelve tools that search
+the library and the release sources, give the Download dialog's choice, send the release the user
+confirms, follow and cancel jobs and read the duplicates, the recommendations and the sources'
+state, the three writes for `Read and download` alone, and the Profile lines that connect each
+assistant (ADR 0041); before MAM-48 it was tried on canned data (the MCP TypeScript SDK's client and
+`mcp-remote`, its Profile lines in a browser).
 MAM-46 (built on 2026-10-17 for 0.5.0) shows the web app in English or Ukrainian as each user
 chooses on Profile — the browser's language until they choose —, saved with the account, every
 namespace translated by the glossary `docs/i18n/glossary-uk.md`, and gives the TMDb integration a
 **Catalog language**, every language TMDb keeps translations in, whose change reads the catalog
 again, an installation that had TMDb keeping Ukrainian (ADR 0001's and ADR 0025's MAM-46 sections);
-it rests on the tests — the key-parity test and every page rendered in Ukrainian among them — and on
-a browser check on a copy of Vasyl's development database on 2026-10-17 (the migration on real data,
-every page in Ukrainian at desktop and phone width, the language switch, and TMDb switched to
-English and read again in about 3 minutes), and wasn't tried on production.
+before MAM-48 it was looked at, beside the tests — the key-parity test and every page rendered in
+Ukrainian among them —, on a copy of Vasyl's development database on 2026-10-17 (the migration on
+real data, every page in Ukrainian at desktop and phone width, the language switch, and TMDb switched
+to English and read again in about 3 minutes).
 MAM-47 (built on 2026-10-20 for 0.5.0) writes every sentence the server sends in the language the
 request's `Accept-Language` asks for — the page's own in the web app, English for a script or an
 assistant that doesn't ask —, gives every API error a stable `code`, keeps no sentence in the
 database but a key and its values, and converts the English an older version stored as the app starts
-(ADR 0042); it rests on the tests, run a second time in a pseudo-language that catches any sentence
-left out of the locale files, and on the conversion of a copy of production's database on
-2026-10-20, where every stored sentence read back exactly, and wasn't tried on production.
-MAM-48 isn't built yet.
+(ADR 0042); before the release it rested on the tests, run a second time in a pseudo-language that
+catches any sentence left out of the locale files, and on the conversion of a copy of production's
+database on 2026-10-20, where every stored sentence read back exactly. Commit 2593f91 then moved EF
+Core's SQLite packages to 10.0.13, for a race in the connection pool. Vasyl published 0.5.0 on
+2026-10-20 at 17:24 UTC (Docker Hub's `0.5.0`, `0.5` and `latest`, digest `sha256:cc6ff4d97f47…`),
+built from commit 2593f91 — production's `/mcp` names itself `0.5.0+2593f91`, and its web app's files
+are byte for byte a build of that commit —, so that image holds all of Phase E but MAM-48.
+MAM-48 checked Phase E's acceptance bar on production on 2026-10-21, on that image, Vasyl signed in
+as the owner: a `Read only` token read the jobs with Profile's `curl` line, was refused a send with
+its 403 sentence, in English and in Ukrainian, and answered 401 from the first request after its
+**Revoke**; the Users page counted a temporary member's one token, and **Revoke tokens** stopped it
+at its next request; Claude Code 2.1.304, in the Claude desktop app's Code tab, found The Green Mile
+(1999) with the library's copy and 11 releases and sent the 4K release Vasyl confirmed, asking first,
+to qBittorrent and Movies, the destination the Download dialog picks for it, where the Jobs page
+showed it, and answered "What's downloading?" with that job; a `Read only` token's MCP tool list held
+the nine reads and no write; Claude Desktop 3.1623.0 ran Profile's block through `mcp-remote` 0.15.2,
+which connected and listed the tools; Vasyl's account in Українська showed every page and the
+dialogs at desktop width and at 375 and 320 px with none of the web app's own text in English, the
+server's sentences in Ukrainian — the reasons of jobs stopped before the update among them —, a
+temporary member in English saw the web app in English, and the sign-in page followed the browser;
+and TMDb's catalog language stayed Українська on production and was switched to English and back on
+the development database, the recommendations read again in about 3 minutes each way. A `Read only`
+token's Claude session, any call from Claude Desktop, `cancel_job`, `dismiss_recommendation` and the
+other tools no conversation needed, an expired token, the owner's reset and Disable revoking tokens,
+the limits' 429s and an English browser's sign-in page rest on the tests (MAM-48's line below). What
+the check found was fixed on 2026-10-21 under 0.5.0, after that image — `/api/health/ready` writing
+Ukrainian as raw UTF-8, a name for the TMDb catalog language `ch-GU`, Profile's Claude Desktop block
+pinned to `mcp-remote@0.15.2`, a line on Profile saying which address an assistant needs and the
+block's hint saying to quit Claude Desktop before pasting it —, and goes out when Vasyl publishes
+0.5.0 again, under the same number; the image published on 2026-10-20 has none of it. The README's
+and the CHANGELOG's slips it found were corrected too. At the end the check's tokens were revoked,
+the member deleted and both assistants' `mam` removed; Vasyl then cancelled the sent download in the
+web app and set his own language back to English, so production is as before the check but for its
+audit rows, the revoked tokens' rows, the deleted member's traces and that cancelled job. On
+2026-10-21 Vasyl had the headings of Phases A, C, D and E below marked shipped, each with its
+release, as Phase B's is.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
@@ -153,11 +185,12 @@ MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-28's fixes and MAM-39 
 in 0.3.0 as published again, under the same number, on 2026-10-13. Phase D is release 0.4.0,
 the version since MAM-30, with
 Transmission instead of qBittorrent and Jackett instead of Prowlarr (Vasyl's decisions of
-2026-10-13, MAM-29). Phase E is release 0.5.0, the version since MAM-5.
+2026-10-13, MAM-29). Phase E is release 0.5.0, the version since MAM-5, published on 2026-10-20;
+MAM-48's fixes go out when it is published again, under the same number.
 
 ## Phases
 
-### Phase A — Vertical slice without deletion
+### ✅ Shipped (0.1.0) Phase A — Vertical slice without deletion
 
 **Release:** 0.1.0. **Tickets:** MAM-1 to MAM-16 (MAM-5 moved to Phase E on 2026-10-14).
 
@@ -195,7 +228,7 @@ existing file untouched.
   ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)).
   Two-factor sign-in and password reset by email are out of scope.
 - **MAM-5 Personal access tokens** for scripts and other tools: moved to
-  [Phase E](#phase-e--scripts-ai-assistants-and-languages) on 2026-10-14 (Vasyl's decision), and
+  [Phase E](#-shipped-050-phase-e--scripts-ai-assistants-and-languages) on 2026-10-14 (Vasyl's decision), and
   built there on 2026-10-16 for release 0.5.0.
 - **MAM-6 Live environment facts** (built): the specification's open questions (§7) answered
   against the real installation. One folder on one ext4 filesystem holds every media library and
@@ -1442,7 +1475,7 @@ read the state production's database was in, which includes the owner's own remo
 identifying of The Continental's links on 2026-10-07 (15:37 to 15:55 UTC), and did not observe the
 repair's run itself; MAM-34's bar, which expects four refused links, was not checked by MAM-22.
 
-### Phase C — Safe replacement
+### ✅ Shipped (0.3.0) Phase C — Safe replacement
 
 **Release:** 0.3.0, published on 2026-10-11, holds MAM-24 to MAM-27, built while 0.3.0 was the
 version; MAM-28 checked it on the reference installation on 2026-10-12, and its fix of check 6,
@@ -2091,7 +2124,7 @@ moving once its torrent is removed and Retry pressed, another or a read-only mou
 changed after a send rest on the tests, as the **Tests** paragraph above and the README's
 [Tested with](README.md#tested-with) list.
 
-### Phase D — Practical extensibility
+### ✅ Shipped (0.4.0) Phase D — Practical extensibility
 
 **Release:** 0.4.0 (Vasyl's decision of 2026-10-13). **Tickets:** MAM-29 to MAM-31.
 
@@ -2343,9 +2376,11 @@ Transmission 4.0.x, its lock-out after wrong passwords and Phase C's other cases
 rest on the tests, as the **Tests** paragraph above and the README's
 [Tested with](README.md#tested-with) list.
 
-### Phase E — Scripts, AI assistants and languages
+### ✅ Shipped (0.5.0) Phase E — Scripts, AI assistants and languages
 
-**Release:** 0.5.0. **Tickets:** MAM-5 and MAM-45 to MAM-48. Not one of specification §6's phases:
+**Release:** 0.5.0, published on 2026-10-20; MAM-48 checked it on production on 2026-10-21, and its
+fixes go out when 0.5.0 is published again, under the same number (Vasyl's decision of 2026-10-21).
+**Tickets:** MAM-5 and MAM-45 to MAM-48. Not one of specification §6's phases:
 Vasyl asked for it on 2026-10-14 — take MAM-5 (personal access tokens) out of Phase A, add MCP, and
 make the app multilingual.
 
@@ -2356,8 +2391,10 @@ app in Ukrainian.
 
 **Scope:**
 
-- **MAM-5 Personal access tokens** (moved from Phase A; built on 2026-10-16, release 0.5.0; resting
-  on the tests, not tried on production): a Profile section to create, list and
+- **MAM-5 Personal access tokens** (moved from Phase A; built on 2026-10-16, release 0.5.0; tried on
+  production on 2026-10-21, MAM-48: tokens of each access created on Profile, Profile's `curl` line
+  reading the jobs, a `Read only` send refused, a revoked token's 401 at its next request and the
+  owner's **Revoke tokens** of a member's token): a Profile section to create, list and
   revoke one's own tokens — a name, `Read only` or `Read and download`, an expiry of 30 days, 90 days,
   a year or never —, the token shown once and stored as a hash; the owner sees each user's number of
   tokens on the Users page and revokes them. A token acts as its user. `Read only` reads everything a
@@ -2417,8 +2454,10 @@ app in Ukrainian.
 - **MAM-45 MCP** (built on 2026-10-16, release 0.5.0; resting on the tests and a live check on canned
   data — the MCP TypeScript SDK's client calling every tool, a send included, and `mcp-remote` with
   the Profile block's arguments, against the app on real Kestrel —, its Profile lines looked at in a
-  browser at desktop and phone width; not tried with Claude Code or Claude Desktop themselves, nor on
-  production): a Streamable
+  browser at desktop and phone width; tried on production on 2026-10-21, MAM-48, with Claude Code
+  2.1.304 — a film found, its copy and releases shown and one sent after Vasyl's yes and the tool's
+  prompt, the jobs read — and Claude Desktop 3.1623.0 through `mcp-remote` 0.15.2, which connected and
+  listed the tools): a Streamable
   HTTP endpoint at `/mcp` in the app, open to personal access tokens only, whose tools call the same
   services as the controllers: search the library, search releases (the Search page's answer), the
   download options, the jobs by the Jobs page's tabs, the duplicates, the recommendations and the
@@ -2484,16 +2523,18 @@ app in Ukrainian.
     writes is what the matching page's action writes.
 - **MAM-46 The web app in Ukrainian** (built on 2026-10-17, release 0.5.0; resting on the tests —
   the key-parity test and every page rendered in Ukrainian among them — and a browser check on a copy
-  of Vasyl's development database; not tried on production): a
+  of Vasyl's development database; tried on production on 2026-10-21, MAM-48: Vasyl's account in
+  Українська on every page at desktop and phone width, a member in English, the sign-in page following
+  a Ukrainian browser, and the catalog language left Українська): a
   `Language` on Profile — the browser's (the default), English or Українська —, saved with the
   account; every namespace of `frontend/src/locales/en/` translated into `uk` with Ukrainian plural
   forms, by a glossary settled first (`docs/i18n/glossary-uk.md`), and a test that the two have the
   same keys, placeholders and the plural forms each needs. The TMDb integration gets a `Catalog
   language`, the owner's setting for the installation, in place of the hard-coded `uk-UA` (Vasyl's
-  decision of 2026-10-14); production keeps Українська. Release notes stay English only (his
-  decision the same day). Vasyl's decisions of 2026-10-17, before the build: (1) the catalog
-  language offers every language TMDb keeps translations in; (2) a recommendation card's
-  **Description** keeps the reader's UI language, while the titles and the TMDb link dialog's
+  decision of 2026-10-14); production keeps Українська (seen on 2026-10-21, MAM-48). Release notes
+  stay English only (his decision the same day). Vasyl's decisions of 2026-10-17, before the build:
+  (1) the catalog language offers every language TMDb keeps translations in; (2) a recommendation
+  card's **Description** keeps the reader's UI language, while the titles and the TMDb link dialog's
   overview follow the catalog's; (3) folder is «тека» and library «медіатека»; (4) work is «твір»
   and episode «серія». As built:
   - *The choice:* `Users.Language` — `en`, `uk`, or `null` for the browser's —, answered as
@@ -2549,7 +2590,9 @@ app in Ukrainian.
     data directory's backup keeps them.
 - **MAM-47 The server's sentences in the user's language** (built on 2026-10-20, release 0.5.0;
   resting on the tests, run a second time in a pseudo-language, and on the conversion of a copy of
-  production's database; not tried on production): every sentence the server
+  production's database; tried on production on 2026-10-21, MAM-48: the server's sentences in
+  Ukrainian on Vasyl's pages, the reasons of jobs stopped before the update among them, and the API's
+  401 and 403 bodies with their codes in English and Ukrainian): every sentence the server
   writes — warnings, reasons, refusals, errors, about 850 of them — in the language the request asks
   for, from JSON files like the web app's. The database keeps no sentence in any language, only a
   reason's key and its values, so old jobs read in Ukrainian too, and a service's own words stay as
@@ -2597,7 +2640,115 @@ app in Ukrainian.
     converter's tests, and a class of Ukrainian samples per area.
   - *Backup/restore:* nothing new to back up: the same columns of `mam.db` hold the key and values,
     and the audit rows of confirmations their claim's label.
-- **MAM-48 Verify Phase E against the live installation.**
+- **MAM-48 Phase E acceptance** (checked on 2026-10-21): the acceptance bar below, checked on
+  production — the MAM container on the media host — running the published 0.5.0 (Docker Hub's `0.5.0`,
+  `0.5` and `latest`, digest `sha256:cc6ff4d97f47…`, pushed by Vasyl on 2026-10-20 at 17:24 UTC):
+  `/mcp` answered the version `0.5.0+2593f91`, and its web app's 75 files were byte for byte a build of
+  commit 2593f91 (the container's image id wasn't read on the host). It ran against Jellyfin 12.2.0 ("Підключено до сервісу Jellyfin 12.2.0 (VahaC
+  media)."), qBittorrent, Prowlarr serving Toloka and TMDb, whose versions weren't read again, Vasyl
+  signed in as the owner, his account in English and holding no token before the check. Tokens:
+  `tools/mam48/check.py`, run by Vasyl on his PC at 08:45 UTC with two tokens he created on Profile and
+  copied with **Copy**, the script taking each from the clipboard. Profile's `curl` line, run through
+  Windows' `curl.exe` with the header on its standard input, read the jobs with the `Read only` token:
+  200, 19 jobs, newest first. Its send answered 403 `account.token.read-only`, the read-only sentence
+  in English without `Accept-Language` and in Ukrainian with `uk`. `/mcp` answered protocol
+  `2025-11-25`, server `mam`, stateless, with the nine reads for `Read only` — no `send_download`,
+  `cancel_job` or `dismiss_recommendation` — and twelve tools for `Read and download`, `send_download`
+  marked `anthropic/requiresUserInteraction`, and `get_status` named VahaC, the access and the token; a
+  `Read only` call of `send_download` answered the read-only sentence as an `isError` result in both
+  languages. After **Revoke** the first request answered 401, 3.0 s after the token's last 200, byte
+  for byte the answer without a token (`{"error":"Sign in to
+  continue.","code":"account.sign-in-required"}`, `WWW-Authenticate: Bearer`), and `/mcp` the same.
+  Every expectation held but the tokens' names, both "test" rather than the script's (two CHECKs of no
+  meaning for the product); two runs before, in a classic cmd window, stopped before any request, as
+  Ctrl+V reached the hidden prompt as a control character, so the script now reads the clipboard
+  itself. A temporary member, `mam48-member`, created by Vasyl, read its own jobs (200, none) with its
+  `Read only` token, and `get_status` named it a member; the owner's Users page read "1 токен" on its
+  row and "0 токенів" on VahaC's, **Відкликати токени** asked «Одразу буде відкликано 1 активний токен
+  доступу користувача mam48-member: …», and once it was confirmed at 10:17:11 UTC the row read "0
+  токенів" and the member's next request answered the same 401. MCP: Claude Code 2.1.304, in a new
+  session of the Claude desktop app's Code tab, with one `mam` in user scope at the home-network
+  address `http://192.168.1.195:8118/mcp` and a `Read and download` token. Asked for «Сяйво» (1980), it
+  showed the library's one copy and 9 releases from Prowlarr's Toloka, each film release matched to the
+  copy by title and year and the 1997 mini-series told apart as another work. Asked for «Зелена миля»,
+  it showed the library's 1080p HDR10 copy and 11 releases, proposed "The Green Mile (1999) 4K UHD
+  BDRemux 2160p Dolby Vision HDR Hybrid H.265" (78.6 GB, 13 seeders), whose `get_download_options` gave
+  qBittorrent and Movies, preselected, with the overwrite check available, and asked "Надіслати
+  4K-ремукс у qBittorrent → Movies?". Vasyl answered "так" at 10:06:49 UTC and allowed the call in
+  Claude Code's permission prompt; `send_download` answered job `c462d0c3-1ef0-4c1a-b6f8-16a81b66b4c4`,
+  qBittorrent, Movies, Submitted, overwrite check Checked, and `get_job` then Downloading, one file of
+  78.62 GiB. The Jobs page, in Ukrainian, showed it under «Виконуються (1)», "qBittorrent · Movies · …
+  · Завантажується 1,3% · Без заміни", and the web app's Download dialog for the same search and
+  release offered qBittorrent and Movies with «Залишити обидві», the choice `get_download_options`
+  gave. "Що зараз завантажується?" got that one job, at 0.35 %, with no errors and nothing needing
+  Vasyl. A `Read only` token's Claude session wasn't tried, by Vasyl's call: it rests on the script's
+  `tools/list` above, the list Claude Code is given. Claude Desktop 3.1623.0, installed as an MSIX
+  package, got Profile's block with a `Read only` token through `tools/mam48/desktop_config.py`, which
+  wrote it into the package's own `claude_desktop_config.json` while Claude Desktop was quit; started
+  at 10:22:52 UTC, it ran `mcp-remote` 0.15.2, whose log says it connected to
+  `http://192.168.1.195:8118/mcp` over Streamable HTTP with the header from `env`, and `initialize` and
+  `tools/list` were answered; Settings → Developer showed `mam` running. How many tools its interface
+  listed wasn't noted; for a `Read only` token the server lists the nine reads. A second `mcp-remote`
+  started for the Code tab, which loads Claude Desktop's servers too. Languages: Vasyl's account
+  switched to Українська at 08:00 UTC, and the Claude desktop app's browser pane, following the app's
+  own links, went through about 45 states at 1366 px — every page, every tab, the dialogs opened and
+  closed, Duplicates' confirmations closed with Escape —, 21 pages and 6 dialogs at 375 × 812 and 17
+  pages and 6 dialogs at 320 × 640, with no sideways scroll and the five header icons on one row at 320
+  px. A scan for Latin text found none of the web app's own: every run it flagged was data or a
+  service's words in a Ukrainian sentence (Prowlarr's "Indexer is disabled till …", ffprobe's "Invalid
+  data found when processing input", the category "Movies"). The jobs stored before the update read in
+  Ukrainian, among them the overwrite refusal of 2026-10-12, «Клієнт «qBittorrent» перезаписав би файл
+  «The Last Boy Scout (1991) BDRip-AVC.mkv» у теці категорії «Movies»: …», and Torznab's 429 and 500 of
+  2026-10-04 and 2026-10-02; Jellyfin's test said «Інтеграцію «Jellyfin» перевірено. …»; and after
+  «Вийти» the sign-in page read «Вхід», «Ім’я користувача», «Пароль», «Увійти» in the pane, whose
+  browser lists `uk` first. Signed in as the member, in English, the pane showed Home, Profile, Search,
+  Library, TMDb, Duplicates, Recommendations, Jobs and the 404 page with no Ukrainian of the web app's
+  own, Cyrillic only in data — Jellyfin's titles and the catalog's genres, collections and people —;
+  `/settings/users` said "Could not load the users. Only the installation owner can do this."; and a
+  recommendation's **Description** read in English under the catalog's Ukrainian title, as decided.
+  TMDb: production's catalog language stayed «українська (Україна)», `uk-UA`. On the development
+  database, backed up first and with Prowlarr and qBittorrent switched off in it, the app applied
+  `AddPersonalAccessTokens` and `AddLanguages` and converted 3 stored texts; switched to English at
+  07:51:52 UTC, the recommendations were read again in 3 min 03 s and the TMDb suggestions in 54 s
+  («Той, хто біжить по лезу 2049» became "Blade Runner 2049"), and switched back at 08:24:31 UTC, in 3
+  min 22 s and 59 s; the database was then restored from the backup, its SHA-256 equal. On a local
+  0.5.0 a web session's token on `POST /mcp` got 403 `account.token.session-not-accepted` in Ukrainian,
+  and a throwaway token's shown-once step read Ukrainian, 768 px wide. Findings, each settled by Vasyl
+  on 2026-10-21: fixed on 2026-10-21 under 0.5.0, after that image (the CHANGELOG's 0.5.0,
+  **Changed**), F5 `/api/health/ready` writing a Ukrainian description as `\uXXXX` escapes, now raw
+  UTF-8 as every other answer; F7 Profile's Claude Desktop block running `mcp-remote` unpinned, now
+  `mcp-remote@0.15.2`, the release checked here; F8 the TMDb catalog language `ch-GU` shown as "Ch-GU",
+  as the browser has no name for Chamorro, now "Chamorro (Guam)", «Чаморро (Гуам)» in Ukrainian; and F9
+  nothing on Profile saying which address an assistant needs — Profile's lines carry the page's own
+  address, here the Cloudflare-protected one Vasyl opens production by, which Claude Code can't pass —,
+  now a line on Profile and the README's, with no new setting. The doc slips, fixed with them: F1
+  CHANGELOG's 0.5.0 showing the 401 body without `code`; F2 the README's Claude Desktop log folder,
+  `%LOCALAPPDATA%\Claude\logs` on 3.1623.0; F3 the README naming Claude Code 2.1.214 for
+  `requiresUserInteraction`, where Claude Code's changelog names 2.1.246; F4 the README and Profile's
+  hints not saying to quit Claude Desktop before editing its configuration — Profile's said to restart
+  it — or that Claude Code sees a new server only in a new session, and the README not saying that
+  Claude Desktop's `mam` also loads into the Code tab's sessions and wins there; F6 the README's
+  status and release list and the CHANGELOG's build dates of MAM-45 and MAM-46; and F10 `/mcp` in the
+  desktop app's Code tab opening Settings → Connectors, claude.ai's cloud catalogue where `mam` never
+  shows, so the README now says how to see the connection there. The four code fixes and Profile's
+  hints rest on the tests and go out when Vasyl publishes 0.5.0 again; the image published on 2026-10-20 has none of them.
+  Observed, not looked into (O1): the member's `get_status` said "1 release source failing" while the
+  owner's said none at 08:45 UTC and his Recommendations page shows no source failing. Rest on the
+  tests: an expired token; the owner's password reset and **Disable** revoking a user's tokens, and
+  Disable's question; a user's own password change keeping them; the sign-in limit's 429 for tokens and
+  `/mcp`'s 60 a minute; a sign-in's token refused on production's `/mcp`; `list_search_releases`,
+  `cancel_job`, `list_duplicates`, `list_recommendations` and `dismiss_recommendation` from a real
+  assistant; a `Read only` token's assistant; any tool call from Claude Desktop, and whether it honours
+  `requiresUserInteraction`; the tools in Ukrainian through the lines' `Accept-Language`; an HTTPS
+  address or a proxy before `/mcp`; and the sign-in page in an English-first browser. At the end the
+  check's tokens were revoked — Profile lists none, and Users shows VahaC alone, with 0 —,
+  `mam48-member` was deleted, Claude Code's `mam` was removed and Claude Desktop's configuration put
+  back by `desktop_config.py restore`, neither holding a `mam` at 10:24 UTC. After the check Vasyl
+  cancelled the Green Mile job in the web app at 19.9 % (10:27 UTC), its torrent staying in qBittorrent
+  until he removes it there, as a cancel only stops following (ADR 0011), and set his own language back
+  to English, as it was before; production is as before the check but for the audit rows, the revoked
+  tokens' rows, the deleted member's traces and that cancelled job. What was tried live, and what
+  wasn't, is in the README's [Tested with](README.md#tested-with) and the release note.
 
 **Out of scope:** OAuth sign-in and an endpoint open to the internet for claude.ai's connectors;
 any token or MCP tool that replaces, quarantines, restores or deletes a copy, or writes a setting;
@@ -2687,6 +2838,12 @@ Ukrainian samples per area — `AuthUkrainianHttpTests`, `ProfileUkrainianHttpTe
 `DuplicatesUkrainianHttpTests`, `ReplacementsUkrainianHttpTests`,
 `RecommendationsUkrainianHttpTests`, `McpUkrainianHttpTests` and `HealthUkrainianHttpTests`; and in
 the web app `query-client.test.ts`, `LibrarySyncPanel.test.tsx` and `TmdbLinkEditor.test.tsx`.
+MAM-48's fixes: `HealthUkrainianHttpTests` (the readiness body read as bytes, the Ukrainian raw UTF-8
+and the English byte for byte as before), and in the web app `catalog-languages.test.ts` (each of
+TMDb's 144 recorded languages named, not shown as a code, in English and Ukrainian, also with a
+browser's Intl that has no name for Chamorro) and `CreateAccessTokenDialog.test.tsx` and
+`CreateAccessTokenDialog.https.test.tsx` (`mcp-remote@0.15.2` in the Claude Desktop block, the line on
+the address above both fields, and each line's hint).
 
 **Acceptance bar:** on production (MAM-48): a read-only token reads jobs with `curl` and is refused
 a send, and a revoked token answers 401 at once; Claude Code connected by the README's line finds a
@@ -2694,4 +2851,15 @@ film, shows the library's copies and the releases, and sends the one Vasyl confi
 page shows with the destination the Download dialog would have picked; with a read-only token Claude
 has no send tool; Vasyl's account in Українська shows every page, the server's sentences included —
 a job stopped before the update too —, at desktop and phone width, and a member in English sees
-English.
+English. Checked on 2026-10-21 (MAM-48), on production running the published 0.5.0 (`0.5.0+2593f91`):
+a `Read only` token read the jobs with Profile's `curl` line, was refused a send and answered 401 at
+the first request after its **Revoke**; Claude Code 2.1.304, connected in user scope at the
+home-network address, found The Green Mile (1999) with the library's copy and 11 releases and sent
+the 4K release Vasyl confirmed, which the Jobs page showed in Movies, the destination the Download
+dialog picks for it; a `Read only` token's tool list held no send tool, which the script's
+`tools/list` showed rather than a Claude session; Vasyl's account in Українська showed every page at
+desktop width and at 375 and 320 px, the server's sentences and the reasons of jobs stopped before
+the update in Ukrainian, and a member in English saw English. An expired token, the owner's reset
+and Disable revoking tokens, the limits' 429s, the tools no conversation needed and any call from
+Claude Desktop rest on the tests, as the **Tests** paragraph above, MAM-48's line and the README's
+[Tested with](README.md#tested-with) list.

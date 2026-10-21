@@ -200,6 +200,14 @@ function CreateForm({ onCreated, onCreatingChange, onCancel }: CreateFormProps) 
  * person reached the app at. A Read only token's assistant gets no tool that writes (ADR 0040), which a
  * line says here rather than the assistant later.
  *
+ * MAM-48 — a line above both says the assistant must reach that address from its own computer: a page
+ * opened through a proxy that asks for a sign-in in the browser (Cloudflare Access) gives an address the
+ * assistant can't pass, so the person opens the app at the home-network one and creates a token there,
+ * where both lines are built for it, `--allow-http` included. The lines keep this page's address: the
+ * app knows no other. Each line's hint says what the live check met (MAM-48): Claude Code takes up the
+ * server from its next session, and Claude Desktop is quit before its configuration is edited, as it
+ * writes the file while it runs.
+ *
  * MAM-46 — while it shows, a language this tab follows from elsewhere (another tab's Profile, a refresh
  * carrying one saved on another device) waits until it closes: the signed-in pages mount afresh in a new
  * language, which would take the secret with them (auth-store `holdLanguage`).
@@ -236,6 +244,7 @@ function SecretView({ created, onDone }: { created: CreatedAccessToken; onDone: 
           {created.token.access === 'ReadOnly' && (
             <p className="profile-note">{t('accessTokens.secret.assistant.readOnly')}</p>
           )}
+          <p className="profile-note">{t('accessTokens.secret.assistant.address')}</p>
           <CopyableField
             label={t('accessTokens.secret.assistant.claudeCode.label')}
             hint={t('accessTokens.secret.assistant.claudeCode.hint')}
@@ -265,17 +274,25 @@ function SecretView({ created, onDone }: { created: CreatedAccessToken; onDone: 
 }
 
 /**
+ * MAM-48 — the mcp-remote release the Claude Desktop block runs, pinned: the token passes through it, so
+ * a new release on npm must not start running with it unasked. 0.15.2 is the one checked against the
+ * live installation on 2026-10-21. Raise it here, on purpose, once a newer release has been tried with
+ * the app the same way; the dialog's tests spell the pin out, so they change with it.
+ */
+const MCP_REMOTE = 'mcp-remote@0.15.2'
+
+/**
  * MAM-45 — the Claude Desktop entry for claude_desktop_config.json. Claude Desktop starts local servers
  * only, so `npx mcp-remote` bridges it to the app's /mcp (`-y`: npx doesn't stop to ask before fetching
- * it). The header goes as "Authorization:${AUTH_HEADER}" with "Bearer …" in `env`, the form mcp-remote's
- * README gives: Claude Desktop on Windows doesn't escape the spaces inside `args`, so "Authorization:
- * Bearer …" would reach mcp-remote broken up. `http-only`: the app speaks Streamable HTTP alone, with no
- * SSE endpoint for mcp-remote's default http-first to fall back to. `--allow-http` only on a plain-HTTP
- * address, which mcp-remote connects to only with it. Built as an object and serialised, so no secret
- * or address can break the JSON.
+ * it; the release is pinned, MCP_REMOTE). The header goes as "Authorization:${AUTH_HEADER}" with
+ * "Bearer …" in `env`, the form mcp-remote's README gives: Claude Desktop on Windows doesn't escape the
+ * spaces inside `args`, so "Authorization: Bearer …" would reach mcp-remote broken up. `http-only`: the
+ * app speaks Streamable HTTP alone, with no SSE endpoint for mcp-remote's default http-first to fall back
+ * to. `--allow-http` only on a plain-HTTP address, which mcp-remote connects to only with it. Built as an
+ * object and serialised, so no secret or address can break the JSON.
  */
 function claudeDesktopConfig(origin: string, secret: string, plainHttp: boolean): string {
-  const args = ['-y', 'mcp-remote', `${origin}/mcp`, '--transport', 'http-only']
+  const args = ['-y', MCP_REMOTE, `${origin}/mcp`, '--transport', 'http-only']
   if (plainHttp) args.push('--allow-http')
   // A plain string, not a template literal: mcp-remote itself puts the env value in place of ${AUTH_HEADER}.
   args.push('--header', 'Authorization:${AUTH_HEADER}')

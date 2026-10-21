@@ -62,6 +62,27 @@ export const transmissionType: IntegrationAdapterType = {
  */
 export const tmdbLanguages = ['de-DE', 'en-AU', 'en-GB', 'en-US', 'es-ES', 'fr-FR', 'pl-PL', 'pt-BR', 'uk-UA']
 
+/**
+ * MAM-48 — every one of TMDb's primary translations, as recorded on 2026-10-17
+ * (VendorSamples/Tmdb/configuration-primary-translations.json, the server's
+ * `TmdbAdapter.PrimaryTranslations`): 144 tags in TMDb's order. A copy, as the frontend builds without the
+ * server's tests.
+ */
+export const tmdbPrimaryTranslations = [
+  'af-ZA', 'ar-AE', 'ar-BH', 'ar-EG', 'ar-IQ', 'ar-JO', 'ar-LY', 'ar-MA', 'ar-QA', 'ar-SA', 'ar-TD', 'ar-YE',
+  'be-BY', 'bg-BG', 'bn-BD', 'bn-IN', 'br-FR', 'ca-AD', 'ca-ES', 'ch-GU', 'cs-CZ', 'cy-GB', 'da-DK', 'de-AT',
+  'de-CH', 'de-DE', 'el-CY', 'el-GR', 'en-AG', 'en-AU', 'en-BB', 'en-BZ', 'en-CA', 'en-CM', 'en-GB', 'en-GG',
+  'en-GH', 'en-GI', 'en-GY', 'en-IE', 'en-JM', 'en-KE', 'en-LC', 'en-MW', 'en-NZ', 'en-PG', 'en-TC', 'en-US',
+  'en-ZM', 'en-ZW', 'eo-EO', 'es-AR', 'es-CL', 'es-DO', 'es-EC', 'es-ES', 'es-GQ', 'es-GT', 'es-HN', 'es-MX',
+  'es-NI', 'es-PA', 'es-PE', 'es-PY', 'es-SV', 'es-UY', 'et-EE', 'eu-ES', 'fa-IR', 'fi-FI', 'fr-BF', 'fr-CA',
+  'fr-CD', 'fr-CI', 'fr-FR', 'fr-GF', 'fr-GP', 'fr-MC', 'fr-ML', 'fr-MU', 'fr-PF', 'ga-IE', 'gd-GB', 'gl-ES',
+  'he-IL', 'hi-IN', 'hr-HR', 'hu-HU', 'hy-AM', 'id-ID', 'it-IT', 'it-VA', 'ja-JP', 'ka-GE', 'kk-KZ', 'kn-IN',
+  'ko-KR', 'ku-TR', 'ky-KG', 'lt-LT', 'lv-LV', 'ml-IN', 'mr-IN', 'ms-MY', 'ms-SG', 'nb-NO', 'ne-NP', 'nl-BE',
+  'nl-NL', 'no-NO', 'oc-FR', 'pa-IN', 'pl-PL', 'pt-AO', 'pt-BR', 'pt-MZ', 'pt-PT', 'ro-MD', 'ro-RO', 'ru-RU',
+  'si-LK', 'sk-SK', 'sl-SI', 'so-SO', 'sq-AL', 'sq-XK', 'sr-ME', 'sr-RS', 'sv-SE', 'sw-TZ', 'ta-IN', 'te-IN',
+  'th-TH', 'tl-PH', 'tr-TR', 'uk-UA', 'ur-PK', 'uz-UZ', 'vi-VN', 'zh-CN', 'zh-HK', 'zh-SG', 'zh-TW', 'zu-ZA',
+]
+
 /** MAM-33 — the metadata catalog: its API Read Access Token goes in the API key field. */
 export const tmdbType: IntegrationAdapterType = {
   typeId: 'tmdb',

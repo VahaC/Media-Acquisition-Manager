@@ -45,11 +45,13 @@ describe('CreateAccessTokenDialog at an HTTPS address', () => {
       mcpServers: {
         mam: {
           command: 'npx',
-          args: ['-y', 'mcp-remote', `${ORIGIN}/mcp`, '--transport', 'http-only', '--header', 'Authorization:${AUTH_HEADER}'],
+          args: ['-y', 'mcp-remote@0.15.2', `${ORIGIN}/mcp`, '--transport', 'http-only', '--header', 'Authorization:${AUTH_HEADER}'],
           env: { AUTH_HEADER: `Bearer ${createdToken.secret}` },
         },
       },
     })
     expect(desktop.value).not.toContain('--allow-http')
+    // MAM-48 — an HTTPS address may be one behind Cloudflare Access, which the assistant can't pass: the step says so.
+    expect(within(dialog).getByText(/^The command and the configuration below use this page's address/)).toBeInTheDocument()
   })
 })

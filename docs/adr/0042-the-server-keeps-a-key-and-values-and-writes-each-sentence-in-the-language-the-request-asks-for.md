@@ -120,7 +120,10 @@ kept, and which row ids it kept, never a text. Before the release it ran on a co
 production's database, taken on 2026-10-20 (`tools/mam47/`, run by Vasyl): of 26 texts, 22 stored
 sentences in seven of the columns read back exactly and the 4 audit rows of his confirmations were
 named by their claim; none was kept as its words, cut or shortened, so `older-en.json` is empty in
-0.5.0, and every converted row renders in Ukrainian too.
+0.5.0, and every converted row renders in Ukrainian too. On production itself, running the published
+0.5.0, the jobs stored before the update read in Ukrainian on 2026-10-21 (MAM-48) — the overwrite
+refusal of 2026-10-12, the Torznab failures of 2026-10-04 and 2026-10-02 and the replacements'
+reasons among them —; the log of its first start wasn't read.
 
 **The owner's confirmation.** What the owner ticks in the Download dialog ("This release is Alien
 (1979), season 2") is kept as the claim it is — the work, its seasons and episodes, the copy or

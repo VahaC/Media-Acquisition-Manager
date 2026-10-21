@@ -248,14 +248,14 @@ Until MAM-46 every call asked TMDb in Ukrainian, a constant of the adapter. Vasy
 2026-10-14 makes it the owner's setting for the installation, the TMDb integration's **Catalog
 language**, and his decision 1 of 2026-10-17 offers every language TMDb keeps translations in
 (ADR 0005's MAM-46 section). A new installation starts in the owner's language; production keeps
-Українська. The cache above was fresh for 30 days whatever language it held, so a change would have
-shown the old language for a month. **Every cached row that holds the catalog's words says which
-language it was read in, and is fresh only in the catalog's language of now: after a change each
-answer is read again in the new one the next time a run needs it, through `CatalogStore`, nothing
-emptied. The Description dialog keeps the reader's language, and a link's title stays as it was
-when the link was set.** So the Decision's "its title in Ukrainian" and the Consequences' "in
-Ukrainian where TMDb has a translation" now read: in the catalog's language, Ukrainian on every
-installation that had TMDb before 0.5.0.
+Українська (seen on 2026-10-21, MAM-48). The cache above was fresh for 30 days whatever language it
+held, so a change would have shown the old language for a month. **Every cached row that holds the
+catalog's words says which language it was read in, and is fresh only in the catalog's language of
+now: after a change each answer is read again in the new one the next time a run needs it, through
+`CatalogStore`, nothing emptied. The Description dialog keeps the reader's language, and a link's
+title stays as it was when the link was set.** So the Decision's "its title in Ukrainian" and the
+Consequences' "in Ukrainian where TMDb has a translation" now read: in the catalog's language,
+Ukrainian on every installation that had TMDb before 0.5.0.
 
 **The stamps.** `CatalogWorks.DetailsLanguage`, `CatalogGenres.Language`, `CatalogCollections.Language`
 and `CatalogPeople.Language`, non-null, written by every `Stage*` write with `CatalogConnection.Language`

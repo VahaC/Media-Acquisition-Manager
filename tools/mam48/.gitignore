@@ -1,0 +1,2 @@
+# `import check` makes Python write bytecode here when a test imports the scripts.
+__pycache__/

@@ -1,6 +1,37 @@
 import { catalogLanguageName, catalogLanguageOptions, defaultCatalogLanguage } from './catalog-languages'
 import { capitalizeFirst } from './format'
-import { tmdbLanguages } from '@/test/integrations'
+import { tmdbLanguages, tmdbPrimaryTranslations } from '@/test/integrations'
+
+const RealDisplayNames = Intl.DisplayNames
+
+/**
+ * MAM-48 — Intl.DisplayNames as Chrome's own ICU has it: no name for Chamorro, so `ch-GU` reads
+ * "ch (Guam)", and asked without a fallback there is nothing. Node's full ICU names Chamorro, so the
+ * app's own name is proven only with this one.
+ */
+class DisplayNamesWithoutChamorro extends RealDisplayNames {
+  of(code: string): string | undefined {
+    const { locale, type, fallback } = this.resolvedOptions()
+    if (type !== 'language' || new Intl.Locale(code).language !== 'ch') return super.of(code)
+    if (fallback === 'none') return undefined
+    const { region } = new Intl.Locale(code)
+    return region === undefined ? 'ch' : `ch (${new RealDisplayNames(locale, { type: 'region' }).of(region)})`
+  }
+}
+
+/** The tags among `options` shown as a code rather than a name, each with what it shows. */
+function shownAsCodes(options: readonly { tag: string; name: string }[]): string[] {
+  return options.filter(({ tag, name }) => readsAsCode(name, tag)).map(({ tag, name }) => `${tag}: ${name}`)
+}
+
+/**
+ * Whether a name is its tag's code: the tag itself in any letter case ("Ch-GU"), or one starting with
+ * the bare language code ("ch (Guam)", "Ch (Guam)").
+ */
+function readsAsCode(name: string, tag: string): boolean {
+  const language = tag.split('-')[0]
+  return name.toLowerCase() === tag.toLowerCase() || new RegExp(`^${language}(?!\\p{L})`, 'iu').test(name)
+}
 
 describe('catalogLanguageName', () => {
   it.each([
@@ -15,7 +46,19 @@ describe('catalogLanguageName', () => {
     expect(shown).toBe(name)
   })
 
-  it('shows a tag whose language Intl has no name for as the tag, such as TMDb\'s own cn-CN', () => {
+  // MAM-48 — a name spelt as its language's code, capitalised as a name, is no code given back.
+  it.each([
+    ['fon-BJ', 'Fon (Benin)'],
+    ['luo-KE', 'Luo (Kenya)'],
+  ])('names %s by Intl\'s name although it is spelt as the code', (tag, name) => {
+    // Act
+    const shown = catalogLanguageName(tag, 'en-US')
+
+    // Assert
+    expect(shown).toBe(name)
+  })
+
+  it('shows a tag whose language neither Intl nor the app has a name for as the tag, such as TMDb\'s own cn-CN', () => {
     // Act
     const shown = catalogLanguageName('cn-CN', 'en-US')
 
@@ -80,6 +123,76 @@ describe('catalogLanguageOptions', () => {
       { tag: 'en-US', name: 'English (United States)' },
       { tag: 'it-IT', name: 'Italian (Italy)' },
     ])
+  })
+})
+
+describe('every one of TMDb\'s languages', () => {
+  it.each(['en-US', 'uk'])('has a name in %s, none of them its code', (uiLanguage) => {
+    // Act
+    const options = catalogLanguageOptions(tmdbPrimaryTranslations, uiLanguage)
+    const names = tmdbPrimaryTranslations.map((tag) => ({ tag, name: catalogLanguageName(tag, uiLanguage) }))
+
+    // Assert
+    expect(options).toHaveLength(144)
+    expect(shownAsCodes(options)).toEqual([])
+    expect(shownAsCodes(names)).toEqual([])
+  })
+})
+
+describe('catalog languages in a browser whose Intl has no name for one', () => {
+  // MAM-48 — the module makes its DisplayNames once per UI language, so each test loads a fresh copy
+  // of it with Chrome's Intl in place.
+  async function loadWithoutChamorro() {
+    vi.stubGlobal('Intl', Object.create(Intl, { DisplayNames: { value: DisplayNamesWithoutChamorro } }))
+    vi.resetModules()
+    return import('./catalog-languages')
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    ['en-US', 'ch (Guam)', 'Chamorro (Guam)', 'Chamorro (Guam)'],
+    ['uk', 'ch (Гуам)', 'чаморро (Гуам)', 'Чаморро (Гуам)'],
+  ])('names ch-GU in %s by the app\'s own name for Chamorro and Intl\'s for the region', async (uiLanguage, intlName, name, option) => {
+    // Arrange
+    const languages = await loadWithoutChamorro()
+    const known = new Intl.DisplayNames(uiLanguage, { type: 'language', fallback: 'none' })
+    const names = new Intl.DisplayNames(uiLanguage, { type: 'language' })
+
+    // Act
+    const shown = languages.catalogLanguageName('ch-GU', uiLanguage)
+    const options = languages.catalogLanguageOptions(['uk-UA', 'en-US', 'ch-GU'], uiLanguage)
+
+    // Assert
+    expect(known.of('ch')).toBeUndefined()
+    expect(names.of('ch-GU')).toBe(intlName)
+    expect(shown).toBe(name)
+    expect(options.find((entry) => entry.tag === 'ch-GU')).toEqual({ tag: 'ch-GU', name: option })
+  })
+
+  it.each(['en-US', 'uk'])('still has a name in %s for every one of TMDb\'s languages', async (uiLanguage) => {
+    // Arrange
+    const languages = await loadWithoutChamorro()
+
+    // Act
+    const options = languages.catalogLanguageOptions(tmdbPrimaryTranslations, uiLanguage)
+
+    // Assert
+    expect(options).toHaveLength(144)
+    expect(shownAsCodes(options)).toEqual([])
+  })
+
+  it('names a language without a region by the app\'s name alone', async () => {
+    // Arrange
+    const languages = await loadWithoutChamorro()
+
+    // Act
+    const shown = languages.catalogLanguageName('ch', 'uk')
+
+    // Assert
+    expect(shown).toBe('чаморро')
   })
 })
 

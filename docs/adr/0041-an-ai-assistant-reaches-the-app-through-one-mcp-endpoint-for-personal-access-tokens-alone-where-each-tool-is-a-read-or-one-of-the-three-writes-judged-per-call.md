@@ -188,8 +188,9 @@ and `GetStatus_writes_its_json_text_with_cyrillic_as_it_is`;
 `McpDuplicateToolHttpTests.ListDuplicates_sorted_recoverable_lists_the_most_room_first_and_the_groups_without_an_estimate_last`;
 and `McpRecommendationToolsHttpTests.DismissRecommendation_marks_the_work_for_the_caller_with_no_audit_row_and_it_leaves_their_list_only`.
 In the web app, `CreateAccessTokenDialog.test.tsx`'s "gives the Claude Code command with the whole
-token, to run once in a terminal" and "gives the Claude Desktop configuration through mcp-remote, the
-header without spaces and --allow-http on a plain-HTTP address", and
+token, to run once in a terminal", "gives the Claude Desktop configuration through the pinned
+mcp-remote, the header without spaces and --allow-http on a plain-HTTP address" and "says above both
+lines that the assistant must reach this page's address from its own computer" (MAM-48), and
 `CreateAccessTokenDialog.https.test.tsx`'s "points both Claude lines at the HTTPS address and leaves
 --allow-http out of the Claude Desktop configuration" pin the lines Profile gives.
 
@@ -213,8 +214,18 @@ each pinned by its own side's tests and nothing comparing them; a change to one 
 (`DownloadDialogPreselection` says so). On 2026-10-16 the MCP TypeScript SDK's client (1.32.1, what
 Claude Code and `mcp-remote` run on) called every tool against the app on real Kestrel with canned
 data, a send included, and `mcp-remote` 0.15.1, started with the Profile block's arguments, carried a
-Claude Desktop's stdio through to it; Claude Code and Claude Desktop themselves haven't met it yet:
-MAM-48's acceptance bar does that.
+Claude Desktop's stdio through to it. On 2026-10-21 (MAM-48) production, the published 0.5.0, met
+both: Claude Code 2.1.304, in the Claude desktop app's Code tab with a `Read and download` token,
+searched the library and the releases, took `get_download_options`' qBittorrent and Movies — the
+Download dialog's own pick for that release —, and sent the release Vasyl had confirmed in the chat
+once he allowed the call in its permission prompt; and Claude Desktop 3.1623.0 ran the Profile
+block through `mcp-remote` 0.15.2, whose `initialize` and `tools/list` the endpoint answered.
+`tools/list` gave a `Read only` token the nine reads and a `Read and download` one the twelve tools,
+`send_download` marked, and a `Read only` call of `send_download` the read-only sentence as an
+`isError` result. A `Read only` token's Claude session and any call from Claude Desktop weren't
+tried, so whether Claude Desktop honours `requiresUserInteraction` is still open. Profile's block
+now names `mcp-remote@0.15.2`, the release that check ran, so a newer one doesn't start carrying a
+token unasked (Vasyl's decision of 2026-10-21).
 
 ## Anti-consequence
 

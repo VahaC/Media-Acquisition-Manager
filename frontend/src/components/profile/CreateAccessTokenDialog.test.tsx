@@ -18,8 +18,16 @@ const secretTitle = 'Your new access token'
 /** MAM-45 — the lines that connect an AI assistant, spelled out rather than read from the locale. */
 const ASSISTANT_TITLE = 'Connect an AI assistant'
 const READ_ONLY_NOTE = 'This token is read only: the assistant reads what you can, but can\'t send downloads, cancel following or mark Not interested.'
-const CLAUDE_CODE_HINT = 'Run it once in a terminal; Claude Code then has the app in all your projects.'
-const CLAUDE_DESKTOP_HINT = 'Paste it into claude_desktop_config.json (into its mcpServers, if it has one already), then restart Claude Desktop. It needs Node.js 18 or later.'
+/** MAM-48 — Claude Code takes up a new server only in a new session. */
+const CLAUDE_CODE_HINT = 'Run it once in a terminal; Claude Code then has the app in all your projects, from its next session on.'
+/** MAM-48 — Claude Desktop writes its configuration while it runs, so an edit made meanwhile can be lost. */
+const CLAUDE_DESKTOP_HINT = 'Quit Claude Desktop completely (closing its window isn\'t enough), paste it into claude_desktop_config.json (into its mcpServers, if it has one already), then start Claude Desktop again. It needs Node.js 18 or later.'
+/**
+ * MAM-48 — the address both lines carry is this page's, which an assistant can't pass behind Cloudflare
+ * Access. Opened at the home-network address instead, Profile builds both lines for it, --allow-http
+ * included, so nothing is edited by hand.
+ */
+const ADDRESS_HINT = 'The command and the configuration below use this page\'s address, which the assistant must reach from its own computer: on your home network or through a VPN. If this address asks for a sign-in in the browser (Cloudflare Access, for example), open the app at its home-network address instead and create a new token there: both then use that address.'
 /** jsdom's page address, http://localhost:3000: plain HTTP. CreateAccessTokenDialog.https.test.tsx has the HTTPS one. */
 const ORIGIN = window.location.origin
 /** The whole secret, unlike the curl example's prefix, so the line runs as it is pasted (Vasyl, 2026-10-16). */
@@ -164,7 +172,7 @@ describe('CreateAccessTokenDialog', () => {
     expect(within(assistant).getByRole('button', { name: 'Copy the Claude Code command' })).toHaveTextContent('Copy')
   })
 
-  it('gives the Claude Desktop configuration through mcp-remote, the header without spaces and --allow-http on a plain-HTTP address', async () => {
+  it('gives the Claude Desktop configuration through the pinned mcp-remote, the header without spaces and --allow-http on a plain-HTTP address', async () => {
     // Arrange
     const { user } = renderDialog()
 
@@ -174,11 +182,12 @@ describe('CreateAccessTokenDialog', () => {
     // Assert
     const assistant = within(dialog).getByRole('region', { name: ASSISTANT_TITLE })
     const field = within(assistant).getByRole('textbox', { name: 'Claude Desktop' }) as HTMLTextAreaElement
+    // MAM-48 — the release checked live on 2026-10-21, never whatever npm has newest: the token passes through it.
     expect(JSON.parse(field.value)).toEqual({
       mcpServers: {
         mam: {
           command: 'npx',
-          args: ['-y', 'mcp-remote', `${ORIGIN}/mcp`, '--transport', 'http-only', '--allow-http', '--header', 'Authorization:${AUTH_HEADER}'],
+          args: ['-y', 'mcp-remote@0.15.2', `${ORIGIN}/mcp`, '--transport', 'http-only', '--allow-http', '--header', 'Authorization:${AUTH_HEADER}'],
           env: { AUTH_HEADER: `Bearer ${createdToken.secret}` },
         },
       },
@@ -189,6 +198,25 @@ describe('CreateAccessTokenDialog', () => {
     expect(field).toHaveAttribute('readonly')
     expect(field).toHaveAccessibleDescription(CLAUDE_DESKTOP_HINT)
     expect(within(assistant).getByRole('button', { name: 'Copy the Claude Desktop configuration' })).toHaveTextContent('Copy')
+  })
+
+  it('says above both lines that the assistant must reach this page\'s address from its own computer', async () => {
+    // Arrange
+    const { user } = renderDialog()
+
+    // Act
+    const dialog = await createWithDefaults(user)
+
+    // Assert
+    const assistant = within(dialog).getByRole('region', { name: ASSISTANT_TITLE })
+    const hint = within(assistant).getByText(ADDRESS_HINT)
+    expect(hint).toHaveClass('profile-note')
+    for (const name of ['Claude Code', 'Claude Desktop']) {
+      const field = within(assistant).getByRole('textbox', { name })
+      expect(hint.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      // Said once for both, not in either line's own hint.
+      expect(field).not.toHaveAccessibleDescription(ADDRESS_HINT)
+    }
   })
 
   it('says a Read only token\'s assistant reads but can\'t send', async () => {
@@ -215,6 +243,7 @@ describe('CreateAccessTokenDialog', () => {
     // Assert
     const assistant = within(dialog).getByRole('region', { name: ASSISTANT_TITLE })
     expect(within(assistant).queryByText(READ_ONLY_NOTE)).not.toBeInTheDocument()
+    expect(within(assistant).getByText(ADDRESS_HINT)).toBeInTheDocument()
     expect(within(assistant).getByRole('textbox', { name: 'Claude Code' })).toHaveValue(CLAUDE_CODE_LINE)
   })
 
