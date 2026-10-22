@@ -157,15 +157,15 @@ public sealed partial class ReplacementJobActions(
     // ── reads ───────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// The caller's replacement <paramref name="replacementJobId"/> with its release's title (the audit rows' name), or
-    /// <c>null</c>: another user's answers as none, as their download jobs do (ADR 0014). The download and the release
-    /// can't be gone while the job points at them (Restrict), so the joins lose no job.
+    /// The caller's replacement <paramref name="replacementJobId"/> with its release's name (the audit rows' name,
+    /// ReleaseEntity.Description's), or <c>null</c>: another user's answers as none, as their download jobs do (ADR 0014).
+    /// The download and the release can't be gone while the job points at them (Restrict), so the joins lose no job.
     /// </summary>
     private Task<OwnedJob?> FindOwnedAsync(Guid replacementJobId, Guid callerUserId, CancellationToken cancellationToken) =>
         (from replacement in db.ReplacementJobs.AsNoTracking().Where(job => job.Id == replacementJobId && job.RequestedByUserId == callerUserId)
          join download in db.DownloadJobs.AsNoTracking() on replacement.DownloadJobId equals download.Id
          join release in db.Releases.AsNoTracking() on download.ReleaseId equals release.Id
-         select new OwnedJob(replacement, release.Title))
+         select new OwnedJob(replacement, release.Description ?? release.Title))
         .SingleOrDefaultAsync(cancellationToken);
 
     /// <summary>The names of <paramref name="replacementJobId"/> in the quarantine now, videos first, then companions,
@@ -205,6 +205,6 @@ public sealed partial class ReplacementJobActions(
     private void LogMove(Guid replacementJobId, ReplacementJobState from, ReplacementJobState to) =>
         logger.LogInformation("Replacement job {ReplacementJobId} went from {From} to {To}.", replacementJobId, from, to);
 
-    /// <summary>One of the caller's replacements, as the request read it, with its release's title.</summary>
+    /// <summary>One of the caller's replacements, as the request read it, with its release's name.</summary>
     private sealed record OwnedJob(ReplacementJobEntity Replacement, string ReleaseTitle);
 }

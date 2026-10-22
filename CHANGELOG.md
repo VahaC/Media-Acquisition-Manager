@@ -588,6 +588,26 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `%APPDATA%\Claude\logs`); and, in the desktop app, where `/mcp` opens claude.ai's connector catalogue,
   asking Claude which `mam` tools it has, or the token's **Last used** on Profile, to see the
   connection.
+- **A job goes by its listing's description when the listing gave one — Toloka's whole title — and by
+  its title otherwise (Vasyl's report of 2026-10-22).** "Strip Cyrillic Letters", which Prowlarr's and
+  Jackett's Toloka apply, leaves a Ukrainian-only release's title as punctuation, and the Jobs page
+  listed two cartoons sent from Toloka as "' (2016) HDTV 1080p" and "WEB-DL 1080p (2013)". A job's
+  `releaseTitle` — the Jobs page and the job's own page, the Cancel and Keep both dialogs, MCP's
+  answers — and the audit rows written for the job and its replacement now carry the description,
+  "Сім'я (2016) HDTV 1080p" where the title was "' (2016) HDTV 1080p", and an English release reads
+  with its Ukrainian title first, "Бійцівський клуб / Fight Club (1999) …". It is read on every
+  request, so the jobs sent before read the same; a release stored before 0.2.1 has no description and
+  keeps its title, as do the audit rows already written. The Download dialog's title and its
+  **Release** line give the same name, and so does a release's row on the Search page, which is headed
+  by it and no longer shows the description again under it, nor the title (Vasyl's decision of
+  2026-10-22); its **Details** still show the title with the description under it, and what each was
+  read as. The release itself keeps the title it was listed with, which every reading of its quality
+  still reads
+  ([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)'s
+  MAM-30 section). `DownloadsListHttpTests.List_and_details_name_a_job_by_its_listings_description_when_the_listing_gave_one`,
+  `DownloadsSendHttpTests.Create_names_the_job_and_its_audit_row_by_the_listings_description_when_the_listing_gave_one`,
+  `ReplacementQuarantineFlowHttpTests.Flow_names_the_job_on_every_row_of_its_trail_by_the_listings_description_when_the_listing_gave_one`,
+  `release-name.test.ts`, `ReleaseRow.test.tsx` and `DownloadDialog.test.tsx` pin it.
 
 ### Notes for upgraders
 
@@ -669,7 +689,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   0.5.0, never 0.4.0 again; MAM-45 (built on 2026-10-16), MAM-46 (2026-10-17) and MAM-47
   (2026-10-20) keep that number, and Vasyl published 0.5.0 on 2026-10-20 at 17:24 UTC (Docker Hub's
   `0.5.0`, `0.5` and `latest`), built from commit 2593f91. MAM-48's fixes, under **Changed** above,
-  came after that image and are in 0.5.0 once it is published again, under the same number.
+  came after that image and are in 0.5.0 once it is published again, under the same number, as is the
+  jobs' name by the listing's description (2026-10-22).
 
 ## [0.4.0] — 2026-10-13
 

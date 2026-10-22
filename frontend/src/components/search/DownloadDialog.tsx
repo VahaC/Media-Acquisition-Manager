@@ -27,6 +27,7 @@ import {
   worksToConfirm,
   type ReplacementGroup,
 } from '@/lib/replacements'
+import { releaseName } from '@/lib/release-name'
 import { newRequestId } from '@/lib/request-id'
 import type {
   DownloadClientOption,
@@ -511,7 +512,7 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
           radios never move under the pointer. */}
       <DialogContent className={cn('settings-dialog', works.length > 0 && 'download-dialog-wide')}>
         <DialogHeader>
-          <DialogTitle className="search-details-title">{t('dialog.title', { title: release.title })}</DialogTitle>
+          <DialogTitle className="search-details-title">{t('dialog.title', { title: releaseName(release) })}</DialogTitle>
           <DialogDescription>{t('dialog.description')}</DialogDescription>
         </DialogHeader>
         {sent ? (
@@ -643,7 +644,7 @@ function SendSummary({ release, client, destination, copies }: {
         <dt>{t('summary.source')}</dt>
         <dd>{release.sourceName}</dd>
         <dt>{t('summary.release')}</dt>
-        <dd>{release.title}</dd>
+        <dd>{releaseName(release)}</dd>
         <dt>{t('summary.client')}</dt>
         <dd>{client?.name ?? notPicked}</dd>
         <dt>{t('summary.destination')}</dt>

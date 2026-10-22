@@ -43,6 +43,12 @@ public class ReleaseEntity : ProvenancedEntity
     /// and read to find the work in a metadata catalog; <c>null</c> when the listing gives none, and on
     /// every row stored before MAM-33.
     /// </summary>
+    /// <remarks>
+    /// Also the name a download job of the release goes by — on the Jobs page, in MCP's answers and on its
+    /// audit rows — when the listing gave one, and the title otherwise: "Strip Cyrillic Letters" leaves a
+    /// Ukrainian-only release's title as punctuation ("' (2016) HDTV 1080p" of "Сім'я (2016) HDTV 1080p"),
+    /// which named its jobs by nothing (ADR 0004). Read on every query, so it names old jobs too.
+    /// </remarks>
     [MaxLength(1000)]
     public string? Description { get; set; }
 

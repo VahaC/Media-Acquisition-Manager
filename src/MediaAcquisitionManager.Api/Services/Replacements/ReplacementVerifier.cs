@@ -70,10 +70,10 @@ public sealed partial class ReplacementVerifier(
     }
 
     /// <summary>
-    /// The replacements being checked, each with its download and its release's title (the audit rows' name); oldest
-    /// first, so a pass reads the same way every time. Filtered by the states inlined as constants: they are then
-    /// IX_ReplacementJobs_Verifying's own filter, which SQLite uses only for a query naming them. The release can't be
-    /// gone while a download points at it (Restrict), so the join loses no job.
+    /// The replacements being checked, each with its download and its release's name (the audit rows' name,
+    /// ReleaseEntity.Description's); oldest first, so a pass reads the same way every time. Filtered by the states inlined
+    /// as constants: they are then IX_ReplacementJobs_Verifying's own filter, which SQLite uses only for a query naming
+    /// them. The release can't be gone while a download points at it (Restrict), so the join loses no job.
     /// </summary>
     private async Task<List<VerifyingJob>> VerifyingAsync(CancellationToken cancellationToken) =>
         (await db.ReplacementJobs
@@ -88,7 +88,7 @@ public sealed partial class ReplacementVerifier(
                 db.Releases.AsNoTracking(),
                 row => row.Download.ReleaseId,
                 release => release.Id,
-                (row, release) => new { row.Replacement, row.Download, ReleaseTitle = release.Title })
+                (row, release) => new { row.Replacement, row.Download, ReleaseTitle = release.Description ?? release.Title })
             .OrderBy(row => row.Replacement.CreatedUtc)
             .ThenBy(row => row.Replacement.Id)
             .ToListAsync(cancellationToken))

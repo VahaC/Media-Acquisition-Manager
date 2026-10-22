@@ -131,6 +131,10 @@ export interface DownloadOverwriteCheckAnswer {
 export interface DownloadJob {
   id: string
   releaseId: string
+  /**
+   * The name the release goes by: its listing's description when the listing gave one — Toloka's whole
+   * title, where "Strip Cyrillic Letters" can leave the title as punctuation — else its title.
+   */
   releaseTitle: string
   sourceName: string
   downloadClientName: string

@@ -69,24 +69,30 @@ describe('ReleaseRow', () => {
     expect(screen.getByText('Source: Toloka').nextElementSibling).toBe(screen.getByRole('group', { name: 'Actions' }))
   })
 
-  it('shows the listing\'s own description right under the title when it gives one', () => {
-    // Arrange
+  it.each([
+    // A Ukrainian-only Toloka release, whose title "Strip Cyrillic Letters" left as punctuation.
+    ['\' (2016) HDTV 1080p', 'Сім\'я (2016) HDTV 1080p'],
     // MAM-33 — Toloka's topic title, where Prowlarr's title keeps the English part alone.
-    const release = releaseOf({
-      title: 'Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
-      description: 'Чужі / Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
-    })
+    [
+      'Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
+      'Чужі / Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
+    ],
+  ])('is headed by the listing\'s description when it gives one, with the title no more beside it: %s', (title, description) => {
+    // Arrange
+    const release = releaseOf({ title, description })
 
     // Act
-    renderRow(release)
+    const { row } = renderRow(release)
 
     // Assert
-    const description = screen.getByText(release.description!)
-    expect(description).toHaveClass('search-release-description')
-    expect(description.previousElementSibling).toBe(screen.getByRole('heading', { level: 3, name: release.title }))
+    expect(screen.getByRole('heading', { level: 3, name: description })).toBeInTheDocument()
+    expect(row).toHaveAccessibleName(description)
+    expect(screen.queryByText(title)).not.toBeInTheDocument()
+    expect(row.querySelector('.search-release-description')).toBeNull()
+    expect(screen.getByRole('heading', { level: 3 }).nextElementSibling).toBe(screen.getByRole('list', { name: 'Claimed' }))
   })
 
-  it('shows no description line when the listing gives none', () => {
+  it('is headed by the title, with no description line, when the listing gives none', () => {
     // Arrange
     const release = tolokaRemux
 

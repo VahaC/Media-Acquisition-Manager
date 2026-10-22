@@ -380,6 +380,18 @@ Recommendations do
 ([ADR 0012](0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)'s
 MAM-30 section).
 
+**The description names the job (added 2026-10-22, still 0.5.0).** The Jobs page named a job by the
+release's title alone, and listed two Ukrainian-only cartoons sent from Toloka as "' (2016) HDTV 1080p"
+and "WEB-DL 1080p (2013)" (Vasyl's report). A job now goes by its release's description when the
+listing gave one, and by its title otherwise — on the Jobs page and the job's page, in MCP's answers, on
+the audit rows of the job and its replacement, and in the Download dialog that sends it —, read on every
+request rather than copied onto the job, so the jobs sent before read the same. The description, not a
+test of whether the title kept a name: Toloka's description is always its whole title, and an English
+release then reads with its Ukrainian title first, as Toloka lists it. A release's row on the Search page
+is headed by the same name, without the title beside it (Vasyl's decision of the same day); its Details
+keep the title above the description, with what each was read as, and the title stays what the quality
+and the work are read from.
+
 **A Ukrainian-only show found nothing by search, and that is upstream.** MAM-29's `t=tvsearch` for
 «Розслідування з Андрієм Данілевичем» answered an empty channel through Jackett. Jackett's Toloka
 definition sends the phrase to Toloka's own search and filters nothing itself, stripping Cyrillic only

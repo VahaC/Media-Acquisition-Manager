@@ -6,8 +6,9 @@ import { ReleaseClaims } from '@/components/search/ReleaseClaims'
 import { ReleaseSourceLink } from '@/components/search/ReleaseSourceLink'
 import { Button } from '@/components/ui/button'
 import { formatDate, formatFileSize, formatNumber } from '@/lib/format'
+import { releaseName } from '@/lib/release-name'
 import type { LibraryMatch, SearchRelease } from '@/lib/types'
-import '@/styles/search.css' // .search-release* — the row, its title, its description, its corner and its foot
+import '@/styles/search.css' // .search-release* — the row, its title, its corner and its foot
 
 interface ReleaseRowProps {
   release: SearchRelease
@@ -25,8 +26,10 @@ interface ReleaseRowProps {
  * MAM-12 — one release a source listed for the search: its title, what the title claims about its
  * quality (ReleaseClaims), and — when it matches a copy in the library — a badge for the strongest
  * match, naming that copy, with any conflict. MAM-32 — a TV release says so in its claims, with the
- * seasons or episodes it claims, and its match how many of those episodes the library holds. MAM-33 —
- * under its title, the listing's own description when it gives one.
+ * seasons or episodes it claims, and its match how many of those episodes the library holds. Headed by
+ * the name it goes by (releaseName): the listing's own description when it gives one — Toloka's whole
+ * title, where the title can be punctuation alone (Vasyl's decision of 2026-10-22) —, with the title no
+ * more beside it; the Details dialog shows both.
  *
  * What the listing says sits in the top-right corner (Vasyl's layout of 2026-10-14): the seeders and
  * the peers, each saying on hover what it counts, the size under them and the publish date under
@@ -54,9 +57,7 @@ export function ReleaseRow({ release, library, onDetails, onDownload }: ReleaseR
     <article className="ui-card search-release" aria-labelledby={titleId}>
       <div className="search-release-top">
         <div className="search-release-body">
-          <h3 id={titleId} className="search-release-title">{release.title}</h3>
-          {/* MAM-33 — Toloka's own topic title, which names the work in Ukrainian too. */}
-          {release.description !== null && <p className="search-release-description">{release.description}</p>}
+          <h3 id={titleId} className="search-release-title">{releaseName(release)}</h3>
           <ReleaseClaims claimed={release.claimed} kind={release.kind} episodes={release.claimedWork.episodes} />
           {/* The strongest match only; Details lists every one. A work the search no longer lists
               (the library was synced since) leaves the badge out rather than naming nothing. */}

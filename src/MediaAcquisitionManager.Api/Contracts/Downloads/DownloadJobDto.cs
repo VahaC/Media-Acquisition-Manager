@@ -12,7 +12,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// </remarks>
 /// <param name="Id">The job's id.</param>
 /// <param name="ReleaseId">The release snapshot that was sent.</param>
-/// <param name="ReleaseTitle">Its title as listed.</param>
+/// <param name="ReleaseTitle">The name it goes by: its listing's description when the listing gave one — Toloka's whole
+/// title, where the title can be punctuation alone — else its title as listed (<c>ReleaseEntity.Description</c>).</param>
 /// <param name="SourceName">The source that listed it.</param>
 /// <param name="DownloadClientName">The download client it went to.</param>
 /// <param name="DestinationName">The destination it went to; <c>null</c> only for a job of an older

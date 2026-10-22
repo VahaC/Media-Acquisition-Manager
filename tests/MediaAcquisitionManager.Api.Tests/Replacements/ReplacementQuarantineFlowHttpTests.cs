@@ -192,6 +192,41 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
             await _harness.QuarantineAuditsAsync(cancellationToken));
     }
 
+    // Toloka's whole title comes in the listing's description, where "Strip Cyrillic Letters" leaves the title its English
+    // part alone (ADR 0004): the job is named by it on every row of its trail, as the Jobs page names it.
+    [Fact]
+    public async Task Flow_names_the_job_on_every_row_of_its_trail_by_the_listings_description_when_the_listing_gave_one()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        const string description = "Чужий / Alien (1979) Director's Cut BDRemux 2160p HDR";
+        var (job, replacement) = await VerifiedFilmAsync(cancellationToken, description);
+        await QuarantineAsync(cancellationToken);
+
+        //Act
+        using var response = await _factory.PostHttpRequest($"{BaseUrl}/{replacement.Id}/restore", _harness.Owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(description, job.ReleaseTitle);
+        var jobRows = (await _harness.ReplacementAuditsAsync(cancellationToken))
+            .Where(audit => audit.TargetKind == AuditTargetKind.ReplacementJob)
+            .Select(audit => (audit.Action, audit.TargetName))
+            .ToList();
+        // The schedule's, the verifier's, the mover's and Restore's.
+        Assert.Superset(
+            new HashSet<AuditAction>
+            {
+                AuditAction.ReplacementScheduled, AuditAction.ReplacementCheckStarted, AuditAction.ReplacementQuarantineStarted,
+                AuditAction.ReplacementQuarantined, AuditAction.ReplacementRestoreStarted, AuditAction.ReplacementRestored,
+            },
+            jobRows.Select(row => row.Action).ToHashSet());
+        Assert.All(jobRows, row => Assert.Equal(description, row.TargetName));
+        await _factory.WithDbAsync(async db => Assert.Equal(
+            description,
+            (await db.AuditEvents.AsNoTracking().SingleAsync(audit => audit.Action == AuditAction.DownloadRequested, cancellationToken)).TargetName));
+    }
+
     // ── moved, then deleted for good ────────────────────────────────────────────────────────────
 
     [Fact]
@@ -471,11 +506,12 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
 
     /// <summary>
     /// The owner's replacement of Alien's theatrical cut by the Director's Cut release, verified: the new film downloaded
-    /// to the Movies category's folder, on the disk, and identified by Jellyfin as Alien.
+    /// to the Movies category's folder, on the disk, and identified by Jellyfin as Alien. Listed with the
+    /// <paramref name="description"/> given.
     /// </summary>
-    private async Task<(DownloadJobDto Job, ReplacementJobEntity Replacement)> VerifiedFilmAsync(CancellationToken cancellationToken)
+    private async Task<(DownloadJobDto Job, ReplacementJobEntity Replacement)> VerifiedFilmAsync(CancellationToken cancellationToken, string? description = null)
     {
-        var release = await _harness.FindAsync("Alien", 1979, AlienRelease, imdbId: AlienImdbId);
+        var release = await _harness.FindAsync("Alien", 1979, AlienRelease, imdbId: AlienImdbId, description: description);
         var job = await _harness.VerifiedAsync(
             release,
             _harness.Movies,

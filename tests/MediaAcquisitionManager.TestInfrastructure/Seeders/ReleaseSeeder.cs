@@ -37,7 +37,8 @@ public sealed class ReleaseSeeder(IServiceProvider services) : SeederBase(servic
         string? sourceItemId = null,
         string? infoHash = null,
         ReleasePayloadKind? payloadKind = null,
-        string? categoryIds = null)
+        string? categoryIds = null,
+        string? description = null)
     {
         var search = await Searches.Create(user.Id);
         var searchSource = await Searches.AddSource(search.Id, source.Id, source.Name);
@@ -54,7 +55,8 @@ public sealed class ReleaseSeeder(IServiceProvider services) : SeederBase(servic
             sourceItemId ?? $"https://toloka.to/t{Guid.NewGuid():N}",
             infoHash,
             payloadKind,
-            categoryIds);
+            categoryIds,
+            description: description);
     }
 
     public async Task<ReleaseEntity> CreateFoundBySearch(

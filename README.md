@@ -523,9 +523,10 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
   ([ADR 0020](docs/adr/0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md));
   a film Toloka files in TV/Anime or TV/Documentary is a movie release unless its title or
   description names seasons or episodes, and the movie search asks those categories too. Each
-  release shows its source's own title under its own when the listing gives one — Toloka's topic
-  title, Ukrainian first. Each source answers for itself, so one that fails says why beside the
-  others' releases. The
+  release is headed by its source's own title when the listing gives one — Toloka's topic title,
+  Ukrainian first, as a Ukrainian-only release's title is punctuation alone after "Strip Cyrillic
+  Letters" —, and by its title otherwise; its **Details** show both. Each source answers for itself,
+  so one that fails says why beside the others' releases. The
   server filters by source, kind (movies or TV), audio language, quality and size, sorts by seeders,
   size, date or quality, and pages; the search is stored for a day, so a filter, a page or a reload
   never asks the sources again
@@ -614,8 +615,10 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
   decisions of 2026-10-12): **Needs you** (a job that needs linking, or whose replacement stopped
   for review, waits in the quarantine, or is verified while replacement is switched off), **In
   progress** (a download still followed, or a replacement the app still checks or moves), **Finished**
-  and **All**, the tab kept in the address. Each row has the release, with where it went and when
-  under it; its status in a word, with a bar of its progress while it is followed and, when it isn't
+  and **All**, the tab kept in the address. Each row has the release — by its listing's description
+  when the listing gave one, Toloka's whole title, Ukrainian first, as a Ukrainian-only release's title
+  is punctuation alone after "Strip Cyrillic Letters", and by its title otherwise —, with where it went
+  and when under it; its status in a word, with a bar of its progress while it is followed and, when it isn't
   moving on, why, cut at two lines; for the owner, where its replacement stands in a few words; and
   only verbs under **Actions**. A chevron before the title opens, under the row, the whole sentences,
   the replacement's old copies, the source, the client's id and a link to the job's page. A job's

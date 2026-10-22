@@ -112,6 +112,36 @@ public sealed class DownloadsListHttpTests : IClassFixture<MediaAcquisitionManag
         await AssertUnchangedAsync(before, cancellationToken);
     }
 
+    // Toloka's whole title comes in the listing's description; "Strip Cyrillic Letters" leaves a Ukrainian-only one's
+    // title as punctuation, and an English one's with its English part alone (ADR 0004).
+    [Fact]
+    public async Task List_and_details_name_a_job_by_its_listings_description_when_the_listing_gave_one()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var ukrainianOnly = await PlantAsync(_member, "' (2016) HDTV 1080p", DownloadJobStatus.Downloading, description: "Сім'я (2016) HDTV 1080p");
+        var both = await PlantAsync(
+            _member,
+            "Fight Club (1999) BDRip 1080p H.265 4xUkr/Eng | Sub Ukr/Eng",
+            DownloadJobStatus.Downloaded,
+            description: "Бійцівський клуб / Fight Club (1999) BDRip 1080p H.265 4xUkr/Eng | Sub Ukr/Eng");
+        var titleOnly = await PlantAsync(_member, "Alien (1979)", DownloadJobStatus.Submitted);
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, _member.AccessToken);
+
+        //Assert
+        var list = await ReadListAsync(response, cancellationToken);
+        Assert.Equal(
+            [
+                (titleOnly.Id, "Alien (1979)"),
+                (both.Id, "Бійцівський клуб / Fight Club (1999) BDRip 1080p H.265 4xUkr/Eng | Sub Ukr/Eng"),
+                (ukrainianOnly.Id, "Сім'я (2016) HDTV 1080p"),
+            ],
+            list.Items.Select(job => (job.Id, job.ReleaseTitle)));
+        Assert.Equal("Сім'я (2016) HDTV 1080p", (await ReadJobAsync(ukrainianOnly.Id, _member, cancellationToken)).ReleaseTitle);
+    }
+
     [Fact]
     public async Task List_of_the_installation_owner_holds_only_their_own_jobs()
     {
@@ -326,14 +356,21 @@ public sealed class DownloadsListHttpTests : IClassFixture<MediaAcquisitionManag
     /// <summary>
     /// A job of <paramref name="user"/>'s that sent a release titled <paramref name="title"/> to qBittorrent's
     /// Movies, as a pass left it; a second later than the one before unless <paramref name="advance"/> is
-    /// <c>false</c>. Its client id is a hash of its own (<see cref="Hash"/>).
+    /// <c>false</c>. Its client id is a hash of its own (<see cref="Hash"/>). The listing's <paramref name="description"/>
+    /// when given.
     /// </summary>
     private async Task<DownloadJobEntity> PlantAsync(
-        AuthorizedUser user, string title, DownloadJobStatus status, double? progress = null, Message? blockReason = null, bool advance = true)
+        AuthorizedUser user,
+        string title,
+        DownloadJobStatus status,
+        double? progress = null,
+        Message? blockReason = null,
+        bool advance = true,
+        string? description = null)
     {
         if (advance)
             _factory.Time.Advance(TimeSpan.FromSeconds(1));
-        var release = await _releases.CreateFound(user.User, _toloka, title);
+        var release = await _releases.CreateFound(user.User, _toloka, title, description: description);
         var hash = Convert.ToHexStringLower(Guid.NewGuid().ToByteArray()).PadRight(40, '0');
         return await Jobs().Create(
             release.Id,

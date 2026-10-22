@@ -591,7 +591,7 @@ public sealed class DownloadService(
             .SingleOrDefaultAsync(client => client.Id == downloadClientId && client.Kind == IntegrationKind.DownloadClient, cancellationToken);
 
     /// <summary>The job <paramref name="callerUserId"/>'s request <paramref name="requestId"/> made, with its
-    /// release's title and source.</summary>
+    /// release's name and source.</summary>
     private Task<JobRow?> FindRequestAsync(Guid callerUserId, Guid requestId, CancellationToken cancellationToken) =>
         JobRows(job => job.RequestedByUserId == callerUserId && job.RequestId == requestId).SingleOrDefaultAsync(cancellationToken);
 
@@ -601,7 +601,8 @@ public sealed class DownloadService(
             : null;
 
     /// <summary>
-    /// The jobs <paramref name="which"/> picks, each with its release's title and source — and (MAM-24) the replacement
+    /// The jobs <paramref name="which"/> picks, each with the name its release goes by — the listing's description when it
+    /// gave one, else the title (<see cref="ReleaseEntity.Description"/>) — and its source, and (MAM-24) the replacement
     /// it carries, if any, by a left join: one per job, by its unique index. Filtered before the joins: EF Core can't see
     /// through the <see cref="JobRow"/> it projects into, so a filter on the row after it fails to translate. The release
     /// can't be gone while a job points at it (Restrict), so the inner join loses no job.
@@ -610,7 +611,7 @@ public sealed class DownloadService(
         from job in db.DownloadJobs.AsNoTracking().Where(which)
         join release in db.Releases.AsNoTracking() on job.ReleaseId equals release.Id
         from replacement in db.ReplacementJobs.AsNoTracking().Where(replacement => replacement.DownloadJobId == job.Id).DefaultIfEmpty()
-        select new JobRow(job, release.Title, release.SourceName, replacement);
+        select new JobRow(job, release.Description ?? release.Title, release.SourceName, replacement);
 
     /// <summary>
     /// The answer to a request id sent again: its job when it asks for what the job was made for, a refusal
@@ -792,9 +793,11 @@ public sealed class DownloadService(
             CreatedUtc = now,
         };
         db.DownloadJobs.Add(job);
-        // One row per request, whatever the sending makes of it: who asked for which release to go where.
-        auditTrail.Record(AuditAction.DownloadRequested, actor, AuditTarget.DownloadJob(job, release.Title));
-        var scheduled = plan is null ? null : AddReplacement(job, plan, actor, release.Title, now);
+        // One row per request, whatever the sending makes of it: who asked for which release to go where, by the name the
+        // Jobs page gives the job (ReleaseEntity.Description).
+        var releaseName = release.Description ?? release.Title;
+        auditTrail.Record(AuditAction.DownloadRequested, actor, AuditTarget.DownloadJob(job, releaseName));
+        var scheduled = plan is null ? null : AddReplacement(job, plan, actor, releaseName, now);
 
         try
         {
@@ -967,7 +970,7 @@ public sealed class DownloadService(
             .Select(user => new AuditActor(user.Id, user.UserName))
             .SingleAsync(cancellationToken);
 
-    /// <summary>A job with its release's title and source, and (MAM-24) the replacement it carries, read together.</summary>
+    /// <summary>A job with its release's name and source, and (MAM-24) the replacement it carries, read together.</summary>
     private sealed record JobRow(DownloadJobEntity Job, string ReleaseTitle, string? SourceName, ReplacementJobEntity? Replacement);
 
     /// <summary>MAM-26 — one name a replacement's move planned, with only what the Jobs line counts of it.</summary>

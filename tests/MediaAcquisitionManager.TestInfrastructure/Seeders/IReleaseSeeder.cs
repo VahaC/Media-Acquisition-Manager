@@ -25,7 +25,7 @@ public interface IReleaseSeeder
     /// source's own feed carrying the API key placeholder and a planted <c>link=</c> token — the shape the
     /// Torznab adapter stores, which a <c>FakeTorznabServer</c> at the source's address answers with its
     /// .torrent. MAM-32 — listed in <paramref name="categoryIds"/>, comma-separated as the release store
-    /// keeps them, or in none.
+    /// keeps them, or in none. With the listing's <paramref name="description"/>, which names its job when given.
     /// </summary>
     Task<ReleaseEntity> CreateFound(
         UserEntity user,
@@ -35,7 +35,8 @@ public interface IReleaseSeeder
         string? sourceItemId = null,
         string? infoHash = null,
         ReleasePayloadKind? payloadKind = null,
-        string? categoryIds = null);
+        string? categoryIds = null,
+        string? description = null);
 
     /// <summary>
     /// MAM-24 — a release titled <paramref name="title"/>, listed as <paramref name="kind"/> with the IMDb and TMDb ids

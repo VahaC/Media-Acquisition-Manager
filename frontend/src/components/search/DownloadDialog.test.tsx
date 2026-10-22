@@ -5,7 +5,7 @@ import { DownloadDialog } from '@/components/search/DownloadDialog'
 import { downloadsApi } from '@/lib/downloads-api'
 import { qk } from '@/lib/queries'
 import { replacementsApi } from '@/lib/replacements-api'
-import type { CurrentUser, DownloadClientOption, DownloadJob, DownloadOptions, DownloadOverwriteCheckAnswer } from '@/lib/types'
+import type { CurrentUser, DownloadClientOption, DownloadJob, DownloadOptions, DownloadOverwriteCheckAnswer, SearchRelease } from '@/lib/types'
 import { apiError, networkError } from '@/test/api-error'
 import { member, signInAs } from '@/test/auth-session'
 import {
@@ -21,7 +21,7 @@ import {
   transmissionClient,
 } from '@/test/downloads'
 import { optionsUnavailable } from '@/test/replacements'
-import { tolokaRemux } from '@/test/search'
+import { releaseOf, tolokaRemux } from '@/test/search'
 
 vi.mock('@/lib/downloads-api')
 // MAM-24 — the owner's copies: never asked here, where a member sends; the owner's Replace is in
@@ -31,19 +31,19 @@ vi.mock('@/lib/replacements-api')
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 /**
- * The dialog for the Toloka release, signed in as `user`: a member by default, who may send but never
- * replace (MAM-24), so the owner's read of the copies is never asked.
+ * The dialog for the Toloka release (or `release`), signed in as `user`: a member by default, who may
+ * send but never replace (MAM-24), so the owner's read of the copies is never asked.
  */
-function renderDialog({ user = member }: { user?: CurrentUser } = {}) {
+function renderDialog({ user = member, release = tolokaRemux }: { user?: CurrentUser, release?: SearchRelease } = {}) {
   signInAs(user)
   const onClose = vi.fn()
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <DownloadDialog release={tolokaRemux} onClose={onClose} />
+      <DownloadDialog release={release} onClose={onClose} />
     </QueryClientProvider>,
   )
-  return { client, onClose, user: userEvent.setup(), dialog: screen.getByRole('dialog', { name: `Download ${tolokaRemux.title}` }) }
+  return { client, onClose, user: userEvent.setup(), dialog: screen.getByRole('dialog') }
 }
 
 const clientSelect = (dialog: HTMLElement) => within(dialog).getByRole('combobox', { name: 'Download client' })
@@ -106,6 +106,20 @@ describe('DownloadDialog', () => {
     expect(dialog).toHaveAccessibleName(`Download ${release.title}`)
     expect(dialog).toHaveAccessibleDescription(
       'Send this release to a download client. The destination decides where it lands.')
+  })
+
+  it('is named, and sums up the release, by the listing\'s description when it gave one: the name its job goes by', async () => {
+    // Arrange
+    // A Ukrainian-only Toloka release, whose title "Strip Cyrillic Letters" left as punctuation.
+    const release = releaseOf({ title: '\' (2016) HDTV 1080p', description: 'Сім\'я (2016) HDTV 1080p' })
+
+    // Act
+    const { dialog } = renderDialog({ release })
+    await optionsLoaded(dialog)
+
+    // Assert
+    expect(dialog).toHaveAccessibleName('Download Сім\'я (2016) HDTV 1080p')
+    expect(summary(dialog)).toContainEqual(['Release', 'Сім\'я (2016) HDTV 1080p'])
   })
 
   it('says it is loading while the download clients are on their way, with Send disabled', async () => {

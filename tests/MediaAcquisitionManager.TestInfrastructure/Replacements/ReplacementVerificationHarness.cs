@@ -332,9 +332,10 @@ public sealed class ReplacementVerificationHarness
     // ── the download ────────────────────────────────────────────────────────────────────────────
 
     /// <summary>A release titled <paramref name="title"/> the owner's search for <paramref name="searchText"/> of
-    /// <paramref name="year"/> found through Toloka, with the IMDb id given.</summary>
-    public Task<ReleaseEntity> FindAsync(string searchText, int year, string title, ReleaseKind kind = ReleaseKind.Movie, string? imdbId = null) =>
-        new ReleaseSeeder(_factory.Scope).CreateFoundBySearch(Owner.User, Toloka, searchText, year, title, kind, imdbId: imdbId);
+    /// <paramref name="year"/> found through Toloka, with the IMDb id and the listing's <paramref name="description"/> given.</summary>
+    public Task<ReleaseEntity> FindAsync(
+        string searchText, int year, string title, ReleaseKind kind = ReleaseKind.Movie, string? imdbId = null, string? description = null) =>
+        new ReleaseSeeder(_factory.Scope).CreateFoundBySearch(Owner.User, Toloka, searchText, year, title, kind, imdbId: imdbId, description: description);
 
     /// <summary>
     /// The owner schedules the replacement of the copies at <paramref name="tickedPaths"/> by <paramref name="release"/>

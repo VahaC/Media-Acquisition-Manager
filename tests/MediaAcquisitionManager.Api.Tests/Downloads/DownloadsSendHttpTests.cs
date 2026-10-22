@@ -539,6 +539,31 @@ public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManag
         });
     }
 
+    // A Ukrainian-only Toloka release: "Strip Cyrillic Letters" left its title as punctuation, and the listing's
+    // description keeps Toloka's whole title (ADR 0004).
+    [Fact]
+    public async Task Create_names_the_job_and_its_audit_row_by_the_listings_description_when_the_listing_gave_one()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var release = await _releases.CreateFound(_owner.User, _toloka, title: "' (2016) HDTV 1080p", description: "Сім'я (2016) HDTV 1080p");
+
+        //Act
+        var response = await SendAsync(_owner, release);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var job = await ReadJobAsync(response, cancellationToken);
+        Assert.Equal("Сім'я (2016) HDTV 1080p", job.ReleaseTitle);
+        await _factory.WithDbAsync(async db =>
+        {
+            var audit = await db.AuditEvents.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.Equal((AuditAction.DownloadRequested, job.Id, "Сім'я (2016) HDTV 1080p"), (audit.Action, audit.TargetId, audit.TargetName));
+            // The release keeps what its listing said.
+            Assert.Equal("' (2016) HDTV 1080p", (await db.Releases.AsNoTracking().SingleAsync(row => row.Id == release.Id, cancellationToken)).Title);
+        });
+    }
+
     [Fact]
     public async Task Create_logs_who_sent_the_release_and_how_its_job_ended()
     {
@@ -580,7 +605,9 @@ public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManag
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var job = await ReadJobAsync(response, cancellationToken);
         Assert.Equal(found.Id, job.ReleaseId);
-        Assert.Equal(found.Title, job.ReleaseTitle);
+        // Named by the listing's description, Toloka's whole title, Ukrainian first, which the recorded answer gives.
+        Assert.StartsWith("Інтерстеллар / Interstellar (2014)", found.Description, StringComparison.Ordinal);
+        Assert.Equal(found.Description, job.ReleaseTitle);
         Assert.Equal("Toloka", job.SourceName);
         Assert.Equal(DownloadJobStatus.Submitted, job.Status);
         Assert.Equal(SampleInfoHash, job.ClientJobId);

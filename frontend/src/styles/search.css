@@ -262,8 +262,8 @@
   overflow-wrap: anywhere;
 }
 
-/* MAM-33 — the listing's own description under its title (Toloka's topic title, Ukrainian first), here
-   and in the Details dialog's header: muted, and breaking anywhere as the title does. Not
+/* MAM-33 — the listing's own description under its title (Toloka's topic title, Ukrainian first), in
+   the Details dialog's header: muted, and breaking anywhere as the title does. Not
    `.settings-muted`, which never breaks a long word, nor `.library-file-facts`, a row of short facts. */
 .search-release-description {
   color: var(--muted-foreground);

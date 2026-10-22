@@ -151,9 +151,9 @@ public sealed partial class ReplacementQuarantiner(
     }
 
     /// <summary>
-    /// <paramref name="jobs"/>, each with its download and its release's title (the audit rows' name); oldest first, so a
-    /// pass reads the same way every time. The release can't be gone while a download points at it (Restrict), so the
-    /// join loses no job.
+    /// <paramref name="jobs"/>, each with its download and its release's name (the audit rows' name,
+    /// ReleaseEntity.Description's); oldest first, so a pass reads the same way every time. The release can't be gone while
+    /// a download points at it (Restrict), so the join loses no job.
     /// </summary>
     private async Task<List<QuarantineJob>> WithTitlesAsync(IQueryable<ReplacementJobEntity> jobs, CancellationToken cancellationToken) =>
         (await jobs
@@ -166,7 +166,7 @@ public sealed partial class ReplacementQuarantiner(
                 db.Releases.AsNoTracking(),
                 row => row.Download.ReleaseId,
                 release => release.Id,
-                (row, release) => new { row.Replacement, row.Download, ReleaseTitle = release.Title })
+                (row, release) => new { row.Replacement, row.Download, ReleaseTitle = release.Description ?? release.Title })
             .OrderBy(row => row.Replacement.CreatedUtc)
             .ThenBy(row => row.Replacement.Id)
             .ToListAsync(cancellationToken))
